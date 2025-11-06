@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "OwnPlanner.Mcp.StdioApp": {
+      "commandName": "Project"
+    },
+    "Container (Dockerfile)": {
+      "commandName": "Docker"
+    }
+  }
+}

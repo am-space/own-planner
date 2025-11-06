@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "OwnPlanner.App": {
+      "commandName": "Project"
+    },
+    "Container (Dockerfile)": {
+      "commandName": "Docker"
+    }
+  }
+}
