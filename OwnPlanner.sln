@@ -23,6 +23,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OwnPlanner.Application.Test
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OwnPlanner.Infrastructure.Tests", "OwnPlanner.Infrastructure.Tests\OwnPlanner.Infrastructure.Tests.csproj", "{349423D9-E293-48FE-9260-38FB2CAB2FE7}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OwnPlanner.Console", "OwnPlanner.Console\OwnPlanner.Console.csproj", "{EFAE28A0-E91D-42F5-9338-081CADBEB497}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -57,6 +59,10 @@ Global
 		{349423D9-E293-48FE-9260-38FB2CAB2FE7}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{349423D9-E293-48FE-9260-38FB2CAB2FE7}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{349423D9-E293-48FE-9260-38FB2CAB2FE7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EFAE28A0-E91D-42F5-9338-081CADBEB497}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EFAE28A0-E91D-42F5-9338-081CADBEB497}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EFAE28A0-E91D-42F5-9338-081CADBEB497}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EFAE28A0-E91D-42F5-9338-081CADBEB497}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -69,6 +75,7 @@ Global
 		{AFC178BD-ADB9-4041-9676-BF829FF17E16} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{D882FFFF-8843-496C-91FB-C9D568550EA9} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{349423D9-E293-48FE-9260-38FB2CAB2FE7} = {0332601B-A2EB-46B2-9025-ECBA29CB90B4}
+		{EFAE28A0-E91D-42F5-9338-081CADBEB497} = {EF918898-108B-4B32-9F82-9C7A9399B274}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {491CCADD-EE59-4FBE-BF74-C120D73855B6}
