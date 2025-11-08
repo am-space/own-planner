@@ -4,7 +4,7 @@ This document provides a reference for all available MCP tools in OwnPlanner.
 
 ## TaskList Tools
 
-### CreateTaskList
+### tasklist_list_create
 Create a new task list.
 
 **Parameters:**
@@ -21,19 +21,19 @@ Create a new task list.
 }
 ```
 
-### GetTaskList
+### tasklist_list_get
 Get a task list by ID.
 
 **Parameters:**
 - `id` (Guid, required) - The ID of the task list
 
-### ListTaskLists
+### tasklist_list_all
 List all task lists.
 
 **Parameters:**
 - `includeArchived` (bool, optional, default: false) - Include archived lists
 
-### UpdateTaskList
+### tasklist_list_update
 Update a task list's properties.
 
 **Parameters:**
@@ -42,33 +42,36 @@ Update a task list's properties.
 - `description` (string, optional) - New description
 - `color` (string, optional) - New color
 
-### ArchiveTaskList
+### tasklist_list_archive
 Archive a task list.
 
 **Parameters:**
 - `id` (Guid, required) - The ID of the task list
 
-### UnarchiveTaskList
+### tasklist_list_unarchive
 Unarchive a task list.
 
 **Parameters:**
 - `id` (Guid, required) - The ID of the task list
 
-### DeleteTaskList
-Delete a task list. Tasks in the list will be orphaned (moved to no list).
+### tasklist_list_delete
+Delete a task list.
 
 **Parameters:**
 - `id` (Guid, required) - The ID of the task list
+
+**Note:** This will fail if there are tasks assigned to this list. You must reassign or delete all tasks in the list before deleting the list.
 
 ---
 
 ## TaskItem Tools
 
-### CreateTask
+### taskitem_item_create
 Create a new task.
 
 **Parameters:**
 - `title` (string, required) - The title of the task
+- `taskListId` (Guid, required) - The ID of the task list to assign this task to
 - `description` (string, optional) - Description of the task
 - `dueAt` (string, optional) - Due date in ISO format
 
@@ -76,66 +79,67 @@ Create a new task.
 ```json
 {
   "title": "Buy milk",
+  "taskListId": "12345678-1234-1234-1234-123456789012",
   "description": "Get 2% milk from the store",
-  "dueAt": "2025-11-08T18:00:00Z"
+"dueAt": "2025-11-08T18:00:00Z"
 }
 ```
 
-### GetTask
+### taskitem_item_get
 Get a task by ID.
 
 **Parameters:**
 - `id` (Guid, required) - The ID of the task
 
-### ListTasks
+### taskitem_item_list_all
 List all tasks.
 
 **Parameters:**
 - `includeCompleted` (bool, optional, default: true) - Include completed tasks
 
-### ListTasksByList
+### taskitem_list_items
 List tasks by task list ID.
 
 **Parameters:**
-- `taskListId` (string, optional) - The ID of the task list (null for tasks without a list)
+- `taskListId` (Guid, required) - The ID of the task list
 - `includeCompleted` (bool, optional, default: true) - Include completed tasks
 
-**Example to get orphaned tasks:**
+**Example:**
 ```json
 {
-  "taskListId": null,
+  "taskListId": "12345678-1234-1234-1234-123456789012",
   "includeCompleted": true
 }
 ```
 
-### AssignTaskToList
-Assign a task to a list.
+### taskitem_item_assign
+Assign a task to a different list.
 
 **Parameters:**
 - `taskId` (Guid, required) - The ID of the task
-- `taskListId` (string, optional) - The ID of the task list (null to unassign)
+- `taskListId` (Guid, required) - The ID of the task list to assign to
 
-**Example to unassign:**
+**Example:**
 ```json
 {
   "taskId": "12345678-1234-1234-1234-123456789012",
-  "taskListId": null
+  "taskListId": "87654321-4321-4321-4321-210987654321"
 }
 ```
 
-### CompleteTask
+### taskitem_item_complete
 Mark a task as complete.
 
 **Parameters:**
 - `id` (Guid, required) - The ID of the task
 
-### ReopenTask
+### taskitem_item_reopen
 Reopen a completed task.
 
 **Parameters:**
 - `id` (Guid, required) - The ID of the task
 
-### DeleteTask
+### taskitem_item_delete
 Delete a task.
 
 **Parameters:**
@@ -146,18 +150,16 @@ Delete a task.
 ## Typical Workflows
 
 ### Create a Shopping List with Tasks
-1. Create a list: `CreateTaskList("Shopping", "Weekly groceries", "#00FF00")`
-2. Create tasks: `CreateTask("Buy milk")`, `CreateTask("Buy bread")`
-3. Assign tasks: `AssignTaskToList(taskId, listId)`
+1. Create a list: `tasklist_list_create("Shopping", "Weekly groceries", "#00FF00")`
+2. Create tasks with the list ID: `taskitem_item_create("Buy milk", listId)`, `taskitem_item_create("Buy bread", listId)`
 
 ### View All Tasks in a List
-1. Get the list ID: `ListTaskLists()`
-2. Get tasks: `ListTasksByList(listId, false)` // Active tasks only
+1. Get the list ID: `tasklist_list_all()`
+2. Get tasks: `taskitem_list_items(listId, false)` // Active tasks only
 
 ### Archive Completed Lists
-1. Complete all tasks in list: `CompleteTask(taskId)`
-2. Archive the list: `ArchiveTaskList(listId)`
+1. Complete all tasks in list: `taskitem_item_complete(taskId)`
+2. Archive the list: `tasklist_list_archive(listId)`
 
-### Work with "Inbox" Tasks
-- List tasks without a list: `ListTasksByList(null, false)`
-- Move task to a list: `AssignTaskToList(taskId, listId)`
+### Reassign a Task to Another List
+- Move task to a different list: `taskitem_item_assign(taskId, newListId)`
