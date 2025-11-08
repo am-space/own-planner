@@ -67,4 +67,52 @@ public class TaskItemRepositoryTests
 		var ordered = await repo.ListAsync(true);
 		ordered.First().Id.Should().Be(a.Id);
 	}
+
+	[Fact]
+	public async Task ListByTaskList_Filters_By_TaskListId()
+	{
+		using var db = CreateDb(out var conn);
+		await using var _ = conn;
+		var taskRepo = new TaskItemRepository(db);
+		var listRepo = new TaskListRepository(db);
+
+		var list1 = new TaskList("List 1");
+		var list2 = new TaskList("List 2");
+		await listRepo.AddAsync(list1);
+		await listRepo.AddAsync(list2);
+
+		var task1 = new TaskItem("Task in List 1");
+		task1.AssignToList(list1.Id);
+		var task2 = new TaskItem("Task in List 2");
+		task2.AssignToList(list2.Id);
+		var task3 = new TaskItem("Task without list");
+		var task4 = new TaskItem("Another task in List 1");
+		task4.AssignToList(list1.Id);
+		task4.Complete();
+
+		await taskRepo.AddAsync(task1);
+		await taskRepo.AddAsync(task2);
+		await taskRepo.AddAsync(task3);
+		await taskRepo.AddAsync(task4);
+
+		// Get tasks for list1 including completed
+		var list1Tasks = await taskRepo.ListByTaskListAsync(list1.Id, true);
+		list1Tasks.Should().HaveCount(2);
+		list1Tasks.Should().OnlyContain(t => t.TaskListId == list1.Id);
+
+		// Get tasks for list1 excluding completed
+		var list1ActiveTasks = await taskRepo.ListByTaskListAsync(list1.Id, false);
+		list1ActiveTasks.Should().HaveCount(1);
+		list1ActiveTasks.First().Id.Should().Be(task1.Id);
+
+		// Get tasks for list2
+		var list2Tasks = await taskRepo.ListByTaskListAsync(list2.Id, true);
+		list2Tasks.Should().HaveCount(1);
+		list2Tasks.First().Id.Should().Be(task2.Id);
+
+		// Get tasks without a list (null TaskListId)
+		var orphanedTasks = await taskRepo.ListByTaskListAsync(null, true);
+		orphanedTasks.Should().HaveCount(1);
+		orphanedTasks.First().Id.Should().Be(task3.Id);
+	}
 }

@@ -8,7 +8,7 @@ namespace OwnPlanner.Application.Tests.Tasks;
 
 public class TaskListServiceTests
 {
-	private readonly ITaskItemRepository _repo = Substitute.For<ITaskItemRepository>();
+	private readonly ITaskListRepository _repo = Substitute.For<ITaskListRepository>();
 	private readonly ITaskListService _svc;
 
 	public TaskListServiceTests() => _svc = new TaskListService(_repo);
@@ -16,41 +16,72 @@ public class TaskListServiceTests
 	[Fact]
 	public async Task CreateAsync_Adds_And_Maps()
 	{
-		TaskItem? captured = null;
-		_repo.AddAsync(Arg.Do<TaskItem>(x => captured = x), Arg.Any<CancellationToken>())
-		.Returns(Task.CompletedTask);
+		TaskList? captured = null;
+		_repo.AddAsync(Arg.Do<TaskList>(x => captured = x), Arg.Any<CancellationToken>())
+			.Returns(Task.CompletedTask);
 
-		var dto = await _svc.CreateAsync("title", "desc");
+		var dto = await _svc.CreateAsync("Shopping List", "Weekly groceries", "#FF5733");
 
-		await _repo.Received(1).AddAsync(Arg.Any<TaskItem>(), Arg.Any<CancellationToken>());
-		dto.Title.Should().Be("title");
-		dto.Description.Should().Be("desc");
+		await _repo.Received(1).AddAsync(Arg.Any<TaskList>(), Arg.Any<CancellationToken>());
+		dto.Title.Should().Be("Shopping List");
+		dto.Description.Should().Be("Weekly groceries");
+		dto.Color.Should().Be("#FF5733");
+		dto.IsArchived.Should().BeFalse();
 		captured.Should().NotBeNull();
 		dto.Id.Should().Be(captured!.Id);
 	}
 
 	[Fact]
-	public async Task CompleteAsync_Gets_Updates()
+	public async Task ArchiveAsync_Gets_Updates()
 	{
 		var id = Guid.NewGuid();
-		var item = new TaskItem("x");
-		_repo.GetAsync(id, Arg.Any<CancellationToken>()).Returns(item);
+		var taskList = new TaskList("Test List");
+		_repo.GetAsync(id, Arg.Any<CancellationToken>()).Returns(taskList);
 
-		await _svc.CompleteAsync(id);
+		await _svc.ArchiveAsync(id);
 
-		item.IsCompleted.Should().BeTrue();
-		await _repo.Received(1).UpdateAsync(item, Arg.Any<CancellationToken>());
+		taskList.IsArchived.Should().BeTrue();
+		await _repo.Received(1).UpdateAsync(taskList, Arg.Any<CancellationToken>());
 	}
 
 	[Fact]
-	public async Task ListAsync_Maps_Items()
+	public async Task UnarchiveAsync_Gets_Updates()
 	{
-		var items = new[] { new TaskItem("a"), new TaskItem("b") }.ToList();
-		_repo.ListAsync(true, Arg.Any<CancellationToken>()).Returns(items);
+		var id = Guid.NewGuid();
+		var taskList = new TaskList("Test List");
+		taskList.Archive();
+		_repo.GetAsync(id, Arg.Any<CancellationToken>()).Returns(taskList);
 
-		var list = await _svc.ListAsync(true);
+		await _svc.UnarchiveAsync(id);
 
-		list.Should().HaveCount(2);
-		list.Select(x => x.Title).Should().Contain(["a", "b"]);
+		taskList.IsArchived.Should().BeFalse();
+		await _repo.Received(1).UpdateAsync(taskList, Arg.Any<CancellationToken>());
+	}
+
+	[Fact]
+	public async Task ListAsync_Maps_Lists()
+	{
+		var lists = new[] { new TaskList("Personal"), new TaskList("Work") }.ToList();
+		_repo.ListAsync(false, Arg.Any<CancellationToken>()).Returns(lists);
+
+		var result = await _svc.ListAsync(false);
+
+		result.Should().HaveCount(2);
+		result.Select(x => x.Title).Should().Contain(["Personal", "Work"]);
+	}
+
+	[Fact]
+	public async Task UpdateAsync_Updates_Properties()
+	{
+		var id = Guid.NewGuid();
+		var taskList = new TaskList("Old Title");
+		_repo.GetAsync(id, Arg.Any<CancellationToken>()).Returns(taskList);
+
+		var dto = await _svc.UpdateAsync(id, "New Title", "New Description", "#00FF00");
+
+		dto.Title.Should().Be("New Title");
+		dto.Description.Should().Be("New Description");
+		dto.Color.Should().Be("#00FF00");
+		await _repo.Received(1).UpdateAsync(taskList, Arg.Any<CancellationToken>());
 	}
 }

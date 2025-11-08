@@ -1,26 +1,24 @@
 namespace OwnPlanner.Domain.Tasks;
 
-public class TaskItem
+public class TaskList
 {
 	public Guid Id { get; private set; }
 	public string Title { get; private set; } = string.Empty;
 	public string? Description { get; private set; }
-	public bool IsCompleted { get; private set; }
+	public string? Color { get; private set; }
+	public bool IsArchived { get; private set; }
 	public DateTime CreatedAt { get; private set; }
 	public DateTime UpdatedAt { get; private set; }
-	public DateTime? DueAt { get; private set; }
-	public DateTime? CompletedAt { get; private set; }
-	public Guid? TaskListId { get; private set; }
 
 	// EF Core constructor
-	private TaskItem() { }
+	private TaskList() { }
 
-	public TaskItem(string title, string? description = null, DateTime? dueAt = null)
+	public TaskList(string title, string? description = null, string? color = null)
 	{
 		Id = Guid.NewGuid();
 		SetTitle(title);
 		SetDescription(description);
-		SetDueAt(dueAt);
+		SetColor(color);
 		var now = DateTime.UtcNow;
 		CreatedAt = now;
 		UpdatedAt = now;
@@ -40,36 +38,28 @@ public class TaskItem
 		Touch();
 	}
 
-	public void SetDueAt(DateTime? dueAt)
+	public void SetColor(string? color)
 	{
-		DueAt = dueAt.HasValue ? DateTime.SpecifyKind(dueAt.Value, DateTimeKind.Utc) : null;
+		Color = string.IsNullOrWhiteSpace(color) ? null : color.Trim();
 		Touch();
 	}
 
-	public void Complete()
+	public void Archive()
 	{
-		if (!IsCompleted)
+		if (!IsArchived)
 		{
-			IsCompleted = true;
-			CompletedAt = DateTime.UtcNow;
+			IsArchived = true;
 			Touch();
 		}
 	}
 
-	public void Reopen()
+	public void Unarchive()
 	{
-		if (IsCompleted)
+		if (IsArchived)
 		{
-			IsCompleted = false;
-			CompletedAt = null;
+			IsArchived = false;
 			Touch();
 		}
-	}
-
-	public void AssignToList(Guid? taskListId)
-	{
-		TaskListId = taskListId;
-		Touch();
 	}
 
 	private void Touch() => UpdatedAt = DateTime.UtcNow;

@@ -36,24 +36,28 @@ namespace OwnPlanner.Mcp.StdioApp
 					// Repositories
 					services.AddScoped<TaskItemRepository>();
 					services.AddScoped<OwnPlanner.Domain.Tasks.ITaskItemRepository, TaskItemRepository>();
+					services.AddScoped<TaskListRepository>();
+					services.AddScoped<OwnPlanner.Domain.Tasks.ITaskListRepository, TaskListRepository>();
 
 					// Application services
+					services.AddScoped<ITaskItemService, TaskItemService>();
 					services.AddScoped<ITaskListService, TaskListService>();
 
 					// MCP server (stdio transport + register tools via DI)
 					services
 						.AddMcpServer()
 						.WithStdioServerTransport()
+						.WithTools<TaskItemTools>()
 						.WithTools<TaskListTools>();
 				});
 
 			var host = hostBuilder.Build();
 
-			// Ensure database is created
+			// Ensure database is created and migrations are applied
 			using (var scope = host.Services.CreateScope())
 			{
 				var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-				await db.Database.EnsureCreatedAsync();
+				await db.Database.MigrateAsync();
 			}
 
 			var logger = host.Services.GetRequiredService<ILogger<Program>>();

@@ -14,36 +14,52 @@ public class TaskListTools
 		_service = service;
 	}
 
-	[McpServerTool, Description("Create a task. Returns task information.")]
-	public async Task<object> CreateTask(string title, string? description = null)
+	[McpServerTool, Description("Create a task list. Returns task list information.")]
+	public async Task<object> CreateTaskList(string title, string? description = null, string? color = null)
 	{
-		var dto = await _service.CreateAsync(title, description);
+		var dto = await _service.CreateAsync(title, description, color);
 		return dto;
 	}
 
-	[McpServerTool, Description("List tasks. Set includeCompleted=false to filter.")]
-	public async Task<object> ListTasks(bool includeCompleted = true)
+	[McpServerTool, Description("Get a task list by id.")]
+	public async Task<object> GetTaskList(Guid id)
 	{
-		var list = await _service.ListAsync(includeCompleted);
-		return list;
+		var dto = await _service.GetAsync(id);
+		if (dto is null)
+			return new { error = "Task list not found" };
+		return dto;
 	}
 
-	[McpServerTool, Description("Complete a task by id.")]
-	public async Task<object> CompleteTask(Guid id)
+	[McpServerTool, Description("List all task lists. Set includeArchived=true to include archived lists.")]
+	public async Task<object> ListTaskLists(bool includeArchived = false)
 	{
-		await _service.CompleteAsync(id);
+		var lists = await _service.ListAsync(includeArchived);
+		return lists;
+	}
+
+	[McpServerTool, Description("Update a task list's title, description, or color.")]
+	public async Task<object> UpdateTaskList(Guid id, string? title = null, string? description = null, string? color = null)
+	{
+		var dto = await _service.UpdateAsync(id, title, description, color);
+		return dto;
+	}
+
+	[McpServerTool, Description("Archive a task list by id.")]
+	public async Task<object> ArchiveTaskList(Guid id)
+	{
+		await _service.ArchiveAsync(id);
 		return new { success = true, id };
 	}
 
-	[McpServerTool, Description("Reopen a completed task by id.")]
-	public async Task<object> ReopenTask(Guid id)
+	[McpServerTool, Description("Unarchive a task list by id.")]
+	public async Task<object> UnarchiveTaskList(Guid id)
 	{
-		await _service.ReopenAsync(id);
+		await _service.UnarchiveAsync(id);
 		return new { success = true, id };
 	}
 
-	[McpServerTool, Description("Delete a task by id.")]
-	public async Task<object> DeleteTask(Guid id)
+	[McpServerTool, Description("Delete a task list by id. Tasks in the list will be orphaned (moved to no list).")]
+	public async Task<object> DeleteTaskList(Guid id)
 	{
 		await _service.DeleteAsync(id);
 		return new { success = true, id };

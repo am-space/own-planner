@@ -25,6 +25,11 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OwnPlanner.Infrastructure.T
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OwnPlanner.Console", "OwnPlanner.Console\OwnPlanner.Console.csproj", "{EFAE28A0-E91D-42F5-9338-081CADBEB497}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Docs", "Docs", "{6554420F-4B0E-4CE9-9F60-ECBCA6CE3BCC}"
+	ProjectSection(SolutionItems) = preProject
+		docs\MCP_TOOLS_REFERENCE.md = docs\MCP_TOOLS_REFERENCE.md
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
