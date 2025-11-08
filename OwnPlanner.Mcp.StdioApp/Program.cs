@@ -8,7 +8,7 @@ using OwnPlanner.Application.Tasks;
 using OwnPlanner.Application.Tasks.Interfaces;
 using OwnPlanner.Infrastructure.Persistence;
 using OwnPlanner.Infrastructure.Repositories;
-using OwnPlanner.Mcp.StdioApp.Mcp.Tools;
+using OwnPlanner.Mcp.StdioApp.Tools;
 
 namespace OwnPlanner.Mcp.StdioApp
 {

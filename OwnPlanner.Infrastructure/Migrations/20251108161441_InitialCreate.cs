@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace OwnPlanner.Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class Initial : Migration
+    public partial class InitialCreate : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -40,7 +40,7 @@ namespace OwnPlanner.Infrastructure.Migrations
                     UpdatedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
                     DueAt = table.Column<DateTime>(type: "TEXT", nullable: true),
                     CompletedAt = table.Column<DateTime>(type: "TEXT", nullable: true),
-                    TaskListId = table.Column<Guid>(type: "TEXT", nullable: true)
+                    TaskListId = table.Column<Guid>(type: "TEXT", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -50,7 +50,7 @@ namespace OwnPlanner.Infrastructure.Migrations
                         column: x => x.TaskListId,
                         principalTable: "TaskLists",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.SetNull);
+                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateIndex(

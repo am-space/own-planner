@@ -11,8 +11,8 @@ using OwnPlanner.Infrastructure.Persistence;
 namespace OwnPlanner.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20251108154445_MakeTaskListRequired")]
-    partial class MakeTaskListRequired
+    [Migration("20251108161441_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

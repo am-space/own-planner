@@ -19,4 +19,8 @@
     <ProjectReference Include="..\OwnPlanner.Domain\OwnPlanner.Domain.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Migrations\" />
+  </ItemGroup>
+
 </Project>
