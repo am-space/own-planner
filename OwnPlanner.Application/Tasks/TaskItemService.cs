@@ -4,12 +4,18 @@ using OwnPlanner.Domain.Tasks;
 
 namespace OwnPlanner.Application.Tasks;
 
-public class TaskItemService(ITaskItemRepository repository) : ITaskItemService
+public class TaskItemService(ITaskItemRepository repository, ITaskListRepository taskListRepository) : ITaskItemService
 {
 	private readonly ITaskItemRepository _repository = repository;
+	private readonly ITaskListRepository _taskListRepository = taskListRepository;
 
 	public async Task<TaskItemDto> CreateAsync(string title, Guid taskListId, string? description = null, DateTime? dueAt = null, CancellationToken ct = default)
 	{
+		// Validate that the task list exists
+		var taskList = await _taskListRepository.GetAsync(taskListId, ct);
+		if (taskList is null)
+			throw new KeyNotFoundException($"TaskList {taskListId} not found");
+
 		var item = new TaskItem(title, taskListId, description, dueAt);
 		await _repository.AddAsync(item, ct);
 		return Map(item);
@@ -36,6 +42,12 @@ public class TaskItemService(ITaskItemRepository repository) : ITaskItemService
 	public async Task AssignToListAsync(Guid taskId, Guid taskListId, CancellationToken ct = default)
 	{
 		var item = await _repository.GetAsync(taskId, ct) ?? throw new KeyNotFoundException($"Task {taskId} not found");
+		
+		// Validate that the task list exists
+		var taskList = await _taskListRepository.GetAsync(taskListId, ct);
+		if (taskList is null)
+			throw new KeyNotFoundException($"TaskList {taskListId} not found");
+
 		item.AssignToList(taskListId);
 		await _repository.UpdateAsync(item, ct);
 	}

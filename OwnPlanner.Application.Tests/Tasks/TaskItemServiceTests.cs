@@ -9,15 +9,18 @@ namespace OwnPlanner.Application.Tests.Tasks;
 public class TaskItemServiceTests
 {
 	private readonly ITaskItemRepository _repo = Substitute.For<ITaskItemRepository>();
+	private readonly ITaskListRepository _taskListRepo = Substitute.For<ITaskListRepository>();
 	private readonly ITaskItemService _svc;
 
-	public TaskItemServiceTests() => _svc = new TaskItemService(_repo);
+	public TaskItemServiceTests() => _svc = new TaskItemService(_repo, _taskListRepo);
 
 	[Fact]
 	public async Task CreateAsync_Adds_And_Maps()
 	{
 		TaskItem? captured = null;
 		var listId = Guid.NewGuid();
+		var taskList = new TaskList("Test List");
+		_taskListRepo.GetAsync(listId, Arg.Any<CancellationToken>()).Returns(taskList);
 		_repo.AddAsync(Arg.Do<TaskItem>(x => captured = x), Arg.Any<CancellationToken>())
 		.Returns(Task.CompletedTask);
 
@@ -32,6 +35,18 @@ public class TaskItemServiceTests
 	}
 
 	[Fact]
+	public async Task CreateAsync_ThrowsKeyNotFoundException_WhenTaskListNotFound()
+	{
+		var listId = Guid.NewGuid();
+		_taskListRepo.GetAsync(listId, Arg.Any<CancellationToken>()).Returns((TaskList?)null);
+
+		var act = async () => await _svc.CreateAsync("title", listId, "desc");
+
+		await act.Should().ThrowAsync<KeyNotFoundException>()
+			.WithMessage($"TaskList {listId} not found");
+	}
+
+	[Fact]
 	public async Task CompleteAsync_Gets_Updates()
 	{
 		var id = Guid.NewGuid();
@@ -43,6 +58,22 @@ public class TaskItemServiceTests
 
 		item.IsCompleted.Should().BeTrue();
 		await _repo.Received(1).UpdateAsync(item, Arg.Any<CancellationToken>());
+	}
+
+	[Fact]
+	public async Task AssignToListAsync_ThrowsKeyNotFoundException_WhenTaskListNotFound()
+	{
+		var taskId = Guid.NewGuid();
+		var oldListId = Guid.NewGuid();
+		var newListId = Guid.NewGuid();
+		var item = new TaskItem("x", oldListId);
+		_repo.GetAsync(taskId, Arg.Any<CancellationToken>()).Returns(item);
+		_taskListRepo.GetAsync(newListId, Arg.Any<CancellationToken>()).Returns((TaskList?)null);
+
+		var act = async () => await _svc.AssignToListAsync(taskId, newListId);
+
+		await act.Should().ThrowAsync<KeyNotFoundException>()
+			.WithMessage($"TaskList {newListId} not found");
 	}
 
 	[Fact]

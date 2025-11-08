@@ -17,12 +17,19 @@ public class TaskItemTools
 	[McpServerTool(Name = "taskitem_item_create"), Description("Create a task. TaskListId is required. Returns task information.")]
 	public async Task<object> CreateTask(string title, Guid taskListId, string? description = null, string? dueAt = null)
 	{
-		DateTime? dueDate = null;
-		if (!string.IsNullOrEmpty(dueAt) && DateTime.TryParse(dueAt, out var parsed))
-			dueDate = parsed;
-		
-		var dto = await _service.CreateAsync(title, taskListId, description, dueDate);
-		return dto;
+		try
+		{
+			DateTime? dueDate = null;
+			if (!string.IsNullOrEmpty(dueAt) && DateTime.TryParse(dueAt, out var parsed))
+				dueDate = parsed;
+			
+			var dto = await _service.CreateAsync(title, taskListId, description, dueDate);
+			return dto;
+		}
+		catch (KeyNotFoundException ex)
+		{
+			return new { error = ex.Message };
+		}
 	}
 
 	[McpServerTool(Name = "taskitem_item_get"), Description("Get a task by id.")]
@@ -51,28 +58,56 @@ public class TaskItemTools
 	[McpServerTool(Name = "taskitem_item_assign"), Description("Assign a task to a different list.")]
 	public async Task<object> AssignTaskToList(Guid taskId, Guid taskListId)
 	{
-		await _service.AssignToListAsync(taskId, taskListId);
-		return new { success = true, taskId, taskListId };
+		try
+		{
+			await _service.AssignToListAsync(taskId, taskListId);
+			return new { success = true, taskId, taskListId };
+		}
+		catch (KeyNotFoundException ex)
+		{
+			return new { error = ex.Message };
+		}
 	}
 
 	[McpServerTool(Name = "taskitem_item_complete"), Description("Complete a task by id.")]
 	public async Task<object> CompleteTask(Guid id)
 	{
-		await _service.CompleteAsync(id);
-		return new { success = true, id };
+		try
+		{
+			await _service.CompleteAsync(id);
+			return new { success = true, id };
+		}
+		catch (KeyNotFoundException ex)
+		{
+			return new { error = ex.Message };
+		}
 	}
 
 	[McpServerTool(Name = "taskitem_item_reopen"), Description("Reopen a completed task by id.")]
 	public async Task<object> ReopenTask(Guid id)
 	{
-		await _service.ReopenAsync(id);
-		return new { success = true, id };
+		try
+		{
+			await _service.ReopenAsync(id);
+			return new { success = true, id };
+		}
+		catch (KeyNotFoundException ex)
+		{
+			return new { error = ex.Message };
+		}
 	}
 
 	[McpServerTool(Name = "taskitem_item_delete"), Description("Delete a task by id.")]
 	public async Task<object> DeleteTask(Guid id)
 	{
-		await _service.DeleteAsync(id);
-		return new { success = true, id };
+		try
+		{
+			await _service.DeleteAsync(id);
+			return new { success = true, id };
+		}
+		catch (KeyNotFoundException ex)
+		{
+			return new { error = ex.Message };
+		}
 	}
 }
