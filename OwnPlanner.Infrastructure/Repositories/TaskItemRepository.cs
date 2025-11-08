@@ -24,7 +24,7 @@ public class TaskItemRepository(AppDbContext db) : ITaskItemRepository
 			.ToList();
 	}
 
-	public async Task<IReadOnlyList<TaskItem>> ListByTaskListAsync(Guid? taskListId, bool includeCompleted, CancellationToken ct = default)
+	public async Task<IReadOnlyList<TaskItem>> ListByTaskListAsync(Guid taskListId, bool includeCompleted, CancellationToken ct = default)
 	{
 		var query = _db.TaskItems.Where(t => t.TaskListId == taskListId);
 		if (!includeCompleted)

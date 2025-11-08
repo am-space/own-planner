@@ -26,11 +26,17 @@ public class TaskItemRepositoryTests
 		await using var _ = conn;
 
 		var repo = new TaskItemRepository(db);
-		var item = new TaskItem("test");
+		var listRepo = new TaskListRepository(db);
+		
+		var list = new TaskList("Test List");
+		await listRepo.AddAsync(list);
+		
+		var item = new TaskItem("test", list.Id);
 		await repo.AddAsync(item);
 
 		var loaded = await repo.GetAsync(item.Id);
 		loaded!.Title.Should().Be("test");
+		loaded.TaskListId.Should().Be(list.Id);
 
 		loaded.Complete();
 		await repo.UpdateAsync(loaded);
@@ -46,10 +52,14 @@ public class TaskItemRepositoryTests
 		using var db = CreateDb(out var conn);
 		await using var _ = conn;
 		var repo = new TaskItemRepository(db);
+		var listRepo = new TaskListRepository(db);
 
-		var a = new TaskItem("a");
-		var b = new TaskItem("b");
-		var c = new TaskItem("c");
+		var list = new TaskList("Test List");
+		await listRepo.AddAsync(list);
+
+		var a = new TaskItem("a", list.Id);
+		var b = new TaskItem("b", list.Id);
+		var c = new TaskItem("c", list.Id);
 		b.Complete();
 		await repo.AddAsync(a);
 		await repo.AddAsync(b);
@@ -81,19 +91,14 @@ public class TaskItemRepositoryTests
 		await listRepo.AddAsync(list1);
 		await listRepo.AddAsync(list2);
 
-		var task1 = new TaskItem("Task in List 1");
-		task1.AssignToList(list1.Id);
-		var task2 = new TaskItem("Task in List 2");
-		task2.AssignToList(list2.Id);
-		var task3 = new TaskItem("Task without list");
-		var task4 = new TaskItem("Another task in List 1");
-		task4.AssignToList(list1.Id);
-		task4.Complete();
+		var task1 = new TaskItem("Task in List 1", list1.Id);
+		var task2 = new TaskItem("Task in List 2", list2.Id);
+		var task3 = new TaskItem("Another task in List 1", list1.Id);
+		task3.Complete();
 
 		await taskRepo.AddAsync(task1);
 		await taskRepo.AddAsync(task2);
 		await taskRepo.AddAsync(task3);
-		await taskRepo.AddAsync(task4);
 
 		// Get tasks for list1 including completed
 		var list1Tasks = await taskRepo.ListByTaskListAsync(list1.Id, true);
@@ -109,10 +114,5 @@ public class TaskItemRepositoryTests
 		var list2Tasks = await taskRepo.ListByTaskListAsync(list2.Id, true);
 		list2Tasks.Should().HaveCount(1);
 		list2Tasks.First().Id.Should().Be(task2.Id);
-
-		// Get tasks without a list (null TaskListId)
-		var orphanedTasks = await taskRepo.ListByTaskListAsync(null, true);
-		orphanedTasks.Should().HaveCount(1);
-		orphanedTasks.First().Id.Should().Be(task3.Id);
 	}
 }

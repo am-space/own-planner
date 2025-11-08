@@ -9,5 +9,5 @@ public record TaskItemDto(
 	DateTime UpdatedAt,
 	DateTime? DueAt,
 	DateTime? CompletedAt,
-	Guid? TaskListId
+	Guid TaskListId
 );

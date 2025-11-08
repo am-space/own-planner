@@ -8,9 +8,11 @@ public class TaskItemTests
 	[Fact]
 	public void Ctor_Valid_SetsProperties()
 	{
-		var t = new TaskItem(" title ", " desc ");
+		var listId = Guid.NewGuid();
+		var t = new TaskItem(" title ", listId, " desc ");
 		t.Title.Should().Be("title");
 		t.Description.Should().Be("desc");
+		t.TaskListId.Should().Be(listId);
 		t.IsCompleted.Should().BeFalse();
 		t.CreatedAt.Should().BeOnOrBefore(t.UpdatedAt);
 	}
@@ -18,14 +20,16 @@ public class TaskItemTests
 	[Fact]
 	public void Ctor_EmptyTitle_Throws()
 	{
-		var act = () => new TaskItem("");
+		var listId = Guid.NewGuid();
+		var act = () => new TaskItem("", listId);
 		act.Should().Throw<ArgumentException>();
 	}
 
 	[Fact]
 	public void Complete_Then_Reopen_Idempotent()
 	{
-		var t = new TaskItem("x");
+		var listId = Guid.NewGuid();
+		var t = new TaskItem("x", listId);
 		t.Complete();
 		var completedAt = t.CompletedAt;
 
@@ -43,7 +47,8 @@ public class TaskItemTests
 	[Fact]
 	public void Setters_Update_UpdatedAt_Monotonically()
 	{
-		var t = new TaskItem("x");
+		var listId = Guid.NewGuid();
+		var t = new TaskItem("x", listId);
 		var before = t.UpdatedAt;
 		t.SetDescription("a");
 		t.UpdatedAt.Should().BeOnOrAfter(before);

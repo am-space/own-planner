@@ -78,7 +78,7 @@ public class TaskListRepositoryTests
 	}
 
 	[Fact]
-	public async Task Delete_List_Sets_TaskListId_To_Null()
+	public async Task Delete_List_Cascades_To_TaskItems()
 	{
 		using var db = CreateDb(out var conn);
 		await using var _ = conn;
@@ -89,8 +89,7 @@ public class TaskListRepositoryTests
 		var list = new TaskList("Test List");
 		await listRepo.AddAsync(list);
 
-		var task = new TaskItem("Task in list");
-		task.AssignToList(list.Id);
+		var task = new TaskItem("Task in list", list.Id);
 		await taskRepo.AddAsync(task);
 
 		var loadedTask = await taskRepo.GetAsync(task.Id);
@@ -99,9 +98,8 @@ public class TaskListRepositoryTests
 		// Delete the list
 		await listRepo.DeleteAsync(list);
 
-		// Task should still exist but with null TaskListId
-		var orphanedTask = await taskRepo.GetAsync(task.Id);
-		orphanedTask.Should().NotBeNull();
-		orphanedTask!.TaskListId.Should().BeNull();
+		// Task should be deleted due to cascade delete
+		var deletedTask = await taskRepo.GetAsync(task.Id);
+		deletedTask.Should().BeNull();
 	}
 }

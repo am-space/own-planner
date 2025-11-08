@@ -10,15 +10,16 @@ public class TaskItem
 	public DateTime UpdatedAt { get; private set; }
 	public DateTime? DueAt { get; private set; }
 	public DateTime? CompletedAt { get; private set; }
-	public Guid? TaskListId { get; private set; }
+	public Guid TaskListId { get; private set; }
 
 	// EF Core constructor
 	private TaskItem() { }
 
-	public TaskItem(string title, string? description = null, DateTime? dueAt = null)
+	public TaskItem(string title, Guid taskListId, string? description = null, DateTime? dueAt = null)
 	{
 		Id = Guid.NewGuid();
 		SetTitle(title);
+		TaskListId = taskListId;
 		SetDescription(description);
 		SetDueAt(dueAt);
 		var now = DateTime.UtcNow;
@@ -66,7 +67,7 @@ public class TaskItem
 		}
 	}
 
-	public void AssignToList(Guid? taskListId)
+	public void AssignToList(Guid taskListId)
 	{
 		TaskListId = taskListId;
 		Touch();

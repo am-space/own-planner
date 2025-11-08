@@ -8,9 +8,9 @@ public class TaskItemService(ITaskItemRepository repository) : ITaskItemService
 {
 	private readonly ITaskItemRepository _repository = repository;
 
-	public async Task<TaskItemDto> CreateAsync(string title, string? description = null, DateTime? dueAt = null, CancellationToken ct = default)
+	public async Task<TaskItemDto> CreateAsync(string title, Guid taskListId, string? description = null, DateTime? dueAt = null, CancellationToken ct = default)
 	{
-		var item = new TaskItem(title, description, dueAt);
+		var item = new TaskItem(title, taskListId, description, dueAt);
 		await _repository.AddAsync(item, ct);
 		return Map(item);
 	}
@@ -27,13 +27,13 @@ public class TaskItemService(ITaskItemRepository repository) : ITaskItemService
 		return items.Select(Map).ToList();
 	}
 
-	public async Task<IReadOnlyList<TaskItemDto>> ListByTaskListAsync(Guid? taskListId, bool includeCompleted = true, CancellationToken ct = default)
+	public async Task<IReadOnlyList<TaskItemDto>> ListByTaskListAsync(Guid taskListId, bool includeCompleted = true, CancellationToken ct = default)
 	{
 		var items = await _repository.ListByTaskListAsync(taskListId, includeCompleted, ct);
 		return items.Select(Map).ToList();
 	}
 
-	public async Task AssignToListAsync(Guid taskId, Guid? taskListId, CancellationToken ct = default)
+	public async Task AssignToListAsync(Guid taskId, Guid taskListId, CancellationToken ct = default)
 	{
 		var item = await _repository.GetAsync(taskId, ct) ?? throw new KeyNotFoundException($"Task {taskId} not found");
 		item.AssignToList(taskListId);

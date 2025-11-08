@@ -20,7 +20,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 		task.Property(t => t.UpdatedAt);
 		task.Property(t => t.DueAt);
 		task.Property(t => t.CompletedAt);
-		task.Property(t => t.TaskListId);
+		task.Property(t => t.TaskListId).IsRequired();
 		task.HasIndex(t => t.TaskListId);
 
 		// TaskList configuration
@@ -34,10 +34,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 		taskList.Property(tl => tl.UpdatedAt);
 
 		// Configure relationship - TaskList to TaskItems (one-to-many)
-		// When a TaskList is deleted, set TaskListId to null (orphan tasks)
+		// When a TaskList is deleted, cascade delete all associated TaskItems
 		taskList.HasMany<TaskItem>()
 			.WithOne()
 			.HasForeignKey(t => t.TaskListId)
-			.OnDelete(DeleteBehavior.SetNull);
+			.OnDelete(DeleteBehavior.Cascade);
 	}
 }

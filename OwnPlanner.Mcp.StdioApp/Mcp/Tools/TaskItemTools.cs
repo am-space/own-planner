@@ -14,14 +14,14 @@ public class TaskItemTools
 		_service = service;
 	}
 
-	[McpServerTool, Description("Create a task. Returns task information.")]
-	public async Task<object> CreateTask(string title, string? description = null, string? dueAt = null)
+	[McpServerTool, Description("Create a task. TaskListId is required. Returns task information.")]
+	public async Task<object> CreateTask(string title, Guid taskListId, string? description = null, string? dueAt = null)
 	{
 		DateTime? dueDate = null;
 		if (!string.IsNullOrEmpty(dueAt) && DateTime.TryParse(dueAt, out var parsed))
 			dueDate = parsed;
 		
-		var dto = await _service.CreateAsync(title, description, dueDate);
+		var dto = await _service.CreateAsync(title, taskListId, description, dueDate);
 		return dto;
 	}
 
@@ -41,26 +41,18 @@ public class TaskItemTools
 		return list;
 	}
 
-	[McpServerTool, Description("List tasks by task list id. Use null for tasks without a list.")]
-	public async Task<object> ListTasksByList(string? taskListId = null, bool includeCompleted = true)
+	[McpServerTool, Description("List tasks by task list id.")]
+	public async Task<object> ListTasksByList(Guid taskListId, bool includeCompleted = true)
 	{
-		Guid? listId = null;
-		if (!string.IsNullOrEmpty(taskListId) && Guid.TryParse(taskListId, out var parsed))
-			listId = parsed;
-		
-		var list = await _service.ListByTaskListAsync(listId, includeCompleted);
+		var list = await _service.ListByTaskListAsync(taskListId, includeCompleted);
 		return list;
 	}
 
-	[McpServerTool, Description("Assign a task to a list. Use null for taskListId to unassign.")]
-	public async Task<object> AssignTaskToList(Guid taskId, string? taskListId = null)
+	[McpServerTool, Description("Assign a task to a different list.")]
+	public async Task<object> AssignTaskToList(Guid taskId, Guid taskListId)
 	{
-		Guid? listId = null;
-		if (!string.IsNullOrEmpty(taskListId) && Guid.TryParse(taskListId, out var parsed))
-			listId = parsed;
-		
-		await _service.AssignToListAsync(taskId, listId);
-		return new { success = true, taskId, taskListId = listId };
+		await _service.AssignToListAsync(taskId, taskListId);
+		return new { success = true, taskId, taskListId };
 	}
 
 	[McpServerTool, Description("Complete a task by id.")]
