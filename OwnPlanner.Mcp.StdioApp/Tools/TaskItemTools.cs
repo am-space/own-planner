@@ -32,7 +32,7 @@ public class TaskItemTools
 		}
 	}
 
-	[McpServerTool(Name = "taskitem_item_get"), Description("Get a task by id.")]
+	[McpServerTool(Name = "taskitem_item_get", Idempotent = true, ReadOnly = true), Description("Get a task by id.")]
 	public async Task<object> GetTask(Guid id)
 	{
 		var dto = await _service.GetAsync(id);
@@ -41,14 +41,14 @@ public class TaskItemTools
 		return dto;
 	}
 
-	[McpServerTool(Name = "taskitem_item_list_all"), Description("List all tasks. Set includeCompleted=false to filter out completed tasks.")]
+	[McpServerTool(Name = "taskitem_item_list_all", Idempotent = true, ReadOnly = true), Description("List all tasks. Set includeCompleted=false to filter out completed tasks.")]
 	public async Task<object> ListTasks(bool includeCompleted = true)
 	{
 		var list = await _service.ListAsync(includeCompleted);
 		return list;
 	}
 
-	[McpServerTool(Name = "taskitem_list_items"), Description("List tasks by task list id.")]
+	[McpServerTool(Name = "taskitem_list_items", Idempotent = true, ReadOnly = true), Description("List tasks by task list id.")]
 	public async Task<object> ListTasksByList(Guid taskListId, bool includeCompleted = true)
 	{
 		var list = await _service.ListByTaskListAsync(taskListId, includeCompleted);

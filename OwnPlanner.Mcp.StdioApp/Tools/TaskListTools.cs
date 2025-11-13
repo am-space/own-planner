@@ -28,7 +28,7 @@ public class TaskListTools
 		}
 	}
 
-	[McpServerTool(Name = "tasklist_list_get"), Description("Get a task list by id.")]
+	[McpServerTool(Name = "tasklist_list_get", Idempotent = true, ReadOnly = true), Description("Get a task list by id.")]
 	public async Task<object> GetTaskList(Guid id)
 	{
 		var dto = await _service.GetAsync(id);
@@ -37,7 +37,7 @@ public class TaskListTools
 		return dto;
 	}
 
-	[McpServerTool(Name = "tasklist_list_all"), Description("List all task lists. Set includeArchived=true to include archived lists.")]
+	[McpServerTool(Name = "tasklist_list_all", Idempotent = true, ReadOnly = true), Description("List all task lists. Set includeArchived=true to include archived lists.")]
 	public async Task<object> ListTaskLists(bool includeArchived = false)
 	{
 		var lists = await _service.ListAsync(includeArchived);
