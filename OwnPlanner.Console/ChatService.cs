@@ -161,9 +161,19 @@ namespace OwnPlanner.Console
 							? JsonSerializer.Deserialize<Dictionary<string, object?>>(JsonSerializer.Serialize(functionCall.Args)) 
 							: new Dictionary<string, object?>();
 
+						// Strip any namespace prefix (e.g., "default_api:") from the tool name
+						// Gemini may add these prefixes, but MCP expects just the tool name
+						var toolName = functionCall.Name;
+						if (toolName.Contains(':'))
+						{
+							var parts = toolName.Split(':', 2);
+							toolName = parts[1];
+							Log.Debug("Stripped namespace prefix from tool name: {Original} -> {Stripped}", functionCall.Name, toolName);
+						}
+
 						// Call the tool via MCP
-						var result = await _mcpClient.CallToolAsync(functionCall.Name, argsDict);
-						Log.Debug("Tool {ToolName} executed successfully", functionCall.Name);
+						var result = await _mcpClient.CallToolAsync(toolName, argsDict);
+						Log.Debug("Tool {ToolName} executed successfully", toolName);
 						
 						toolResults.Add(new Part
 						{

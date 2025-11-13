@@ -60,7 +60,9 @@ namespace OwnPlanner.Console
 					catch (Exception ex)
 					{
 						Log.Error(ex, "Failed to create MCP adapter");
-						AnsiConsole.MarkupLine($"[yellow]Warning: Failed to create MCP adapter: {ex.Message}[/]");
+						// Escape square brackets to prevent Spectre.Console markup errors
+						var safeMessage = ex.Message.Replace("[", "[[").Replace("]", "]]");
+						AnsiConsole.MarkupLine($"[yellow]Warning: Failed to create MCP adapter: {safeMessage}[/]");
 					}
 				}
 				
@@ -104,7 +106,9 @@ namespace OwnPlanner.Console
 						catch (Exception ex)
 						{
 							Log.Error(ex, "Error processing chat request");
-							AnsiConsole.MarkupLine($"[red]An error occurred: {ex.Message}[/]");
+							// Escape square brackets to prevent Spectre.Console markup errors
+							var safeMessage = ex.Message.Replace("[", "[[").Replace("]", "]]");
+							AnsiConsole.MarkupLine($"[red]An error occurred: {safeMessage}[/]");
 							AnsiConsole.WriteLine();
 						}
 					}
@@ -115,7 +119,9 @@ namespace OwnPlanner.Console
 			catch (Exception ex)
 			{
 				Log.Fatal(ex, "Application terminated unexpectedly");
-				AnsiConsole.MarkupLine($"[red]Fatal error: {ex.Message}[/]");
+				// Escape square brackets to prevent Spectre.Console markup errors
+				var safeMessage = ex.Message.Replace("[", "[[").Replace("]", "]]");
+				AnsiConsole.MarkupLine($"[red]Fatal error: {safeMessage}[/]");
 			}
 			finally
 			{
