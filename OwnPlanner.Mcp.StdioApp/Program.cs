@@ -6,6 +6,8 @@ using Serilog;
 using Serilog.Events;
 using OwnPlanner.Application.Tasks;
 using OwnPlanner.Application.Tasks.Interfaces;
+using OwnPlanner.Application.Notes;
+using OwnPlanner.Application.Notes.Interfaces;
 using OwnPlanner.Infrastructure.Persistence;
 using OwnPlanner.Infrastructure.Repositories;
 using OwnPlanner.Mcp.StdioApp.Tools;
@@ -38,17 +40,25 @@ namespace OwnPlanner.Mcp.StdioApp
 					services.AddScoped<OwnPlanner.Domain.Tasks.ITaskItemRepository, TaskItemRepository>();
 					services.AddScoped<TaskListRepository>();
 					services.AddScoped<OwnPlanner.Domain.Tasks.ITaskListRepository, TaskListRepository>();
+					services.AddScoped<NotesListRepository>();
+					services.AddScoped<OwnPlanner.Domain.Notes.INotesListRepository, NotesListRepository>();
+					services.AddScoped<NoteItemRepository>();
+					services.AddScoped<OwnPlanner.Domain.Notes.INoteItemRepository, NoteItemRepository>();
 
 					// Application services
 					services.AddScoped<ITaskItemService, TaskItemService>();
 					services.AddScoped<ITaskListService, TaskListService>();
+					services.AddScoped<INotesListService, NotesListService>();
+					services.AddScoped<INoteItemService, NoteItemService>();
 
 					// MCP server (stdio transport + register tools via DI)
 					services
 						.AddMcpServer()
 						.WithStdioServerTransport()
 						.WithTools<TaskItemTools>()
-						.WithTools<TaskListTools>();
+						.WithTools<TaskListTools>()
+						.WithTools<NotesListTools>()
+						.WithTools<NoteItemTools>();
 				});
 
 			var host = hostBuilder.Build();
