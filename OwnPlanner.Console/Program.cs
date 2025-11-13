@@ -72,6 +72,7 @@ namespace OwnPlanner.Console
 					await using var chatService = new ChatService(
 						settings.Gemini.ApiKey, 
 						settings.Gemini.Model,
+						settings.Gemini.MaxToolCallRounds,
 						mcpAdapter);
 
 					while (true)

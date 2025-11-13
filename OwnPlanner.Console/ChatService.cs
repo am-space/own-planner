@@ -10,18 +10,20 @@ namespace OwnPlanner.Console
 		private readonly string _model;
 		private readonly McpAdapter? _mcpClient;
 		private readonly bool _shouldDisposeMcp;
+		private readonly int _maxToolCallRounds;
 		private Tools? _geminiTools;
 		private GenerativeModel _generativeModel;
 		private ChatSession _chat;
 
-		public ChatService(string apiKey, string model, McpAdapter? mcpAdapter = null)
+		public ChatService(string apiKey, string model, int maxToolCallRounds = 10, McpAdapter? mcpAdapter = null)
 		{
-			Log.Debug("Creating ChatService with model: {Model}, MCP: {HasMcp}", model, mcpAdapter != null);
+			Log.Debug("Creating ChatService with model: {Model}, MCP: {HasMcp}, MaxToolCallRounds: {MaxRounds}", model, mcpAdapter != null, maxToolCallRounds);
 			
 			_googleAI = new GoogleAI(apiKey);
 			_model = model;
 			_mcpClient = mcpAdapter;
 			_shouldDisposeMcp = false; // Don't dispose injected adapter
+			_maxToolCallRounds = maxToolCallRounds;
 
 			if (_mcpClient != null)
 			{
@@ -123,10 +125,9 @@ namespace OwnPlanner.Console
 			var response = await _chat.SendMessage(text);
 			
 			// Loop to handle multiple rounds of tool calls
-			const int maxToolCallRounds = 10; // Prevent infinite loops
 			int roundCount = 0;
 
-			while (roundCount < maxToolCallRounds)
+			while (roundCount < _maxToolCallRounds)
 			{
 				var functionCalls = response.Candidates?.FirstOrDefault()?.Content.Parts
 					.Where(p => p.FunctionCall != null)
@@ -197,9 +198,9 @@ namespace OwnPlanner.Console
 				roundCount++;
 			}
 
-			if (roundCount >= maxToolCallRounds)
+			if (roundCount >= _maxToolCallRounds)
 			{
-				var warningMessage = $"Warning: Reached maximum tool call rounds ({maxToolCallRounds}). Returning current response.";
+				var warningMessage = $"Warning: Reached maximum tool call rounds ({_maxToolCallRounds}). Returning current response.";
 				System.Console.WriteLine(warningMessage);
 				Log.Warning(warningMessage);
 			}
