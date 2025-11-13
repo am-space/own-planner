@@ -58,7 +58,8 @@ namespace OwnPlanner.Mcp.StdioApp
 						.WithTools<TaskItemTools>()
 						.WithTools<TaskListTools>()
 						.WithTools<NoteListTools>()
-						.WithTools<NoteItemTools>();
+						.WithTools<NoteItemTools>()
+						.WithTools<DateTimeTools>();
 				});
 
 			var host = hostBuilder.Build();
