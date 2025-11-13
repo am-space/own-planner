@@ -13,7 +13,7 @@ public class NoteItemTests
 		
 		n.Title.Should().Be("My Note");
 		n.Content.Should().Be("Some content");
-		n.NotesListId.Should().Be(listId);
+		n.NoteListId.Should().Be(listId);
 		n.IsPinned.Should().BeFalse();
 		n.CreatedAt.Should().BeOnOrBefore(n.UpdatedAt);
 	}
@@ -94,7 +94,7 @@ public class NoteItemTests
 	}
 
 	[Fact]
-	public void AssignToList_UpdatesNotesListId()
+	public void AssignToList_UpdatesNoteListId()
 	{
 		var oldListId = Guid.NewGuid();
 		var newListId = Guid.NewGuid();
@@ -103,7 +103,7 @@ public class NoteItemTests
 
 		n.AssignToList(newListId);
 
-		n.NotesListId.Should().Be(newListId);
+		n.NoteListId.Should().Be(newListId);
 		n.UpdatedAt.Should().BeOnOrAfter(before);
 	}
 

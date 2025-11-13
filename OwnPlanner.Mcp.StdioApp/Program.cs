@@ -40,15 +40,15 @@ namespace OwnPlanner.Mcp.StdioApp
 					services.AddScoped<OwnPlanner.Domain.Tasks.ITaskItemRepository, TaskItemRepository>();
 					services.AddScoped<TaskListRepository>();
 					services.AddScoped<OwnPlanner.Domain.Tasks.ITaskListRepository, TaskListRepository>();
-					services.AddScoped<NotesListRepository>();
-					services.AddScoped<OwnPlanner.Domain.Notes.INotesListRepository, NotesListRepository>();
+					services.AddScoped<NoteListRepository>();
+					services.AddScoped<OwnPlanner.Domain.Notes.INoteListRepository, NoteListRepository>();
 					services.AddScoped<NoteItemRepository>();
 					services.AddScoped<OwnPlanner.Domain.Notes.INoteItemRepository, NoteItemRepository>();
 
 					// Application services
 					services.AddScoped<ITaskItemService, TaskItemService>();
 					services.AddScoped<ITaskListService, TaskListService>();
-					services.AddScoped<INotesListService, NotesListService>();
+					services.AddScoped<INoteListService, NoteListService>();
 					services.AddScoped<INoteItemService, NoteItemService>();
 
 					// MCP server (stdio transport + register tools via DI)
@@ -57,7 +57,7 @@ namespace OwnPlanner.Mcp.StdioApp
 						.WithStdioServerTransport()
 						.WithTools<TaskItemTools>()
 						.WithTools<TaskListTools>()
-						.WithTools<NotesListTools>()
+						.WithTools<NoteListTools>()
 						.WithTools<NoteItemTools>();
 				});
 

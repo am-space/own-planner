@@ -8,7 +8,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 {
 	public DbSet<TaskItem> TaskItems => Set<TaskItem>();
 	public DbSet<TaskList> TaskLists => Set<TaskList>();
-	public DbSet<NotesList> NotesLists => Set<NotesList>();
+	public DbSet<NoteList> NoteLists => Set<NoteList>();
 	public DbSet<NoteItem> NoteItems => Set<NoteItem>();
 
 	protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -43,15 +43,15 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 			.HasForeignKey(t => t.TaskListId)
 			.OnDelete(DeleteBehavior.Cascade);
 
-		// NotesList configuration
-		var notesList = modelBuilder.Entity<NotesList>();
-		notesList.HasKey(nl => nl.Id);
-		notesList.Property(nl => nl.Title).IsRequired().HasMaxLength(256);
-		notesList.Property(nl => nl.Description);
-		notesList.Property(nl => nl.Color).HasMaxLength(50);
-		notesList.Property(nl => nl.IsArchived);
-		notesList.Property(nl => nl.CreatedAt);
-		notesList.Property(nl => nl.UpdatedAt);
+		// NoteList configuration
+		var noteList = modelBuilder.Entity<NoteList>();
+		noteList.HasKey(nl => nl.Id);
+		noteList.Property(nl => nl.Title).IsRequired().HasMaxLength(256);
+		noteList.Property(nl => nl.Description);
+		noteList.Property(nl => nl.Color).HasMaxLength(50);
+		noteList.Property(nl => nl.IsArchived);
+		noteList.Property(nl => nl.CreatedAt);
+		noteList.Property(nl => nl.UpdatedAt);
 
 		// NoteItem configuration
 		var note = modelBuilder.Entity<NoteItem>();
@@ -61,14 +61,14 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 		note.Property(n => n.IsPinned);
 		note.Property(n => n.CreatedAt);
 		note.Property(n => n.UpdatedAt);
-		note.Property(n => n.NotesListId).IsRequired();
-		note.HasIndex(n => n.NotesListId);
+		note.Property(n => n.NoteListId).IsRequired();
+		note.HasIndex(n => n.NoteListId);
 
-		// Configure relationship - NotesList to NoteItems (one-to-many)
-		// When a NotesList is deleted, cascade delete all associated NoteItems
-		notesList.HasMany<NoteItem>()
+		// Configure relationship - NoteList to NoteItems (one-to-many)
+		// When a NoteList is deleted, cascade delete all associated NoteItems
+		noteList.HasMany<NoteItem>()
 			.WithOne()
-			.HasForeignKey(n => n.NotesListId)
+			.HasForeignKey(n => n.NoteListId)
 			.OnDelete(DeleteBehavior.Cascade);
 	}
 }

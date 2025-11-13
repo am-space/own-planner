@@ -32,7 +32,7 @@ namespace OwnPlanner.Infrastructure.Migrations
                     b.Property<bool>("IsPinned")
                         .HasColumnType("INTEGER");
 
-                    b.Property<Guid>("NotesListId")
+                    b.Property<Guid>("NoteListId")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Title")
@@ -45,12 +45,12 @@ namespace OwnPlanner.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("NotesListId");
+                    b.HasIndex("NoteListId");
 
                     b.ToTable("NoteItems");
                 });
 
-            modelBuilder.Entity("OwnPlanner.Domain.Notes.NotesList", b =>
+            modelBuilder.Entity("OwnPlanner.Domain.Notes.NoteList", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -79,7 +79,7 @@ namespace OwnPlanner.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("NotesLists");
+                    b.ToTable("NoteLists");
                 });
 
             modelBuilder.Entity("OwnPlanner.Domain.Tasks.TaskItem", b =>
@@ -155,9 +155,9 @@ namespace OwnPlanner.Infrastructure.Migrations
 
             modelBuilder.Entity("OwnPlanner.Domain.Notes.NoteItem", b =>
                 {
-                    b.HasOne("OwnPlanner.Domain.Notes.NotesList", null)
+                    b.HasOne("OwnPlanner.Domain.Notes.NoteList", null)
                         .WithMany()
-                        .HasForeignKey("NotesListId")
+                        .HasForeignKey("NoteListId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

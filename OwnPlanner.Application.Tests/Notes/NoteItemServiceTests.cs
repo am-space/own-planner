@@ -9,18 +9,18 @@ namespace OwnPlanner.Application.Tests.Notes;
 public class NoteItemServiceTests
 {
 	private readonly INoteItemRepository _repo = Substitute.For<INoteItemRepository>();
-	private readonly INotesListRepository _notesListRepo = Substitute.For<INotesListRepository>();
+	private readonly INoteListRepository _noteListRepo = Substitute.For<INoteListRepository>();
 	private readonly INoteItemService _svc;
 
-	public NoteItemServiceTests() => _svc = new NoteItemService(_repo, _notesListRepo);
+	public NoteItemServiceTests() => _svc = new NoteItemService(_repo, _noteListRepo);
 
 	[Fact]
 	public async Task CreateAsync_Adds_And_Maps()
 	{
 		NoteItem? captured = null;
 		var listId = Guid.NewGuid();
-		var notesList = new NotesList("Test Notes");
-		_notesListRepo.GetAsync(listId, Arg.Any<CancellationToken>()).Returns(notesList);
+		var noteList = new NoteList("Test Notes");
+		_noteListRepo.GetAsync(listId, Arg.Any<CancellationToken>()).Returns(noteList);
 		_repo.AddAsync(Arg.Do<NoteItem>(x => captured = x), Arg.Any<CancellationToken>())
 			.Returns(Task.CompletedTask);
 
@@ -29,21 +29,21 @@ public class NoteItemServiceTests
 		await _repo.Received(1).AddAsync(Arg.Any<NoteItem>(), Arg.Any<CancellationToken>());
 		dto.Title.Should().Be("My Note");
 		dto.Content.Should().Be("Some content");
-		dto.NotesListId.Should().Be(listId);
+		dto.NoteListId.Should().Be(listId);
 		captured.Should().NotBeNull();
 		dto.Id.Should().Be(captured!.Id);
 	}
 
 	[Fact]
-	public async Task CreateAsync_ThrowsKeyNotFoundException_WhenNotesListNotFound()
+	public async Task CreateAsync_ThrowsKeyNotFoundException_WhenNoteListNotFound()
 	{
 		var listId = Guid.NewGuid();
-		_notesListRepo.GetAsync(listId, Arg.Any<CancellationToken>()).Returns((NotesList?)null);
+		_noteListRepo.GetAsync(listId, Arg.Any<CancellationToken>()).Returns((NoteList?)null);
 
 		var act = async () => await _svc.CreateAsync("Note", listId, "Content");
 
 		await act.Should().ThrowAsync<KeyNotFoundException>()
-			.WithMessage($"NotesList {listId} not found");
+			.WithMessage($"NoteList {listId} not found");
 	}
 
 	[Fact]
@@ -86,16 +86,16 @@ public class NoteItemServiceTests
 	}
 
 	[Fact]
-	public async Task ListByNotesListAsync_Maps_Notes()
+	public async Task ListByNoteListAsync_Maps_Notes()
 	{
 		var listId = Guid.NewGuid();
 		var notes = new[] { new NoteItem("Note 1", listId), new NoteItem("Note 2", listId) }.ToList();
-		_repo.ListByNotesListAsync(listId, Arg.Any<CancellationToken>()).Returns(notes);
+		_repo.ListByNoteListAsync(listId, Arg.Any<CancellationToken>()).Returns(notes);
 
-		var result = await _svc.ListByNotesListAsync(listId);
+		var result = await _svc.ListByNoteListAsync(listId);
 
 		result.Should().HaveCount(2);
-		result.Should().OnlyContain(x => x.NotesListId == listId);
+		result.Should().OnlyContain(x => x.NoteListId == listId);
 	}
 
 	[Fact]
@@ -169,19 +169,19 @@ public class NoteItemServiceTests
 	}
 
 	[Fact]
-	public async Task AssignToListAsync_Updates_NotesListId()
+	public async Task AssignToListAsync_Updates_NoteListId()
 	{
 		var noteId = Guid.NewGuid();
 		var oldListId = Guid.NewGuid();
 		var newListId = Guid.NewGuid();
 		var note = new NoteItem("Note", oldListId);
-		var notesList = new NotesList("New List");
+		var noteList = new NoteList("New List");
 		_repo.GetAsync(noteId, Arg.Any<CancellationToken>()).Returns(note);
-		_notesListRepo.GetAsync(newListId, Arg.Any<CancellationToken>()).Returns(notesList);
+		_noteListRepo.GetAsync(newListId, Arg.Any<CancellationToken>()).Returns(noteList);
 
 		await _svc.AssignToListAsync(noteId, newListId);
 
-		note.NotesListId.Should().Be(newListId);
+		note.NoteListId.Should().Be(newListId);
 		await _repo.Received(1).UpdateAsync(note, Arg.Any<CancellationToken>());
 	}
 
@@ -199,19 +199,19 @@ public class NoteItemServiceTests
 	}
 
 	[Fact]
-	public async Task AssignToListAsync_ThrowsKeyNotFoundException_WhenNotesListNotFound()
+	public async Task AssignToListAsync_ThrowsKeyNotFoundException_WhenNoteListNotFound()
 	{
 		var noteId = Guid.NewGuid();
 		var oldListId = Guid.NewGuid();
 		var newListId = Guid.NewGuid();
 		var note = new NoteItem("Note", oldListId);
 		_repo.GetAsync(noteId, Arg.Any<CancellationToken>()).Returns(note);
-		_notesListRepo.GetAsync(newListId, Arg.Any<CancellationToken>()).Returns((NotesList?)null);
+		_noteListRepo.GetAsync(newListId, Arg.Any<CancellationToken>()).Returns((NoteList?)null);
 
 		var act = async () => await _svc.AssignToListAsync(noteId, newListId);
 
 		await act.Should().ThrowAsync<KeyNotFoundException>()
-			.WithMessage($"NotesList {newListId} not found");
+			.WithMessage($"NoteList {newListId} not found");
 	}
 
 	[Fact]

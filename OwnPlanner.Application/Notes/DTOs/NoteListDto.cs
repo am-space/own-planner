@@ -1,6 +1,6 @@
 namespace OwnPlanner.Application.Notes.DTOs;
 
-public record NotesListDto(
+public record NoteListDto(
 	Guid Id,
 	string Title,
 	string? Description,

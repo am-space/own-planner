@@ -14,12 +14,12 @@ public class NoteItemTools
 		_service = service;
 	}
 
-	[McpServerTool(Name = "noteitem_item_create"), Description("Create a note. NotesListId is required. Returns note information.")]
-	public async Task<object> CreateNote(string title, Guid notesListId, string? content = null)
+	[McpServerTool(Name = "noteitem_item_create"), Description("Create a note. NoteListId is required. Returns note information.")]
+	public async Task<object> CreateNote(string title, Guid noteListId, string? content = null)
 	{
 		try
 		{
-			var dto = await _service.CreateAsync(title, notesListId, content);
+			var dto = await _service.CreateAsync(title, noteListId, content);
 			return dto;
 		}
 		catch (KeyNotFoundException ex)
@@ -44,10 +44,10 @@ public class NoteItemTools
 		return list;
 	}
 
-	[McpServerTool(Name = "noteitem_list_items", Idempotent = true, ReadOnly = true), Description("List notes by notes list id.")]
-	public async Task<object> ListNotesByList(Guid notesListId)
+	[McpServerTool(Name = "noteitem_list_items", Idempotent = true, ReadOnly = true), Description("List notes by note list id.")]
+	public async Task<object> ListNotesByList(Guid noteListId)
 	{
-		var list = await _service.ListByNotesListAsync(notesListId);
+		var list = await _service.ListByNoteListAsync(noteListId);
 		return list;
 	}
 
@@ -65,13 +65,13 @@ public class NoteItemTools
 		}
 	}
 
-	[McpServerTool(Name = "noteitem_item_assign"), Description("Assign a note to a different notes list.")]
-	public async Task<object> AssignNoteToList(Guid noteId, Guid notesListId)
+	[McpServerTool(Name = "noteitem_item_assign"), Description("Assign a note to a different note list.")]
+	public async Task<object> AssignNoteToList(Guid noteId, Guid noteListId)
 	{
 		try
 		{
-			await _service.AssignToListAsync(noteId, notesListId);
-			return new { success = true, noteId, notesListId };
+			await _service.AssignToListAsync(noteId, noteListId);
+			return new { success = true, noteId, noteListId };
 		}
 		catch (KeyNotFoundException ex)
 		{

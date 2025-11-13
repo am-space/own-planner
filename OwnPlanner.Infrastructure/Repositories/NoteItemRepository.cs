@@ -21,9 +21,9 @@ public class NoteItemRepository(AppDbContext db) : INoteItemRepository
 			.ToList();
 	}
 
-	public async Task<IReadOnlyList<NoteItem>> ListByNotesListAsync(Guid notesListId, CancellationToken ct = default)
+	public async Task<IReadOnlyList<NoteItem>> ListByNoteListAsync(Guid noteListId, CancellationToken ct = default)
 	{
-		var query = _db.NoteItems.Where(n => n.NotesListId == notesListId);
+		var query = _db.NoteItems.Where(n => n.NoteListId == noteListId);
 
 		// SQLite cannot translate ORDER BY on DateTimeOffset; order in-memory instead
 		var items = await query.ToListAsync(ct);

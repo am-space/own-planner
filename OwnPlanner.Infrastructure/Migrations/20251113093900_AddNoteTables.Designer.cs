@@ -11,8 +11,8 @@ using OwnPlanner.Infrastructure.Persistence;
 namespace OwnPlanner.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20251113083406_AddNotesLists")]
-    partial class AddNotesLists
+    [Migration("20251113093900_AddNoteTables")]
+    partial class AddNoteTables
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -20,7 +20,40 @@ namespace OwnPlanner.Infrastructure.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "9.0.10");
 
-            modelBuilder.Entity("OwnPlanner.Domain.Notes.NotesList", b =>
+            modelBuilder.Entity("OwnPlanner.Domain.Notes.NoteItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Content")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsPinned")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("NoteListId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NoteListId");
+
+                    b.ToTable("NoteItems");
+                });
+
+            modelBuilder.Entity("OwnPlanner.Domain.Notes.NoteList", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -49,7 +82,7 @@ namespace OwnPlanner.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("NotesLists");
+                    b.ToTable("NoteLists");
                 });
 
             modelBuilder.Entity("OwnPlanner.Domain.Tasks.TaskItem", b =>
@@ -121,6 +154,15 @@ namespace OwnPlanner.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("TaskLists");
+                });
+
+            modelBuilder.Entity("OwnPlanner.Domain.Notes.NoteItem", b =>
+                {
+                    b.HasOne("OwnPlanner.Domain.Notes.NoteList", null)
+                        .WithMany()
+                        .HasForeignKey("NoteListId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("OwnPlanner.Domain.Tasks.TaskItem", b =>

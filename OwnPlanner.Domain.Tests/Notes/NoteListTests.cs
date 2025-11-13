@@ -3,12 +3,12 @@ using OwnPlanner.Domain.Notes;
 
 namespace OwnPlanner.Domain.Tests.Notes;
 
-public class NotesListTests
+public class NoteListTests
 {
 	[Fact]
 	public void Ctor_Valid_SetsProperties()
 	{
-		var nl = new NotesList(" My Notes ", " A collection of notes ", " #FF5733 ");
+		var nl = new NoteList(" My Notes ", " A collection of notes ", " #FF5733 ");
 		
 		nl.Title.Should().Be("My Notes");
 		nl.Description.Should().Be("A collection of notes");
@@ -20,14 +20,14 @@ public class NotesListTests
 	[Fact]
 	public void Ctor_EmptyTitle_Throws()
 	{
-		var act = () => new NotesList("");
+		var act = () => new NoteList("");
 		act.Should().Throw<ArgumentException>();
 	}
 
 	[Fact]
 	public void Archive_Then_Unarchive_Idempotent()
 	{
-		var nl = new NotesList("Notes");
+		var nl = new NoteList("Notes");
 		
 		nl.Archive();
 		nl.IsArchived.Should().BeTrue();
@@ -45,7 +45,7 @@ public class NotesListTests
 	[Fact]
 	public void SetTitle_ValidTitle_UpdatesTitle()
 	{
-		var nl = new NotesList("Original Title");
+		var nl = new NoteList("Original Title");
 		var before = nl.UpdatedAt;
 
 		nl.SetTitle(" New Title ");
@@ -57,7 +57,7 @@ public class NotesListTests
 	[Fact]
 	public void SetTitle_EmptyTitle_Throws()
 	{
-		var nl = new NotesList("Title");
+		var nl = new NoteList("Title");
 
 		var act = () => nl.SetTitle("");
 
@@ -67,7 +67,7 @@ public class NotesListTests
 	[Fact]
 	public void SetDescription_ValidDescription_UpdatesDescription()
 	{
-		var nl = new NotesList("Title");
+		var nl = new NoteList("Title");
 		var before = nl.UpdatedAt;
 
 		nl.SetDescription(" New Description ");
@@ -79,7 +79,7 @@ public class NotesListTests
 	[Fact]
 	public void SetDescription_EmptyString_SetsToNull()
 	{
-		var nl = new NotesList("Title", "Original Description");
+		var nl = new NoteList("Title", "Original Description");
 
 		nl.SetDescription("   ");
 
@@ -89,7 +89,7 @@ public class NotesListTests
 	[Fact]
 	public void SetColor_ValidColor_UpdatesColor()
 	{
-		var nl = new NotesList("Title");
+		var nl = new NoteList("Title");
 		var before = nl.UpdatedAt;
 
 		nl.SetColor(" #00FF00 ");
@@ -101,7 +101,7 @@ public class NotesListTests
 	[Fact]
 	public void SetColor_EmptyString_SetsToNull()
 	{
-		var nl = new NotesList("Title", color: "#FF0000");
+		var nl = new NoteList("Title", color: "#FF0000");
 
 		nl.SetColor("   ");
 
@@ -111,7 +111,7 @@ public class NotesListTests
 	[Fact]
 	public void Setters_Update_UpdatedAt_Monotonically()
 	{
-		var nl = new NotesList("Title");
+		var nl = new NoteList("Title");
 		var before = nl.UpdatedAt;
 		
 		nl.SetDescription("New Description");

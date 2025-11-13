@@ -7,5 +7,5 @@ public record NoteItemDto(
 	bool IsPinned,
 	DateTime CreatedAt,
 	DateTime UpdatedAt,
-	Guid NotesListId
+	Guid NoteListId
 );

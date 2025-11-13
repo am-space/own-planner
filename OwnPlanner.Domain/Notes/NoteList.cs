@@ -1,6 +1,6 @@
 namespace OwnPlanner.Domain.Notes;
 
-public class NotesList
+public class NoteList
 {
 	public Guid Id { get; private set; }
 	public string Title { get; private set; } = string.Empty;
@@ -11,9 +11,9 @@ public class NotesList
 	public DateTime UpdatedAt { get; private set; }
 
 	// EF Core constructor
-	private NotesList() { }
+	private NoteList() { }
 
-	public NotesList(string title, string? description = null, string? color = null)
+	public NoteList(string title, string? description = null, string? color = null)
 	{
 		Id = Guid.NewGuid();
 		SetTitle(title);

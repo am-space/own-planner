@@ -8,16 +8,16 @@ public class NoteItem
 	public bool IsPinned { get; private set; }
 	public DateTime CreatedAt { get; private set; }
 	public DateTime UpdatedAt { get; private set; }
-	public Guid NotesListId { get; private set; }
+	public Guid NoteListId { get; private set; }
 
 	// EF Core constructor
 	private NoteItem() { }
 
-	public NoteItem(string title, Guid notesListId, string? content = null)
+	public NoteItem(string title, Guid noteListId, string? content = null)
 	{
 		Id = Guid.NewGuid();
 		SetTitle(title);
-		NotesListId = notesListId;
+		NoteListId = noteListId;
 		SetContent(content);
 		var now = DateTime.UtcNow;
 		CreatedAt = now;
@@ -56,9 +56,9 @@ public class NoteItem
 		}
 	}
 
-	public void AssignToList(Guid notesListId)
+	public void AssignToList(Guid noteListId)
 	{
-		NotesListId = notesListId;
+		NoteListId = noteListId;
 		Touch();
 	}
 

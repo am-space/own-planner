@@ -4,19 +4,19 @@ using OwnPlanner.Domain.Notes;
 
 namespace OwnPlanner.Application.Notes;
 
-public class NoteItemService(INoteItemRepository repository, INotesListRepository notesListRepository) : INoteItemService
+public class NoteItemService(INoteItemRepository repository, INoteListRepository noteListRepository) : INoteItemService
 {
 	private readonly INoteItemRepository _repository = repository;
-	private readonly INotesListRepository _notesListRepository = notesListRepository;
+	private readonly INoteListRepository _noteListRepository = noteListRepository;
 
-	public async Task<NoteItemDto> CreateAsync(string title, Guid notesListId, string? content = null, CancellationToken ct = default)
+	public async Task<NoteItemDto> CreateAsync(string title, Guid noteListId, string? content = null, CancellationToken ct = default)
 	{
-		// Validate that the notes list exists
-		var notesList = await _notesListRepository.GetAsync(notesListId, ct);
-		if (notesList is null)
-			throw new KeyNotFoundException($"NotesList {notesListId} not found");
+		// Validate that the note list exists
+		var noteList = await _noteListRepository.GetAsync(noteListId, ct);
+		if (noteList is null)
+			throw new KeyNotFoundException($"NoteList {noteListId} not found");
 
-		var item = new NoteItem(title, notesListId, content);
+		var item = new NoteItem(title, noteListId, content);
 		await _repository.AddAsync(item, ct);
 		return Map(item);
 	}
@@ -33,9 +33,9 @@ public class NoteItemService(INoteItemRepository repository, INotesListRepositor
 		return items.Select(Map).ToList();
 	}
 
-	public async Task<IReadOnlyList<NoteItemDto>> ListByNotesListAsync(Guid notesListId, CancellationToken ct = default)
+	public async Task<IReadOnlyList<NoteItemDto>> ListByNoteListAsync(Guid noteListId, CancellationToken ct = default)
 	{
-		var items = await _repository.ListByNotesListAsync(notesListId, ct);
+		var items = await _repository.ListByNoteListAsync(noteListId, ct);
 		return items.Select(Map).ToList();
 	}
 
@@ -52,16 +52,16 @@ public class NoteItemService(INoteItemRepository repository, INotesListRepositor
 		return Map(item);
 	}
 
-	public async Task AssignToListAsync(Guid noteId, Guid notesListId, CancellationToken ct = default)
+	public async Task AssignToListAsync(Guid noteId, Guid noteListId, CancellationToken ct = default)
 	{
 		var item = await _repository.GetAsync(noteId, ct) ?? throw new KeyNotFoundException($"Note {noteId} not found");
 		
-		// Validate that the notes list exists
-		var notesList = await _notesListRepository.GetAsync(notesListId, ct);
-		if (notesList is null)
-			throw new KeyNotFoundException($"NotesList {notesListId} not found");
+		// Validate that the note list exists
+		var noteList = await _noteListRepository.GetAsync(noteListId, ct);
+		if (noteList is null)
+			throw new KeyNotFoundException($"NoteList {noteListId} not found");
 
-		item.AssignToList(notesListId);
+		item.AssignToList(noteListId);
 		await _repository.UpdateAsync(item, ct);
 	}
 
@@ -92,6 +92,6 @@ public class NoteItemService(INoteItemRepository repository, INotesListRepositor
 		item.IsPinned,
 		item.CreatedAt,
 		item.UpdatedAt,
-		item.NotesListId
+		item.NoteListId
 	);
 }
