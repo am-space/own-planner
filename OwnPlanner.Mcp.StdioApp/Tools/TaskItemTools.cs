@@ -55,6 +55,29 @@ public class TaskItemTools
 		return list;
 	}
 
+	[McpServerTool(Name = "taskitem_item_update"), Description("Update a task. Provide id and the fields to update (title, description, or dueAt).")]
+	public async Task<object> UpdateTask(Guid id, string? title = null, string? description = null, string? dueAt = null)
+	{
+		try
+		{
+			DateTime? dueDate = null;
+			if (!string.IsNullOrEmpty(dueAt))
+			{
+				if (DateTime.TryParse(dueAt, out var parsed))
+					dueDate = parsed;
+				else
+					return new { error = "Invalid date format for dueAt" };
+			}
+			
+			var dto = await _service.UpdateAsync(id, title, description, dueDate);
+			return dto;
+		}
+		catch (KeyNotFoundException ex)
+		{
+			return new { error = ex.Message };
+		}
+	}
+
 	[McpServerTool(Name = "taskitem_item_assign"), Description("Assign a task to a different list.")]
 	public async Task<object> AssignTaskToList(Guid taskId, Guid taskListId)
 	{

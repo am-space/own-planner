@@ -8,6 +8,7 @@ public interface ITaskItemService
 	Task<TaskItemDto?> GetAsync(Guid id, CancellationToken ct = default);
 	Task<IReadOnlyList<TaskItemDto>> ListAsync(bool includeCompleted = true, CancellationToken ct = default);
 	Task<IReadOnlyList<TaskItemDto>> ListByTaskListAsync(Guid taskListId, bool includeCompleted = true, CancellationToken ct = default);
+	Task<TaskItemDto> UpdateAsync(Guid id, string? title = null, string? description = null, DateTime? dueAt = null, CancellationToken ct = default);
 	Task AssignToListAsync(Guid taskId, Guid taskListId, CancellationToken ct = default);
 	Task CompleteAsync(Guid id, CancellationToken ct = default);
 	Task ReopenAsync(Guid id, CancellationToken ct = default);

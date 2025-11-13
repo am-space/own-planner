@@ -39,6 +39,21 @@ public class TaskItemService(ITaskItemRepository repository, ITaskListRepository
 		return items.Select(Map).ToList();
 	}
 
+	public async Task<TaskItemDto> UpdateAsync(Guid id, string? title = null, string? description = null, DateTime? dueAt = null, CancellationToken ct = default)
+	{
+		var item = await _repository.GetAsync(id, ct) ?? throw new KeyNotFoundException($"Task {id} not found");
+		
+		if (title is not null)
+			item.SetTitle(title);
+		if (description is not null)
+			item.SetDescription(description);
+		if (dueAt is not null)
+			item.SetDueAt(dueAt);
+
+		await _repository.UpdateAsync(item, ct);
+		return Map(item);
+	}
+
 	public async Task AssignToListAsync(Guid taskId, Guid taskListId, CancellationToken ct = default)
 	{
 		var item = await _repository.GetAsync(taskId, ct) ?? throw new KeyNotFoundException($"Task {taskId} not found");

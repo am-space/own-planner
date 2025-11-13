@@ -88,4 +88,94 @@ public class TaskItemServiceTests
 		list.Should().HaveCount(2);
 		list.Select(x => x.Title).Should().Contain(["a", "b"]);
 	}
+
+	[Fact]
+	public async Task UpdateAsync_UpdatesTitle()
+	{
+		var id = Guid.NewGuid();
+		var listId = Guid.NewGuid();
+		var item = new TaskItem("Old Title", listId);
+		_repo.GetAsync(id, Arg.Any<CancellationToken>()).Returns(item);
+
+		var dto = await _svc.UpdateAsync(id, title: "New Title");
+
+		dto.Title.Should().Be("New Title");
+		await _repo.Received(1).UpdateAsync(item, Arg.Any<CancellationToken>());
+	}
+
+	[Fact]
+	public async Task UpdateAsync_UpdatesDescription()
+	{
+		var id = Guid.NewGuid();
+		var listId = Guid.NewGuid();
+		var item = new TaskItem("Title", listId, "Old Description");
+		_repo.GetAsync(id, Arg.Any<CancellationToken>()).Returns(item);
+
+		var dto = await _svc.UpdateAsync(id, description: "New Description");
+
+		dto.Description.Should().Be("New Description");
+		await _repo.Received(1).UpdateAsync(item, Arg.Any<CancellationToken>());
+	}
+
+	[Fact]
+	public async Task UpdateAsync_UpdatesDueAt()
+	{
+		var id = Guid.NewGuid();
+		var listId = Guid.NewGuid();
+		var item = new TaskItem("Title", listId);
+		var dueDate = new DateTime(2024, 12, 31);
+		_repo.GetAsync(id, Arg.Any<CancellationToken>()).Returns(item);
+
+		var dto = await _svc.UpdateAsync(id, dueAt: dueDate);
+
+		dto.DueAt.Should().NotBeNull();
+		dto.DueAt!.Value.Year.Should().Be(2024);
+		dto.DueAt.Value.Month.Should().Be(12);
+		dto.DueAt.Value.Day.Should().Be(31);
+		await _repo.Received(1).UpdateAsync(item, Arg.Any<CancellationToken>());
+	}
+
+	[Fact]
+	public async Task UpdateAsync_UpdatesMultipleFields()
+	{
+		var id = Guid.NewGuid();
+		var listId = Guid.NewGuid();
+		var item = new TaskItem("Old Title", listId, "Old Description");
+		var dueDate = new DateTime(2024, 12, 31);
+		_repo.GetAsync(id, Arg.Any<CancellationToken>()).Returns(item);
+
+		var dto = await _svc.UpdateAsync(id, "New Title", "New Description", dueDate);
+
+		dto.Title.Should().Be("New Title");
+		dto.Description.Should().Be("New Description");
+		dto.DueAt.Should().NotBeNull();
+		await _repo.Received(1).UpdateAsync(item, Arg.Any<CancellationToken>());
+	}
+
+	[Fact]
+	public async Task UpdateAsync_OnlyUpdatesProvidedFields()
+	{
+		var id = Guid.NewGuid();
+		var listId = Guid.NewGuid();
+		var item = new TaskItem("Original Title", listId, "Original Description");
+		_repo.GetAsync(id, Arg.Any<CancellationToken>()).Returns(item);
+
+		var dto = await _svc.UpdateAsync(id, title: "New Title");
+
+		dto.Title.Should().Be("New Title");
+		dto.Description.Should().Be("Original Description");
+		await _repo.Received(1).UpdateAsync(item, Arg.Any<CancellationToken>());
+	}
+
+	[Fact]
+	public async Task UpdateAsync_ThrowsKeyNotFoundException_WhenTaskNotFound()
+	{
+		var id = Guid.NewGuid();
+		_repo.GetAsync(id, Arg.Any<CancellationToken>()).Returns((TaskItem?)null);
+
+		var act = async () => await _svc.UpdateAsync(id, title: "New Title");
+
+		await act.Should().ThrowAsync<KeyNotFoundException>()
+			.WithMessage($"Task {id} not found");
+	}
 }
