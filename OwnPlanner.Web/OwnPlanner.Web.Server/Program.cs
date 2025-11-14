@@ -1,5 +1,12 @@
 using Serilog;
 using OwnPlanner.Web.Server.Middleware;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.EntityFrameworkCore;
+using OwnPlanner.Infrastructure.Persistence;
+using OwnPlanner.Domain.Users;
+using OwnPlanner.Infrastructure.Repositories;
+using OwnPlanner.Application.Auth.Interfaces;
+using OwnPlanner.Application.Auth;
 
 namespace OwnPlanner.Web.Server
 {
@@ -27,7 +34,45 @@ namespace OwnPlanner.Web.Server
 				// Use Serilog for logging
 				builder.Host.UseSerilog();
 
-				// Add services to the container.
+				// Configure authentication database (users, auth data)
+				var authDbPath = Path.Combine(builder.Environment.ContentRootPath, "ownplanner-auth.db");
+				builder.Services.AddDbContext<AuthDbContext>(options =>
+					options.UseSqlite($"Data Source={authDbPath}")
+				);
+
+				// Register repositories
+				builder.Services.AddScoped<IUserRepository, UserRepository>();
+
+				// Register application services
+				builder.Services.AddScoped<IAuthService, AuthService>();
+
+				// Configure cookie authentication
+				builder.Services
+					.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+					.AddCookie(options =>
+					{
+						options.Cookie.Name = "OwnPlanner.Auth";
+						options.Cookie.HttpOnly = true;
+						options.Cookie.SecurePolicy = builder.Environment.IsDevelopment() ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always;
+						options.Cookie.SameSite = builder.Environment.IsDevelopment() ? SameSiteMode.Lax : SameSiteMode.Strict;
+						options.ExpireTimeSpan = TimeSpan.FromDays(7);
+						options.SlidingExpiration = true;
+						
+						// Return 401 instead of redirecting to login page for API calls
+						options.Events.OnRedirectToLogin = context =>
+						{
+							context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+							return Task.CompletedTask;
+						};
+						
+						options.Events.OnRedirectToAccessDenied = context =>
+						{
+							context.Response.StatusCode = StatusCodes.Status403Forbidden;
+							return Task.CompletedTask;
+						};
+					});
+
+				builder.Services.AddAuthorization();
 
 				// Register global exception handler
 				builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
@@ -38,6 +83,14 @@ namespace OwnPlanner.Web.Server
 				builder.Services.AddOpenApi();
 
 				var app = builder.Build();
+
+				// Ensure authentication database is created and migrations are applied
+				using (var scope = app.Services.CreateScope())
+				{
+					var authDb = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
+					authDb.Database.Migrate();
+					Log.Information("Authentication database initialized at: {DbPath}", authDbPath);
+				}
 
 				// Place Serilog request logging at the start so handled exceptions don't log twice
 				app.UseSerilogRequestLogging(options =>
@@ -66,6 +119,8 @@ namespace OwnPlanner.Web.Server
 
 				app.UseHttpsRedirection();
 
+				// Authentication & Authorization middleware (must be in this order)
+				app.UseAuthentication();
 				app.UseAuthorization();
 
 				app.MapControllers();
