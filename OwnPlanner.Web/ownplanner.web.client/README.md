@@ -1,73 +1,157 @@
-# React + TypeScript + Vite
+# OwnPlanner Web Client
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A React + TypeScript + MUI web client for the OwnPlanner application.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- ? **Authentication System**
+  - User Registration (Email, Username, Password)
+  - User Login (Email & Password)
+  - Protected Routes
+  - Persistent Authentication with Cookies
 
-## React Compiler
+- ? **Chat Interface**
+  - Real-time message display
+  - User/Assistant message differentiation
+  - Message timestamps
+  - Responsive design
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- ? **User Interface**
+  - Material-UI (MUI) components
+  - Responsive layout
+  - Clean, modern design
+  - User status display in header
 
-## Expanding the ESLint configuration
+## Tech Stack
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+- **React 19** - UI Framework
+- **TypeScript** - Type Safety
+- **Material-UI (MUI)** - Component Library
+- **React Router** - Navigation
+- **Vite** - Build Tool
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## Getting Started
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+### Prerequisites
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+- Node.js (v18 or higher)
+- npm or yarn
+
+### Installation
+
+```bash
+# Install dependencies
+npm install
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+### Running the Application
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+```bash
+# Development mode
+npm run dev
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+# Build for production
+npm run build
+
+# Preview production build
+npm run preview
 ```
+
+The application will run on `https://localhost:56404` (or the port specified in environment variables).
+
+## Project Structure
+
+```
+src/
+??? components/          # Reusable components
+?   ??? ProtectedRoute.tsx
+??? contexts/           # React contexts
+?   ??? AuthContext.tsx
+??? pages/              # Page components
+?   ??? LoginPage.tsx
+?   ??? RegisterPage.tsx
+?   ??? ChatPage.tsx
+??? services/           # API services
+?   ??? api.ts
+??? App.tsx             # Main app component
+??? main.tsx           # App entry point
+??? index.css          # Global styles
+```
+
+## API Integration
+
+The client communicates with the ASP.NET backend via REST API:
+
+- `POST /api/auth/register` - Register new user
+- `POST /api/auth/login` - Login user
+- `POST /api/auth/logout` - Logout user
+- `GET /api/auth/check` - Check authentication status
+- `GET /api/auth/me` - Get current user info
+
+## Routes
+
+- `/` - Redirects to `/chat`
+- `/login` - Login page
+- `/register` - Registration page
+- `/chat` - Chat interface (protected)
+
+## Authentication Flow
+
+1. User registers or logs in
+2. Backend sets HTTP-only cookie
+3. Client stores user info in context
+4. Protected routes check authentication
+5. API calls include credentials automatically
+
+## MCP Integration (Planned)
+
+The chat interface is prepared for MCP (Model Context Protocol) integration:
+- Message history management
+- Assistant response handling
+- Real-time communication ready
+
+## Development Notes
+
+### Hot Module Replacement (HMR)
+
+Vite provides fast HMR during development. Changes are reflected immediately.
+
+### HTTPS in Development
+
+The app uses HTTPS in development mode with self-signed certificates generated by .NET dev-certs.
+
+### Proxy Configuration
+
+API calls are proxied to the backend server in development (configured in `vite.config.ts`).
+
+## Building for Production
+
+```bash
+npm run build
+```
+
+The build output will be in the `dist/` directory and will be served by the ASP.NET backend.
+
+## Troubleshooting
+
+### HTTPS Certificate Issues
+
+If you encounter certificate errors:
+
+```bash
+dotnet dev-certs https --clean
+dotnet dev-certs https --trust
+```
+
+### Port Conflicts
+
+Change the port in `vite.config.ts` if 56404 is already in use.
+
+## Future Enhancements
+
+- [ ] MCP integration for AI-powered planning
+- [ ] Task management UI
+- [ ] Note-taking interface
+- [ ] Dark mode toggle
+- [ ] User preferences
+- [ ] Notification system
