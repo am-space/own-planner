@@ -366,3 +366,6 @@ appsettings.Development.json
 
 # Application logs
 logs/
+
+# Temp database files
+ownplanner-auth.db

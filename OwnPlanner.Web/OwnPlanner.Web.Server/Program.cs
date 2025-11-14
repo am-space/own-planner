@@ -35,7 +35,14 @@ namespace OwnPlanner.Web.Server
 				builder.Host.UseSerilog();
 
 				// Configure authentication database (users, auth data)
-				var authDbPath = Path.Combine(builder.Environment.ContentRootPath, "ownplanner-auth.db");
+				// Use configured path or default to ContentRootPath
+				var configuredAuthDbPath = builder.Configuration["Database:AuthDbPath"];
+				var authDbPath = string.IsNullOrWhiteSpace(configuredAuthDbPath)
+					? Path.Combine(builder.Environment.ContentRootPath, "ownplanner-auth.db")
+					: Path.GetFullPath(configuredAuthDbPath);
+
+				Log.Information("Database path configured: {AuthDbPath}", authDbPath);
+
 				builder.Services.AddDbContext<AuthDbContext>(options =>
 					options.UseSqlite($"Data Source={authDbPath}")
 				);

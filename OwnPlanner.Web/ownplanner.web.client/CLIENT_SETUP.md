@@ -31,6 +31,9 @@ src/
 ?   ??? ChatPage.tsx             # Main chat interface
 ??? services/
 ?   ??? api.ts                   # API service layer
+??? types/
+?   ??? api.types.ts             # Type definitions
+?   ??? index.ts                 # Type exports
 ??? App.tsx                      # Main app with routing
 ??? main.tsx                     # Entry point
 ??? index.css                    # Global styles
