@@ -1,38 +1,99 @@
-# See https://aka.ms/customizecontainer to learn how to customize your debug container and how Visual Studio uses this Dockerfile to build your images for faster debugging.
+# Multi-stage Dockerfile for OwnPlanner
+# Combines Web.Server + MCP.StdioApp in a single container
+# Build context: Repository root directory
 
-# This stage is used when running from VS in fast mode (Default for Debug configuration)
-FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS base
-USER $APP_UID
-WORKDIR /app
-EXPOSE 8080
-EXPOSE 8081
+# Stage 1: Build MCP.StdioApp
+FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build-mcp
+WORKDIR /src
 
+# Copy MCP project and dependencies
+COPY ["OwnPlanner.Mcp.StdioApp/OwnPlanner.Mcp.StdioApp.csproj", "OwnPlanner.Mcp.StdioApp/"]
+COPY ["OwnPlanner.Application/OwnPlanner.Application.csproj", "OwnPlanner.Application/"]
+COPY ["OwnPlanner.Domain/OwnPlanner.Domain.csproj", "OwnPlanner.Domain/"]
+COPY ["OwnPlanner.Infrastructure/OwnPlanner.Infrastructure.csproj", "OwnPlanner.Infrastructure/"]
 
-# This stage is used to build the service project
+RUN dotnet restore "OwnPlanner.Mcp.StdioApp/OwnPlanner.Mcp.StdioApp.csproj"
+
+# Copy all source code
+COPY . .
+
+# Build and publish MCP.StdioApp
+WORKDIR "/src/OwnPlanner.Mcp.StdioApp"
+RUN dotnet publish "OwnPlanner.Mcp.StdioApp.csproj" -c Release -o /app/mcp --no-restore
+
+# Stage 2: Setup Node.js for React frontend
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS with-node
-RUN apt-get update
-RUN apt-get install curl
-RUN curl -sL https://deb.nodesource.com/setup_20.x | bash
-RUN apt-get -y install nodejs
+WORKDIR /src
 
+# Install Node.js 20.x (optimized commands)
+RUN apt-get update && \
+    apt-get install -y curl && \
+    curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    apt-get install -y nodejs && \
+    rm -rf /var/lib/apt/lists/*
 
+# Stage 3: Build Web.Server with React frontend
 FROM with-node AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
-COPY ["OwnPlanner.Web/OwnPlanner.Web.Server/OwnPlanner.Web.Server.csproj", "OwnPlanner.Web/OwnPlanner.Web.Server/"]
-COPY ["ownplanner.web.client/ownplanner.web.client.esproj", "ownplanner.web.client/"]
-RUN dotnet restore "./OwnPlanner.Web/OwnPlanner.Web.Server/OwnPlanner.Web.Server.csproj"
-COPY . .
-WORKDIR "/src/OwnPlanner.Web/OwnPlanner.Web.Server"
-RUN dotnet build "./OwnPlanner.Web.Server.csproj" -c $BUILD_CONFIGURATION -o /app/build
 
-# This stage is used to publish the service project to be copied to the final stage
+# Copy Web.Server project and dependencies
+COPY ["OwnPlanner.Web/OwnPlanner.Web.Server/OwnPlanner.Web.Server.csproj", "OwnPlanner.Web/OwnPlanner.Web.Server/"]
+COPY ["OwnPlanner.Web/ownplanner.web.client/ownplanner.web.client.esproj", "OwnPlanner.Web/ownplanner.web.client/"]
+COPY ["OwnPlanner.Application/OwnPlanner.Application.csproj", "OwnPlanner.Application/"]
+COPY ["OwnPlanner.Domain/OwnPlanner.Domain.csproj", "OwnPlanner.Domain/"]
+COPY ["OwnPlanner.Infrastructure/OwnPlanner.Infrastructure.csproj", "OwnPlanner.Infrastructure/"]
+
+RUN dotnet restore "OwnPlanner.Web/OwnPlanner.Web.Server/OwnPlanner.Web.Server.csproj"
+
+# Copy all source code
+COPY . .
+
+# Build and publish Web.Server (includes React frontend build via npm)
+WORKDIR "/src/OwnPlanner.Web/OwnPlanner.Web.Server"
+RUN dotnet build "OwnPlanner.Web.Server.csproj" -c $BUILD_CONFIGURATION -o /app/build
+
+# Publish stage
 FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
-RUN dotnet publish "./OwnPlanner.Web.Server.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
+RUN dotnet publish "OwnPlanner.Web.Server.csproj" -c $BUILD_CONFIGURATION -o /app/web /p:UseAppHost=false --no-restore
 
-# This stage is used in production or when running from VS in regular mode (Default when not using the Debug configuration)
-FROM base AS final
+# Stage 4: Final runtime image
+FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
 WORKDIR /app
-COPY --from=publish /app/publish .
+
+# Install runtime dependencies (curl for health checks)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    curl \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy published Web.Server from build stage
+COPY --from=publish /app/web ./
+
+# Copy published MCP.StdioApp to mcp subdirectory
+COPY --from=build-mcp /app/mcp ./mcp/
+
+# Create directories for data persistence with correct permissions
+RUN mkdir -p /app/data/databases /app/data/logs /app/data/auth && \
+    chmod -R 755 /app/data
+
+# Set environment variables
+ENV ASPNETCORE_URLS=http://+:8080 \
+    ASPNETCORE_ENVIRONMENT=Production \
+    DOTNET_RUNNING_IN_CONTAINER=true \
+    DOTNET_EnableDiagnostics=0
+
+# Expose port (only 8080 for production)
+EXPOSE 8080
+
+# Health check configuration
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost:8080/api/chat/health || exit 1
+
+# Switch to non-root user for security
+USER $APP_UID
+
+# Entry point
 ENTRYPOINT ["dotnet", "OwnPlanner.Web.Server.dll"]

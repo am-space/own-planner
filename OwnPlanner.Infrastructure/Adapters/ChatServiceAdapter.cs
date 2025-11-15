@@ -15,8 +15,8 @@ namespace OwnPlanner.Infrastructure.Adapters
 		private readonly bool _shouldDisposeMcp;
 		private readonly int _maxToolCallRounds;
 		private Tools? _geminiTools;
-		private GenerativeModel _generativeModel;
-		private ChatSession _chat;
+		private GenerativeModel _generativeModel = null!; // Initialized in constructor
+		private ChatSession _chat = null!; // Initialized in InitializeChatWithInstructions
 
 		/// <summary>
 		/// When this chat service was created
@@ -191,8 +191,8 @@ namespace OwnPlanner.Infrastructure.Adapters
 
 			while (roundCount < _maxToolCallRounds)
 			{
-				var functionCalls = response.Candidates?.FirstOrDefault()?.Content.Parts
-					.Where(p => p.FunctionCall != null)
+				var functionCalls = response.Candidates?.FirstOrDefault()?.Content?.Parts
+					?.Where(p => p.FunctionCall != null)
 					.ToList();
 
 				if (functionCalls == null || !functionCalls.Any())
