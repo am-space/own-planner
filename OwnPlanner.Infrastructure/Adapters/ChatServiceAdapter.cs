@@ -51,9 +51,51 @@ namespace OwnPlanner.Infrastructure.Adapters
 
 			// Initialize the generative model and chat session with any available tools
 			_generativeModel = _googleAI.GenerativeModel(_model, tools: _geminiTools);
-			_chat = _generativeModel.StartChat();
+			
+			// Initialize chat with system instructions
+			InitializeChatWithInstructions();
 			
 			Log.Information("ChatServiceAdapter initialized successfully");
+		}
+
+		private void InitializeChatWithInstructions()
+		{
+			// Define the system instructions / initial prompt
+			var systemInstructions = 
+				@"  You are a helpful personal planning assistant integrated into OwnPlanner application.
+
+					Your capabilities:
+					- Help users manage their tasks and to-do lists
+					- Assist with note-taking and organization
+					- Provide information about current date and time
+					- Answer questions and provide helpful advice
+
+					Available tools:
+					- Task management: Create, list, update, and delete tasks
+					- Note management: Create, list, update, and delete notes
+					- Date/time information: Get current date and time
+
+					Guidelines:
+					- Be concise but friendly
+					- When users ask to create tasks or notes, use the appropriate tools
+					- Always confirm actions taken (e.g., ""I've created a task for..."")
+					- If asked about the current date/time, use the datetime tool
+					- Proactively suggest using tools when relevant
+					- Format responses clearly and professionally
+
+					Remember: You have access to real tools that can modify user data. Always use them when appropriate.";
+
+			// Create initial history with system instructions
+			var initialHistory = new List<ContentResponse>
+			{
+				new ContentResponse(systemInstructions),
+				new ContentResponse("Understood! I'm ready to help you with your tasks, notes, and planning needs.","model")
+			};
+
+			// Start chat with the initial instructions
+			_chat = _generativeModel.StartChat(history: initialHistory);
+			
+			Log.Debug("Chat initialized with system instructions");
 		}
 
 		private async Task InitializeMcpAsync()

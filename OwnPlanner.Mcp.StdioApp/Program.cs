@@ -34,11 +34,16 @@ namespace OwnPlanner.Mcp.StdioApp
 				}
 			}
 
+			// Configure log file path based on user ID
+			var logFileName = string.IsNullOrEmpty(userId)
+				? "logs/mcp-stdioapp-.log"
+				: $"logs/mcp-stdioapp-user-{userId}-.log";
+
 			// Configure Serilog (send console logs to stderr to avoid interfering with MCP stdout)
 			var logConfig = new LoggerConfiguration()
 				.MinimumLevel.Debug()
 				.WriteTo.Console(standardErrorFromLevel: LogEventLevel.Verbose)
-				.WriteTo.File("logs/stdioapp-.log", rollingInterval: RollingInterval.Day);
+				.WriteTo.File(logFileName, rollingInterval: RollingInterval.Day);
 
 			// Enrich logs with session ID and user ID if provided
 			if (!string.IsNullOrEmpty(sessionId))
