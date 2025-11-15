@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\OwnPlanner.Mcp.StdioApp\OwnPlanner.Mcp.StdioApp.csproj" />
+    <ProjectReference Include="..\OwnPlanner.Infrastructure\OwnPlanner.Infrastructure.csproj" />
   </ItemGroup>
 
   <ItemGroup>

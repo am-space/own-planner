@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Serilog;
 using Spectre.Console;
+using OwnPlanner.Infrastructure.Adapters;
 
 namespace OwnPlanner.Console
 {

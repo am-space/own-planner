@@ -1,14 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Text.Json;
-using System.Threading.Tasks;
 using ModelContextProtocol.Client;
 using Serilog;
 
-namespace OwnPlanner.Console
+namespace OwnPlanner.Infrastructure.Adapters
 {
 	// Wrapper around the official MCP C# SDK client using Stdio transport
 	public class McpAdapter : IAsyncDisposable

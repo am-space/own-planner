@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Mscc.GenerativeAI;
 using Serilog;
+using OwnPlanner.Infrastructure.Adapters;
 
 namespace OwnPlanner.Console
 {
