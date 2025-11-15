@@ -18,6 +18,16 @@ namespace OwnPlanner.Infrastructure.Adapters
 		private GenerativeModel _generativeModel;
 		private ChatSession _chat;
 
+		/// <summary>
+		/// When this chat service was created
+		/// </summary>
+		public DateTime CreatedTime { get; }
+
+		/// <summary>
+		/// Last time GetResponse was called (tracks actual usage)
+		/// </summary>
+		public DateTime LastAccessTime { get; private set; }
+
 		public ChatServiceAdapter(string apiKey, string model, int maxToolCallRounds = 10, McpAdapter? mcpAdapter = null)
 		{
 			Log.Debug("Creating ChatServiceAdapter with model: {Model}, MCP: {HasMcp}, MaxToolCallRounds: {MaxRounds}", model, mcpAdapter != null, maxToolCallRounds);
@@ -27,6 +37,10 @@ namespace OwnPlanner.Infrastructure.Adapters
 			_mcpClient = mcpAdapter;
 			_shouldDisposeMcp = false; // Don't dispose injected adapter
 			_maxToolCallRounds = maxToolCallRounds;
+
+			// Initialize timestamps
+			CreatedTime = DateTime.UtcNow;
+			LastAccessTime = DateTime.UtcNow;
 
 			if (_mcpClient != null)
 			{
@@ -124,6 +138,9 @@ namespace OwnPlanner.Infrastructure.Adapters
 
 		public async Task<string> GetResponse(string text)
 		{
+			// Update last access time on every message
+			LastAccessTime = DateTime.UtcNow;
+
 			Log.Debug("Getting response for prompt: {Prompt}", text);
 			var response = await _chat.SendMessage(text);
 			

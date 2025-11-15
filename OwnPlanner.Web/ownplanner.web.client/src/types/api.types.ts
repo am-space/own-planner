@@ -30,4 +30,28 @@ export interface AuthCheckResponse {
   userId?: string;
   username?: string;
   email?: string;
+  sessionId?: string;
+}
+
+// Chat API types
+export interface ChatRequest {
+  message: string;
+}
+
+export interface ChatResponse {
+  message: string;
+  sessionId: string;
+  timestamp: string;
+}
+
+export interface SessionStatusResponse {
+  sessionId: string;
+  isActive: boolean;
+  activeSessionsCount: number;
+}
+
+export interface ChatHealthResponse {
+  status: string;
+  activeSessions: number;
+  timestamp: string;
 }

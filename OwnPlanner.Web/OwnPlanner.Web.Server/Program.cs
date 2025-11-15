@@ -7,6 +7,8 @@ using OwnPlanner.Domain.Users;
 using OwnPlanner.Infrastructure.Repositories;
 using OwnPlanner.Application.Auth.Interfaces;
 using OwnPlanner.Application.Auth;
+using OwnPlanner.Web.Server.Configuration;
+using OwnPlanner.Web.Server.Services;
 
 namespace OwnPlanner.Web.Server
 {
@@ -52,6 +54,13 @@ namespace OwnPlanner.Web.Server
 
 				// Register application services
 				builder.Services.AddScoped<IAuthService, AuthService>();
+
+				// Configure chat settings
+				builder.Services.Configure<ChatSettings>(builder.Configuration.GetSection("Chat"));
+				
+				// Register chat services
+				builder.Services.AddSingleton<IChatServiceFactory, ChatServiceFactory>();
+				builder.Services.AddSingleton<ChatSessionManager>();
 
 				// Configure cookie authentication
 				builder.Services

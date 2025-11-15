@@ -5,6 +5,10 @@ import type {
   UserResponse,
   AuthResult,
   AuthCheckResponse,
+  ChatRequest,
+  ChatResponse,
+  SessionStatusResponse,
+  ChatHealthResponse,
 } from '../types/api.types';
 
 class ApiService {
@@ -86,6 +90,63 @@ class ApiService {
 
     if (!response.ok) {
       return null;
+    }
+
+    return await response.json();
+  }
+
+  // Chat API methods
+  async sendChatMessage(message: string): Promise<ChatResponse> {
+    const response = await fetch(`${this.baseUrl}/chat/message`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ message } as ChatRequest),
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to send message');
+    }
+
+    return await response.json();
+  }
+
+  async clearChatSession(): Promise<{ message: string; sessionId: string }> {
+    const response = await fetch(`${this.baseUrl}/chat/clear`, {
+      method: 'POST',
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to clear session');
+    }
+
+    return await response.json();
+  }
+
+  async getChatSessionStatus(): Promise<SessionStatusResponse> {
+    const response = await fetch(`${this.baseUrl}/chat/status`, {
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to get session status');
+    }
+
+    return await response.json();
+  }
+
+  async getChatHealth(): Promise<ChatHealthResponse> {
+    const response = await fetch(`${this.baseUrl}/chat/health`, {
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to get chat health');
     }
 
     return await response.json();

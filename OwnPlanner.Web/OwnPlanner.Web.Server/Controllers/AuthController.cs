@@ -79,7 +79,9 @@ public class AuthController : ControllerBase
 	public async Task<IActionResult> Logout()
 	{
 		var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-		_logger.LogInformation("User logging out: {UserId}", userId);
+		var sessionId = User.FindFirstValue("SessionId");
+		
+		_logger.LogInformation("User logging out - UserId: {UserId}, SessionId: {SessionId}", userId, sessionId);
 
 		await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
 
@@ -123,13 +125,15 @@ public class AuthController : ControllerBase
 			var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 			var username = User.FindFirstValue(ClaimTypes.Name);
 			var email = User.FindFirstValue(ClaimTypes.Email);
+			var sessionId = User.FindFirstValue("SessionId");
 
 			return Ok(new
 			{
 				isAuthenticated = true,
 				userId,
 				username,
-				email
+				email,
+				sessionId
 			});
 		}
 
@@ -138,11 +142,15 @@ public class AuthController : ControllerBase
 
 	private async Task SignInUserAsync(UserResponse user)
 	{
+		// Generate a unique session ID for this login
+		var sessionId = Guid.NewGuid().ToString();
+
 		var claims = new List<Claim>
 		{
 			new(ClaimTypes.NameIdentifier, user.Id.ToString()),
 			new(ClaimTypes.Name, user.Username),
-			new(ClaimTypes.Email, user.Email)
+			new(ClaimTypes.Email, user.Email),
+			new("SessionId", sessionId) // Unique identifier for this login session
 		};
 
 		var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
@@ -157,5 +165,7 @@ public class AuthController : ControllerBase
 			CookieAuthenticationDefaults.AuthenticationScheme,
 			new ClaimsPrincipal(claimsIdentity),
 			authProperties);
+
+		_logger.LogDebug("Created session ID for user {UserId}: {SessionId}", user.Id, sessionId);
 	}
 }

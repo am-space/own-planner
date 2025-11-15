@@ -18,19 +18,63 @@ namespace OwnPlanner.Mcp.StdioApp
 	{
 		static async Task Main(string[] args)
 		{
+			// Parse session ID and user ID from command line arguments
+			string? sessionId = null;
+			string? userId = null;
+			
+			for (int i = 0; i < args.Length - 1; i++)
+			{
+				if (args[i] == "--session-id")
+				{
+					sessionId = args[i + 1];
+				}
+				else if (args[i] == "--user-id")
+				{
+					userId = args[i + 1];
+				}
+			}
+
 			// Configure Serilog (send console logs to stderr to avoid interfering with MCP stdout)
-			Log.Logger = new LoggerConfiguration()
+			var logConfig = new LoggerConfiguration()
 				.MinimumLevel.Debug()
 				.WriteTo.Console(standardErrorFromLevel: LogEventLevel.Verbose)
-				.WriteTo.File("logs/stdioapp-.log", rollingInterval: RollingInterval.Day)
-				.CreateLogger();
+				.WriteTo.File("logs/stdioapp-.log", rollingInterval: RollingInterval.Day);
+
+			// Enrich logs with session ID and user ID if provided
+			if (!string.IsNullOrEmpty(sessionId))
+			{
+				logConfig = logConfig.Enrich.WithProperty("SessionId", sessionId);
+			}
+			if (!string.IsNullOrEmpty(userId))
+			{
+				logConfig = logConfig.Enrich.WithProperty("UserId", userId);
+			}
+
+			Log.Logger = logConfig.CreateLogger();
+
+			Log.Information("MCP Server starting - SessionId: {SessionId}, UserId: {UserId}", 
+				sessionId ?? "unknown", userId ?? "unknown");
 
 			var hostBuilder = Host.CreateDefaultBuilder(args)
 				.UseSerilog()
 				.ConfigureServices((context, services) =>
 				{
-					// DbContext - using Sqlite file in local folder for now
-					var dbPath = Path.Combine(AppContext.BaseDirectory, "ownplanner.db");
+					// Register session context as a singleton for access in tools
+					services.AddSingleton(new SessionContext 
+					{ 
+						SessionId = sessionId ?? "unknown",
+						UserId = userId ?? "unknown"
+					});
+
+					// DbContext - using per-user Sqlite file
+					var dbFileName = string.IsNullOrEmpty(userId) 
+						? "ownplanner.db" 
+						: $"ownplanner-user-{userId}.db";
+					
+					var dbPath = Path.Combine(AppContext.BaseDirectory, dbFileName);
+					
+					Log.Information("Using database: {DbPath}", dbPath);
+					
 					services.AddDbContext<AppDbContext>(options =>
 						options.UseSqlite($"Data Source={dbPath}")
 					);
@@ -72,9 +116,18 @@ namespace OwnPlanner.Mcp.StdioApp
 			}
 
 			var logger = host.Services.GetRequiredService<ILogger<Program>>();
-			logger.LogInformation("Starting MCP stdio server...");
+			logger.LogInformation("MCP stdio server started successfully");
 
 			await host.RunAsync();
 		}
+	}
+
+	/// <summary>
+	/// Context information for the current MCP session
+	/// </summary>
+	public class SessionContext
+	{
+		public required string SessionId { get; init; }
+		public required string UserId { get; init; }
 	}
 }
