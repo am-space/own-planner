@@ -72,7 +72,7 @@ namespace OwnPlanner.Console
 
 				await using (mcpAdapter)
 				{
-					await using var chatService = new ChatService(
+					await using var chatService = new ChatServiceAdapter(
 						settings.Gemini.ApiKey, 
 						settings.Gemini.Model,
 						settings.Gemini.MaxToolCallRounds,

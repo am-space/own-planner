@@ -1,11 +1,13 @@
 using System.Text.Json;
 using Mscc.GenerativeAI;
 using Serilog;
-using OwnPlanner.Infrastructure.Adapters;
 
-namespace OwnPlanner.Console
+namespace OwnPlanner.Infrastructure.Adapters
 {
-	public class ChatService : IAsyncDisposable
+	/// <summary>
+	/// Adapter for Gemini AI chat service with MCP tool integration
+	/// </summary>
+	public class ChatServiceAdapter : IAsyncDisposable
 	{
 		private readonly GoogleAI _googleAI;
 		private readonly string _model;
@@ -16,9 +18,9 @@ namespace OwnPlanner.Console
 		private GenerativeModel _generativeModel;
 		private ChatSession _chat;
 
-		public ChatService(string apiKey, string model, int maxToolCallRounds = 10, McpAdapter? mcpAdapter = null)
+		public ChatServiceAdapter(string apiKey, string model, int maxToolCallRounds = 10, McpAdapter? mcpAdapter = null)
 		{
-			Log.Debug("Creating ChatService with model: {Model}, MCP: {HasMcp}, MaxToolCallRounds: {MaxRounds}", model, mcpAdapter != null, maxToolCallRounds);
+			Log.Debug("Creating ChatServiceAdapter with model: {Model}, MCP: {HasMcp}, MaxToolCallRounds: {MaxRounds}", model, mcpAdapter != null, maxToolCallRounds);
 			
 			_googleAI = new GoogleAI(apiKey);
 			_model = model;
@@ -37,7 +39,7 @@ namespace OwnPlanner.Console
 			_generativeModel = _googleAI.GenerativeModel(_model, tools: _geminiTools);
 			_chat = _generativeModel.StartChat();
 			
-			Log.Information("ChatService initialized successfully");
+			Log.Information("ChatServiceAdapter initialized successfully");
 		}
 
 		private async Task InitializeMcpAsync()
@@ -221,14 +223,14 @@ namespace OwnPlanner.Console
 
 		public async ValueTask DisposeAsync()
 		{
-			Log.Debug("Disposing ChatService...");
+			Log.Debug("Disposing ChatServiceAdapter...");
 			
 			if (_mcpClient != null && _shouldDisposeMcp)
 			{
 				await _mcpClient.DisposeAsync().ConfigureAwait(false);
 			}
 			
-			Log.Information("ChatService disposed");
+			Log.Information("ChatServiceAdapter disposed");
 		}
 	}
 }
