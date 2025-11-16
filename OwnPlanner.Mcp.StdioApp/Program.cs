@@ -34,10 +34,15 @@ namespace OwnPlanner.Mcp.StdioApp
 				}
 			}
 
-			// Configure log file path based on user ID
+			var dataDir = Environment.GetEnvironmentVariable("MCP_DATA_DIR") 
+			              ?? AppContext.BaseDirectory;
+
+			var logDir = Environment.GetEnvironmentVariable("MCP_LOG_DIR")
+			             ?? Path.Combine(AppContext.BaseDirectory, "logs");
+			
 			var logFileName = string.IsNullOrEmpty(userId)
-				? "logs/mcp-stdioapp-.log"
-				: $"logs/mcp-stdioapp-user-{userId}-.log";
+				? Path.Combine(logDir, "stdioapp-.log")
+				: Path.Combine(logDir, $"stdioapp-user-{userId}-.log");
 
 			// Configure Serilog (send console logs to stderr to avoid interfering with MCP stdout)
 			var logConfig = new LoggerConfiguration()
@@ -59,6 +64,8 @@ namespace OwnPlanner.Mcp.StdioApp
 
 			Log.Information("MCP Server starting - SessionId: {SessionId}, UserId: {UserId}", 
 				sessionId ?? "unknown", userId ?? "unknown");
+			Log.Information("Data directory: {DataDir}", dataDir);
+			Log.Information("Log directory: {LogDir}", logDir);
 
 			var hostBuilder = Host.CreateDefaultBuilder(args)
 				.UseSerilog()
@@ -71,12 +78,12 @@ namespace OwnPlanner.Mcp.StdioApp
 						UserId = userId ?? "unknown"
 					});
 
-					// DbContext - using per-user Sqlite file
+					// DbContext - using per-user Sqlite file in the data directory
 					var dbFileName = string.IsNullOrEmpty(userId) 
 						? "ownplanner.db" 
 						: $"ownplanner-user-{userId}.db";
 					
-					var dbPath = Path.Combine(AppContext.BaseDirectory, dbFileName);
+					var dbPath = Path.Combine(dataDir, dbFileName);
 					
 					Log.Information("Using database: {DbPath}", dbPath);
 					

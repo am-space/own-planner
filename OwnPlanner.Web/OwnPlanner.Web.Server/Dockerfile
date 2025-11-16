@@ -75,15 +75,25 @@ COPY --from=publish /app/web ./
 # Copy published MCP.StdioApp to mcp subdirectory
 COPY --from=build-mcp /app/mcp ./mcp/
 
-# Create directories for data persistence with correct permissions
-RUN mkdir -p /app/data/databases /app/data/logs /app/data/auth && \
-    chmod -R 755 /app/data
+# Create data directories and set ownership to APP_UID user
+RUN mkdir -p /app/data/auth /app/data/databases /app/data/logs && \
+    chown -R $APP_UID:$APP_UID /app/data
 
 # Set environment variables
+# Core ASP.NET settings
 ENV ASPNETCORE_URLS=http://+:8080 \
     ASPNETCORE_ENVIRONMENT=Production \
     DOTNET_RUNNING_IN_CONTAINER=true \
     DOTNET_EnableDiagnostics=0
+
+# Application configuration (paths match created directories)
+ENV Database__AuthDbPath=/app/data/auth/auth.db \
+    Chat__Mcp__Command=dotnet \
+    Chat__Mcp__Arguments__0=/app/mcp/OwnPlanner.Mcp.StdioApp.dll
+
+# MCP.StdioApp configuration (used by spawned MCP processes)
+ENV MCP_DATA_DIR=/app/data/databases \
+    MCP_LOG_DIR=/app/data/logs
 
 # Expose port (only 8080 for production)
 EXPOSE 8080
@@ -92,7 +102,7 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD curl -f http://localhost:8080/api/chat/health || exit 1
 
-# Switch to non-root user for security
+# Switch to non-root user for security (using base image's APP_UID)
 USER $APP_UID
 
 # Entry point
