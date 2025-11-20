@@ -28,7 +28,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Docs", "Docs", "{6554420F-4B0E-4CE9-9F60-ECBCA6CE3BCC}"
 	ProjectSection(SolutionItems) = preProject
 		docs\MCP_TOOLS_REFERENCE.md = docs\MCP_TOOLS_REFERENCE.md
-		MCP_CONAINER.md = MCP_CONAINER.md
+		MCP_CONTAINER.md = MCP_CONTAINER.md
 	EndProjectSection
 EndProject
 Project("{54A90642-561A-4BB1-A94E-469ADEE60C69}") = "ownplanner.web.client", "OwnPlanner.Web\ownplanner.web.client\ownplanner.web.client.esproj", "{AE42EB23-ABC8-1238-7BB8-CD7248EABBF0}"

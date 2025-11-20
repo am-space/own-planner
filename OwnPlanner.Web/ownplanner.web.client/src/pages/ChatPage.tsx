@@ -15,6 +15,8 @@ import {
   CircularProgress,
   Alert,
   Snackbar,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
 import LogoutIcon from '@mui/icons-material/Logout';
@@ -32,11 +34,12 @@ interface Message {
 export default function ChatPage() {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
+    const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const [messages, setMessages] = useState<Message[]>([]);
     const [inputText, setInputText] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [sessionId, setSessionId] = useState<string | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
 
@@ -44,20 +47,6 @@ export default function ChatPage() {
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
-
-    // Load session status on mount
-    useEffect(() => {
-        loadSessionStatus();
-    }, []);
-
-    const loadSessionStatus = async () => {
-        try {
-            const status = await apiService.getChatSessionStatus();
-            setSessionId(status.sessionId);
-        } catch (err) {
-            console.error('Failed to load session status:', err);
-        }
-    };
 
     const handleLogout = async () => {
         await logout();
@@ -69,7 +58,6 @@ export default function ChatPage() {
             await apiService.clearChatSession();
             setMessages([]);
             setError(null);
-            loadSessionStatus();
             // Refocus input after clearing
             inputRef.current?.focus();
         } catch (err) {
@@ -105,7 +93,6 @@ export default function ChatPage() {
             };
 
             setMessages((prev) => [...prev, assistantMessage]);
-            setSessionId(response.sessionId);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to send message');
             console.error('Error sending message:', err);
@@ -137,36 +124,55 @@ export default function ChatPage() {
                     <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
                         OwnPlanner Chat
                     </Typography>
-                    {sessionId && (
-                        <Chip
-                            label={`Session: ${sessionId.substring(0, 8)}...`}
-                            size="small"
-                            sx={{ mr: 2, bgcolor: 'rgba(255,255,255,0.1)', color: 'white' }}
-                        />
-                    )}
                     {user && (
                         <>
                             <Chip
                                 avatar={<Avatar>{user.username[0].toUpperCase()}</Avatar>}
                                 label={user.username}
-                                sx={{ mr: 2, bgcolor: 'rgba(255,255,255,0.2)', color: 'white' }}
+                                sx={{ 
+                                    mr: isMobile ? 1 : 2, 
+                                    bgcolor: 'rgba(255,255,255,0.2)', 
+                                    color: 'white',
+                                    display: isMobile ? 'none' : 'flex'
+                                }}
                             />
-                            <Button
-                                color="inherit"
-                                startIcon={<DeleteIcon />}
-                                onClick={handleClearSession}
-                                sx={{ mr: 1 }}
-                                disabled={isLoading}
-                            >
-                                Clear
-                            </Button>
-                            <Button
-                                color="inherit"
-                                startIcon={<LogoutIcon />}
-                                onClick={handleLogout}
-                            >
-                                Logout
-                            </Button>
+                            {isMobile ? (
+                                <>
+                                    <IconButton
+                                        color="inherit"
+                                        onClick={handleClearSession}
+                                        disabled={isLoading}
+                                        sx={{ mr: 0.5 }}
+                                    >
+                                        <DeleteIcon />
+                                    </IconButton>
+                                    <IconButton
+                                        color="inherit"
+                                        onClick={handleLogout}
+                                    >
+                                        <LogoutIcon />
+                                    </IconButton>
+                                </>
+                            ) : (
+                                <>
+                                    <Button
+                                        color="inherit"
+                                        startIcon={<DeleteIcon />}
+                                        onClick={handleClearSession}
+                                        sx={{ mr: 1 }}
+                                        disabled={isLoading}
+                                    >
+                                        Clear
+                                    </Button>
+                                    <Button
+                                        color="inherit"
+                                        startIcon={<LogoutIcon />}
+                                        onClick={handleLogout}
+                                    >
+                                        Logout
+                                    </Button>
+                                </>
+                            )}
                         </>
                     )}
                 </Toolbar>
