@@ -21,8 +21,10 @@ import {
 import SendIcon from '@mui/icons-material/Send';
 import LogoutIcon from '@mui/icons-material/Logout';
 import DeleteIcon from '@mui/icons-material/Delete';
+import InfoIcon from '@mui/icons-material/Info';
 import { useAuth } from '../contexts/AuthContext';
 import { apiService } from '../services/api';
+import AboutDialog from '../components/AboutDialog';
 
 interface Message {
   id: string;
@@ -40,6 +42,7 @@ export default function ChatPage() {
     const [inputText, setInputText] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [aboutOpen, setAboutOpen] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
 
@@ -140,6 +143,13 @@ export default function ChatPage() {
                                 <>
                                     <IconButton
                                         color="inherit"
+                                        onClick={() => setAboutOpen(true)}
+                                        sx={{ mr: 0.5 }}
+                                    >
+                                        <InfoIcon />
+                                    </IconButton>
+                                    <IconButton
+                                        color="inherit"
                                         onClick={handleClearSession}
                                         disabled={isLoading}
                                         sx={{ mr: 0.5 }}
@@ -155,6 +165,14 @@ export default function ChatPage() {
                                 </>
                             ) : (
                                 <>
+                                    <Button
+                                        color="inherit"
+                                        startIcon={<InfoIcon />}
+                                        onClick={() => setAboutOpen(true)}
+                                        sx={{ mr: 1 }}
+                                    >
+                                        About
+                                    </Button>
                                     <Button
                                         color="inherit"
                                         startIcon={<DeleteIcon />}
@@ -177,6 +195,9 @@ export default function ChatPage() {
                     )}
                 </Toolbar>
             </AppBar>
+
+            {/* About Dialog */}
+            <AboutDialog open={aboutOpen} onClose={() => setAboutOpen(false)} />
 
             {/* Error Snackbar */}
             <Snackbar

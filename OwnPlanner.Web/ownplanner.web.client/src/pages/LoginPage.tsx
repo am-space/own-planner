@@ -11,6 +11,7 @@ import {
   Alert,
 } from '@mui/material';
 import { useAuth } from '../contexts/AuthContext';
+import AboutDialog from '../components/AboutDialog';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -21,6 +22,7 @@ export default function LoginPage() {
   });
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -113,7 +115,22 @@ export default function LoginPage() {
             </Box>
           </Box>
         </Paper>
+
+        {/* About Link */}
+        <Box sx={{ mt: 3, textAlign: 'center' }}>
+          <Link
+            component="button"
+            variant="body2"
+            onClick={() => setAboutOpen(true)}
+            sx={{ cursor: 'pointer' }}
+          >
+            About OwnPlanner
+          </Link>
+        </Box>
       </Box>
+
+      {/* About Dialog */}
+      <AboutDialog open={aboutOpen} onClose={() => setAboutOpen(false)} />
     </Container>
   );
 }
