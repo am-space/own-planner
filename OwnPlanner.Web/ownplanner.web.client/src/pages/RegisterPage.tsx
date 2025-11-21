@@ -9,8 +9,12 @@ import {
   Paper,
   Link,
   Alert,
+  FormControlLabel,
+  Checkbox,
 } from '@mui/material';
 import { useAuth } from '../contexts/AuthContext';
+import AboutDialog from '../components/AboutDialog';
+import TermsOfServiceDialog from '../components/TermsOfServiceDialog';
 
 export default function RegisterPage() {
   const navigate = useNavigate();
@@ -21,8 +25,11 @@ export default function RegisterPage() {
     password: '',
     confirmPassword: '',
   });
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
+  const [termsOpen, setTermsOpen] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -35,6 +42,12 @@ export default function RegisterPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    // Validate terms acceptance
+    if (!agreedToTerms) {
+      setError('You must agree to the terms to create an account');
+      return;
+    }
 
     // Validate passwords match
     if (formData.password !== formData.confirmPassword) {
@@ -68,10 +81,12 @@ export default function RegisterPage() {
     <Container component="main" maxWidth="xs">
       <Box
         sx={{
-          marginTop: 8,
+          minHeight: '100vh',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
+          justifyContent: 'center',
+          py: 4,
         }}
       >
         <Paper elevation={3} sx={{ p: 4, width: '100%' }}>
@@ -137,11 +152,50 @@ export default function RegisterPage() {
               onChange={handleChange}
               disabled={isLoading}
             />
+
+            {/* AI Disclosure */}
+            <Alert severity="info" sx={{ mt: 2, mb: 1 }}>
+              <Typography variant="body2">
+                This application uses <strong>Google Gemini AI</strong>.
+              </Typography>
+            </Alert>
+
+            {/* Terms Agreement */}
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={agreedToTerms}
+                  onChange={(e) => setAgreedToTerms(e.target.checked)}
+                  disabled={isLoading}
+                  color="primary"
+                />
+              }
+              label={
+                <Typography variant="body2">
+                  I agree to the{' '}
+                  <Link
+                    component="button"
+                    variant="body2"
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setTermsOpen(true);
+                    }}
+                    sx={{ cursor: 'pointer', textDecoration: 'underline' }}
+                  >
+                    terms of service
+                  </Link>
+                  {' '}and understand that this app uses AI services
+                </Typography>
+              }
+              sx={{ mt: 1, mb: 1, alignItems: 'flex-start' }}
+            />
+
             <Button
               type="submit"
               fullWidth
               variant="contained"
-              sx={{ mt: 3, mb: 2 }}
+              sx={{ mt: 2, mb: 2 }}
               disabled={isLoading}
             >
               {isLoading ? 'Creating Account...' : 'Register'}
@@ -153,7 +207,30 @@ export default function RegisterPage() {
             </Box>
           </Box>
         </Paper>
+
+        {/* About Link */}
+        <Box sx={{ mt: 3, textAlign: 'center' }}>
+          <Link
+            component="button"
+            variant="body2"
+            onClick={() => setAboutOpen(true)}
+            sx={{ cursor: 'pointer' }}
+          >
+            About OwnPlanner
+          </Link>
+        </Box>
       </Box>
+
+      {/* About Dialog */}
+      <AboutDialog open={aboutOpen} onClose={() => setAboutOpen(false)} />
+
+      {/* Terms of Service Dialog */}
+      <TermsOfServiceDialog
+        open={termsOpen}
+        onClose={() => setTermsOpen(false)}
+        onAccept={() => setAgreedToTerms(true)}
+        showAcceptButton={!agreedToTerms}
+      />
     </Container>
   );
 }
