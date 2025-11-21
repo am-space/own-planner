@@ -22,6 +22,7 @@ import SendIcon from '@mui/icons-material/Send';
 import LogoutIcon from '@mui/icons-material/Logout';
 import DeleteIcon from '@mui/icons-material/Delete';
 import InfoIcon from '@mui/icons-material/Info';
+import LightbulbOutlinedIcon from '@mui/icons-material/LightbulbOutlined';
 import { useAuth } from '../contexts/AuthContext';
 import { apiService } from '../services/api';
 import AboutDialog from '../components/AboutDialog';
@@ -32,6 +33,16 @@ interface Message {
   sender: 'user' | 'assistant';
   timestamp: Date;
 }
+
+// Suggested prompts for empty chat
+const SUGGESTED_PROMPTS = [
+  "Help me plan my day",
+  "Create a to-do list for a project",
+  "Suggest productivity tips",
+  "Organize my weekly schedule",
+  "Break down a large task",
+  "Help me design a 12-Week Year plan"
+];
 
 export default function ChatPage() {
     const { user, logout } = useAuth();
@@ -119,14 +130,41 @@ export default function ChatPage() {
         }
     };
 
+    const handlePromptClick = (prompt: string) => {
+        setInputText(prompt);
+        // Focus the input field after setting the text
+        inputRef.current?.focus();
+    };
+
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
             {/* Header */}
             <AppBar position="static">
                 <Toolbar>
-                    <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+                    <Typography variant="h6" component="div" sx={{ mr: 2 }}>
                         OwnPlanner Chat
                     </Typography>
+                    
+                    {/* About Button - Left Side */}
+                    {isMobile ? (
+                        <IconButton
+                            color="inherit"
+                            onClick={() => setAboutOpen(true)}
+                            sx={{ mr: 'auto' }}
+                        >
+                            <InfoIcon />
+                        </IconButton>
+                    ) : (
+                        <Button
+                            color="inherit"
+                            startIcon={<InfoIcon />}
+                            onClick={() => setAboutOpen(true)}
+                            sx={{ mr: 'auto' }}
+                        >
+                            About
+                        </Button>
+                    )}
+
                     {user && (
                         <>
                             <Chip
@@ -141,13 +179,6 @@ export default function ChatPage() {
                             />
                             {isMobile ? (
                                 <>
-                                    <IconButton
-                                        color="inherit"
-                                        onClick={() => setAboutOpen(true)}
-                                        sx={{ mr: 0.5 }}
-                                    >
-                                        <InfoIcon />
-                                    </IconButton>
                                     <IconButton
                                         color="inherit"
                                         onClick={handleClearSession}
@@ -165,14 +196,6 @@ export default function ChatPage() {
                                 </>
                             ) : (
                                 <>
-                                    <Button
-                                        color="inherit"
-                                        startIcon={<InfoIcon />}
-                                        onClick={() => setAboutOpen(true)}
-                                        sx={{ mr: 1 }}
-                                    >
-                                        About
-                                    </Button>
                                     <Button
                                         color="inherit"
                                         startIcon={<DeleteIcon />}
@@ -215,24 +238,70 @@ export default function ChatPage() {
             <Container maxWidth="md" sx={{ flexGrow: 1, overflow: 'auto', py: 3 }}>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                     {messages.length === 0 && (
-                        <Paper
-                            elevation={0}
-                            sx={{
-                                p: 3,
-                                textAlign: 'center',
-                                bgcolor: 'grey.50',
-                                border: '1px dashed',
-                                borderColor: 'grey.300',
-                            }}
-                        >
-                            <Typography variant="h6" color="text.secondary" gutterBottom>
-                                Welcome to OwnPlanner Chat!
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                                I'm your AI assistant. I can help you manage tasks, notes, and answer questions.
-                                Start by typing a message below!
-                            </Typography>
-                        </Paper>
+                        <>
+                            <Paper
+                                elevation={0}
+                                sx={{
+                                    p: 3,
+                                    textAlign: 'center',
+                                    bgcolor: 'grey.50',
+                                    border: '1px dashed',
+                                    borderColor: 'grey.300',
+                                }}
+                            >
+                                <Typography variant="h6" color="text.secondary" gutterBottom>
+                                    Welcome to OwnPlanner Chat!
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary">
+                                    I'm your AI assistant. I can help you manage tasks, notes, and answer questions.
+                                    Start by typing a message below or try one of these suggestions!
+                                </Typography>
+                            </Paper>
+
+                            {/* Suggested Prompts */}
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, alignItems: 'center' }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    <LightbulbOutlinedIcon fontSize="small" color="action" />
+                                    <Typography variant="body2" color="text.secondary" fontWeight="medium">
+                                        Suggestions:
+                                    </Typography>
+                                </Box>
+                                <Box 
+                                    sx={{ 
+                                        display: 'flex', 
+                                        flexWrap: 'wrap', 
+                                        gap: 1,
+                                        justifyContent: 'center',
+                                    }}
+                                >
+                                    {SUGGESTED_PROMPTS.map((prompt, index) => (
+                                        <Chip
+                                            key={index}
+                                            label={prompt}
+                                            onClick={() => handlePromptClick(prompt)}
+                                            sx={(theme) => ({
+                                                cursor: 'pointer',
+                                                bgcolor: 'background.paper',
+                                                borderColor: 'primary.main',
+                                                '& .MuiChip-label': {
+                                                    color: 'text.primary',
+                                                },
+                                                transition: 'background-color 0.2s, transform 0.2s, color 0.2s',
+                                                '&:hover': {
+                                                    bgcolor: 'primary.main',
+                                                    '& .MuiChip-label': {
+                                                        color: theme.palette.primary.dark,
+                                                    },
+                                                    transform: 'scale(1.06)',
+                                                },
+                                            })}
+                                            variant="outlined"
+                                            color="primary"
+                                        />
+                                    ))}
+                                </Box>
+                            </Box>
+                        </>
                     )}
 
                     {messages.map((message) => (
