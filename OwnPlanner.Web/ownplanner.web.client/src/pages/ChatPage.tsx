@@ -1,22 +1,22 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Box,
-  Container,
-  Paper,
-  TextField,
-  IconButton,
-  Typography,
-  AppBar,
-  Toolbar,
-  Button,
-  Avatar,
-  Chip,
-  CircularProgress,
-  Alert,
-  Snackbar,
-  useMediaQuery,
-  useTheme,
+    Box,
+    Container,
+    Paper,
+    TextField,
+    IconButton,
+    Typography,
+    AppBar,
+    Toolbar,
+    Button,
+    Avatar,
+    Chip,
+    CircularProgress,
+    Alert,
+    Snackbar,
+    useMediaQuery,
+    useTheme,
 } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
 import LogoutIcon from '@mui/icons-material/Logout';
@@ -26,22 +26,24 @@ import LightbulbOutlinedIcon from '@mui/icons-material/LightbulbOutlined';
 import { useAuth } from '../contexts/AuthContext';
 import { apiService } from '../services/api';
 import AboutDialog from '../components/AboutDialog';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface Message {
-  id: string;
-  text: string;
-  sender: 'user' | 'assistant';
-  timestamp: Date;
+    id: string;
+    text: string;
+    sender: 'user' | 'assistant';
+    timestamp: Date;
 }
 
 // Suggested prompts for empty chat
 const SUGGESTED_PROMPTS = [
-  "Help me plan my day",
-  "Create a to-do list for a project",
-  "Suggest productivity tips",
-  "Organize my weekly schedule",
-  "Break down a large task",
-  "Help me design a 12-Week Year plan"
+    "Help me plan my day",
+    "Create a to-do list for a project",
+    "Suggest productivity tips",
+    "Organize my weekly schedule",
+    "Break down a large task",
+    "Help me design a 12-Week Year plan"
 ];
 
 export default function ChatPage() {
@@ -144,7 +146,7 @@ export default function ChatPage() {
                     <Typography variant="h6" component="div" sx={{ mr: 2 }}>
                         OwnPlanner Chat
                     </Typography>
-                    
+
                     {/* About Button - Left Side */}
                     {isMobile ? (
                         <IconButton
@@ -170,9 +172,9 @@ export default function ChatPage() {
                             <Chip
                                 avatar={<Avatar>{user.username[0].toUpperCase()}</Avatar>}
                                 label={user.username}
-                                sx={{ 
-                                    mr: isMobile ? 1 : 2, 
-                                    bgcolor: 'rgba(255,255,255,0.2)', 
+                                sx={{
+                                    mr: isMobile ? 1 : 2,
+                                    bgcolor: 'rgba(255,255,255,0.2)',
                                     color: 'white',
                                     display: isMobile ? 'none' : 'flex'
                                 }}
@@ -266,10 +268,10 @@ export default function ChatPage() {
                                         Suggestions:
                                     </Typography>
                                 </Box>
-                                <Box 
-                                    sx={{ 
-                                        display: 'flex', 
-                                        flexWrap: 'wrap', 
+                                <Box
+                                    sx={{
+                                        display: 'flex',
+                                        flexWrap: 'wrap',
                                         gap: 1,
                                         justifyContent: 'center',
                                     }}
@@ -321,9 +323,60 @@ export default function ChatPage() {
                                     color: message.sender === 'user' ? 'white' : 'text.primary',
                                 }}
                             >
-                                <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
-                                    {message.text}
-                                </Typography>
+                                <Box sx={{
+                                    '& p': { m: 0 },
+                                    '& ul, & ol': { mt: 0.5, mb: 0.5, pl: 2 },
+                                    '& li': { mb: 0.25 },
+                                    '& code': {
+                                        bgcolor: 'rgba(0,0,0,0.1)',
+                                        p: 0.5,
+                                        borderRadius: 1,
+                                        fontFamily: 'monospace',
+                                        fontSize: '0.875rem'
+                                    },
+                                    '& pre': {
+                                        bgcolor: 'rgba(0,0,0,0.1)',
+                                        p: 1,
+                                        borderRadius: 1,
+                                        overflowX: 'auto',
+                                        '& code': {
+                                            bgcolor: 'transparent',
+                                            p: 0
+                                        }
+                                    },
+                                    '& a': {
+                                        color: 'inherit',
+                                        textDecoration: 'underline'
+                                    },
+                                    '& table': {
+                                        borderCollapse: 'collapse',
+                                        width: '100%',
+                                        mt: 1,
+                                        mb: 1
+                                    },
+                                    '& th, & td': {
+                                        border: '1px solid',
+                                        borderColor: 'divider',
+                                        p: 1
+                                    },
+                                    '& th': {
+                                        bgcolor: 'rgba(0,0,0,0.05)',
+                                        fontWeight: 'bold'
+                                    }
+                                }}>
+                                    <ReactMarkdown
+                                        remarkPlugins={[remarkGfm]}
+                                        components={{
+                                            table: ({ node, ...props }) => (
+                                                <Box sx={{ overflowX: 'auto', display: 'block', maxWidth: '100%' }}>
+                                                    <table {...props} />
+                                                </Box>
+                                            )
+                                        }}
+                                    >
+                                        {message.text}
+                                    </ReactMarkdown>
+                                </Box>
                                 <Typography
                                     variant="caption"
                                     sx={{
