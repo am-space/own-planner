@@ -28,16 +28,27 @@ namespace OwnPlanner.Infrastructure.Adapters
 		/// </summary>
 		public DateTime LastAccessTime { get; private set; }
 
+		private void InitializeChatSession()
+		{
+			// Initialize the generative model and chat session with any available tools
+			_generativeModel = _googleAI.GenerativeModel(_model, tools: _geminiTools);
+			InitializeChatWithInstructions();
+			Log.Information("Chat session initialized successfully");
+		}
+
+		public void ResetChatSession()
+		{
+			InitializeChatSession();
+		}
+
 		public ChatServiceAdapter(string apiKey, string model, int maxToolCallRounds = 10, McpAdapter? mcpAdapter = null)
 		{
 			Log.Debug("Creating ChatServiceAdapter with model: {Model}, MCP: {HasMcp}, MaxToolCallRounds: {MaxRounds}", model, mcpAdapter != null, maxToolCallRounds);
-			
 			_googleAI = new GoogleAI(apiKey);
 			_model = model;
 			_mcpClient = mcpAdapter;
 			_shouldDisposeMcp = false; // Don't dispose injected adapter
 			_maxToolCallRounds = maxToolCallRounds;
-
 			// Initialize timestamps
 			CreatedTime = DateTime.UtcNow;
 			LastAccessTime = DateTime.UtcNow;
@@ -45,16 +56,14 @@ namespace OwnPlanner.Infrastructure.Adapters
 			if (_mcpClient != null)
 			{
 				Log.Information("Initializing MCP tools for Gemini...");
-				// Initialize MCP connection and map available tools to Gemini function declarations
-				Task.Run(InitializeMcpAsync).Wait();
+				// Only initialize MCP if not already initialized
+				if (_geminiTools == null)
+				{
+					Task.Run(InitializeMcpAsync).Wait();
+				}
 			}
 
-			// Initialize the generative model and chat session with any available tools
-			_generativeModel = _googleAI.GenerativeModel(_model, tools: _geminiTools);
-			
-			// Initialize chat with system instructions
-			InitializeChatWithInstructions();
-			
+			InitializeChatSession();
 			Log.Information("ChatServiceAdapter initialized successfully");
 		}
 
@@ -180,104 +189,131 @@ namespace OwnPlanner.Infrastructure.Adapters
 
 		public async Task<string> GetResponse(string text)
 		{
-			// Update last access time on every message
 			LastAccessTime = DateTime.UtcNow;
 
 			Log.Debug("Getting response for prompt: {Prompt}", text);
-			var response = await _chat.SendMessage(text);
-			
-			// Loop to handle multiple rounds of tool calls
-			int roundCount = 0;
-
-			while (roundCount < _maxToolCallRounds)
+			try
 			{
-				var functionCalls = response.Candidates?.FirstOrDefault()?.Content?.Parts
-					?.Where(p => p.FunctionCall != null)
-					.ToList();
-
-				if (functionCalls == null || !functionCalls.Any())
+				var response = await _chat.SendMessage(text);
+				int roundCount = 0;
+				while (roundCount < _maxToolCallRounds)
 				{
-					// No more tool calls, we have the final response
-					Log.Debug("No function calls in response, returning final result");
-					break;
-				}
-
-				Log.Information("Processing {Count} function calls in round {Round}", functionCalls.Count, roundCount + 1);
-
-				// The model decided to call one or more tools
-				var toolResults = new List<Part>();
-
-				foreach (var part in functionCalls)
-				{
-					var functionCall = part.FunctionCall;
-					if (functionCall == null || _mcpClient == null) continue;
-
-					var toolCallMessage = $"[MCP] Gemini requested to call tool: {functionCall.Name}";
-					System.Console.WriteLine(toolCallMessage);
-					Log.Information(toolCallMessage);
-
-					try
+					var parts = response.Candidates?
+						.FirstOrDefault()?
+						.Content?
+						.Parts;
+					var functionCalls = parts?
+						.Where(p => p.FunctionCall != null)
+						.ToList();
+					if (functionCalls == null || functionCalls.Count == 0)
 					{
-						// Convert the arguments from object to Dictionary<string, object?>
-						var argsDict = functionCall.Args != null 
-							? JsonSerializer.Deserialize<Dictionary<string, object?>>(JsonSerializer.Serialize(functionCall.Args)) 
-							: new Dictionary<string, object?>();
-
-						// Strip any namespace prefix (e.g., "default_api:") from the tool name
-						// Gemini may add these prefixes, but MCP expects just the tool name
-						var toolName = functionCall.Name;
-						if (toolName.Contains(':'))
+						Log.Debug("No function calls in response, exiting tool loop");
+						break;
+					}
+					Log.Information("Processing {Count} function calls in round {Round}", functionCalls.Count, roundCount + 1);
+					var toolResults = new List<Part>();
+					foreach (var part in functionCalls)
+					{
+						var functionCall = part.FunctionCall;
+						if (functionCall == null || _mcpClient == null)
 						{
-							var parts = toolName.Split(':', 2);
-							toolName = parts[1];
-							Log.Debug("Stripped namespace prefix from tool name: {Original} -> {Stripped}", functionCall.Name, toolName);
+							continue;
 						}
-
-						// Call the tool via MCP
-						var result = await _mcpClient.CallToolAsync(toolName, argsDict);
-						Log.Debug("Tool {ToolName} executed successfully", toolName);
-						
-						toolResults.Add(new Part
+						var toolCallMessage = $"[MCP] Gemini requested to call tool: {functionCall.Name}";
+						System.Console.WriteLine(toolCallMessage);
+						Log.Information(toolCallMessage);
+						try
 						{
-							FunctionResponse = new FunctionResponse
+							var argsDict = functionCall.Args != null
+								? JsonSerializer.Deserialize<Dictionary<string, object?>>(JsonSerializer.Serialize(functionCall.Args))
+								: new Dictionary<string, object?>();
+							var toolName = functionCall.Name;
+							if (toolName.Contains(':'))
 							{
-								Name = functionCall.Name,
-								Response = new { result }
+								var nsSplit = toolName.Split(':', 2);
+								toolName = nsSplit[1];
+								Log.Debug("Stripped namespace prefix from tool name: {Original} -> {Stripped}", functionCall.Name, toolName);
 							}
-						});
+							var result = await _mcpClient.CallToolAsync(toolName, argsDict);
+							Log.Debug("Tool {ToolName} executed successfully", toolName);
+							toolResults.Add(new Part
+							{
+								FunctionResponse = new FunctionResponse
+								{
+									Name = functionCall.Name,
+									Response = new Dictionary<string, object?>
+									{
+										{ "result", result }
+									}
+								}
+							});
+						}
+						catch (Exception ex)
+						{
+							Log.Error(ex, "MCP tool execution failed: {ToolName}", functionCall.Name);
+
+							toolResults.Add(new Part
+							{
+								FunctionResponse = new FunctionResponse
+								{
+									Name = functionCall.Name,
+									Response = new Dictionary<string, object?>
+									{
+										{ "error", ex.Message }
+									}
+								}
+							});
+						}
 					}
-					catch (Exception ex)
+					if (toolResults.Count == 0)
 					{
-						var errorMessage = $"Warning: MCP tool '{functionCall.Name}' failed: {ex.Message}";
-						System.Console.WriteLine(errorMessage);
-						Log.Error(ex, "MCP tool execution failed: {ToolName}", functionCall.Name);
-						
-						// Inform the model that the tool call failed
-						toolResults.Add(new Part
-						{
-							FunctionResponse = new FunctionResponse
-							{
-								Name = functionCall.Name,
-								Response = new { error = ex.Message }
-							}
-						});
+						Log.Warning("Tool round produced zero results; stopping further tool processing");
+						break;
 					}
+					Log.Debug("Sending {Count} tool results back to model", toolResults.Count);
+					response = await _chat.SendMessage(toolResults);
+					roundCount++;
 				}
-
-				// Send the tool results back to the model and continue the loop
-				Log.Debug("Sending {Count} tool results back to model", toolResults.Count);
-				response = await _chat.SendMessage(toolResults);
-				roundCount++;
+				if (roundCount >= _maxToolCallRounds)
+				{
+					var warningMessage = $"Warning: Reached maximum tool call rounds ({_maxToolCallRounds}). Returning current response.";
+					System.Console.WriteLine(warningMessage);
+					Log.Warning(warningMessage);
+				}
+				string safeText;
+				try
+				{
+					safeText = response.Text ?? string.Empty;
+				}
+				catch (Exception ex)
+				{
+					Log.Warning(ex, "Accessing response.Text failed; falling back to manual assembly");
+					var textParts = response.Candidates?
+						.FirstOrDefault()?
+						.Content?
+						.Parts?
+						.Where(p => p.Text != null)
+						.Select(p => p.Text)
+						.ToList();
+					if (textParts == null || textParts.Count == 0)
+					{
+						Log.Debug("No textual parts in response; returning empty string");
+						return string.Empty;
+					}
+					safeText = string.Join(Environment.NewLine, textParts);
+				}
+				return safeText;
 			}
-
-			if (roundCount >= _maxToolCallRounds)
+			catch (Mscc.GenerativeAI.GeminiApiException ex)
 			{
-				var warningMessage = $"Warning: Reached maximum tool call rounds ({_maxToolCallRounds}). Returning current response.";
-				System.Console.WriteLine(warningMessage);
-				Log.Warning(warningMessage);
+				if (ex.Message.Contains("required oneof field 'data' must have one initialized field"))
+				{
+					Log.Warning(ex, "GeminiApiException: Detected session corruption, resetting chat session and retrying...");
+					ResetChatSession();
+					return "I'm sorry, there was an issue processing your request. I've reset our conversation context. Could you please repeat your last message?";
+				}
+				throw;
 			}
-
-			return response.Text ?? string.Empty;
 		}
 
 		public async ValueTask DisposeAsync()
