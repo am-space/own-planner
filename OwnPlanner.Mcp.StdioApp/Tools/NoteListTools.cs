@@ -14,7 +14,7 @@ public class NoteListTools
 		_service = service;
 	}
 
-	[McpServerTool(Name = "notelist_list_create"), Description("Create a note list. Returns note list information.")]
+	[McpServerTool(Name = "notelist_create"), Description("Create a note list. Returns note list information.")]
 	public async Task<object> CreateNoteList(string title, string? description = null, string? color = null)
 	{
 		try
@@ -28,7 +28,7 @@ public class NoteListTools
 		}
 	}
 
-	[McpServerTool(Name = "notelist_list_get", Idempotent = true, ReadOnly = true), Description("Get a note list by id.")]
+	[McpServerTool(Name = "notelist_get", Idempotent = true, ReadOnly = true), Description("Get a note list by id.")]
 	public async Task<object> GetNoteList(Guid id)
 	{
 		var dto = await _service.GetAsync(id);
@@ -37,14 +37,14 @@ public class NoteListTools
 		return dto;
 	}
 
-	[McpServerTool(Name = "notelist_list_all", Idempotent = true, ReadOnly = true), Description("List all note lists. Set includeArchived=true to include archived lists.")]
+	[McpServerTool(Name = "notelist_all", Idempotent = true, ReadOnly = true), Description("List all note lists. Set includeArchived=true to include archived lists.")]
 	public async Task<object> ListNoteLists(bool includeArchived = false)
 	{
 		var lists = await _service.ListAsync(includeArchived);
 		return lists;
 	}
 
-	[McpServerTool(Name = "notelist_list_update"), Description("Update a note list's title, description, or color.")]
+	[McpServerTool(Name = "notelist_update"), Description("Update a note list's title, description, or color.")]
 	public async Task<object> UpdateNoteList(Guid id, string? title = null, string? description = null, string? color = null)
 	{
 		try
@@ -62,7 +62,7 @@ public class NoteListTools
 		}
 	}
 
-	[McpServerTool(Name = "notelist_list_archive"), Description("Archive a note list by id.")]
+	[McpServerTool(Name = "notelist_archive"), Description("Archive a note list by id.")]
 	public async Task<object> ArchiveNoteList(Guid id)
 	{
 		try
@@ -76,7 +76,7 @@ public class NoteListTools
 		}
 	}
 
-	[McpServerTool(Name = "notelist_list_unarchive"), Description("Unarchive a note list by id.")]
+	[McpServerTool(Name = "notelist_unarchive"), Description("Unarchive a note list by id.")]
 	public async Task<object> UnarchiveNoteList(Guid id)
 	{
 		try
@@ -90,7 +90,7 @@ public class NoteListTools
 		}
 	}
 
-	[McpServerTool(Name = "notelist_list_delete"), Description("Delete a note list by id.")]
+	[McpServerTool(Name = "notelist_delete"), Description("Delete a note list by id.")]
 	public async Task<object> DeleteNoteList(Guid id)
 	{
 		try

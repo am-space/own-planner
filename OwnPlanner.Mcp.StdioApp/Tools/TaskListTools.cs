@@ -14,7 +14,7 @@ public class TaskListTools
 		_service = service;
 	}
 
-	[McpServerTool(Name = "tasklist_list_create"), Description("Create a task list. Returns task list information.")]
+	[McpServerTool(Name = "tasklist_create"), Description("Create a task list. Returns task list information.")]
 	public async Task<object> CreateTaskList(string title, string? description = null, string? color = null)
 	{
 		try
@@ -28,7 +28,7 @@ public class TaskListTools
 		}
 	}
 
-	[McpServerTool(Name = "tasklist_list_get", Idempotent = true, ReadOnly = true), Description("Get a task list by id.")]
+	[McpServerTool(Name = "tasklist_get", Idempotent = true, ReadOnly = true), Description("Get a task list by id.")]
 	public async Task<object> GetTaskList(Guid id)
 	{
 		var dto = await _service.GetAsync(id);
@@ -37,14 +37,14 @@ public class TaskListTools
 		return dto;
 	}
 
-	[McpServerTool(Name = "tasklist_list_all", Idempotent = true, ReadOnly = true), Description("List all task lists. Set includeArchived=true to include archived lists.")]
+	[McpServerTool(Name = "tasklist_all", Idempotent = true, ReadOnly = true), Description("List all task lists. Set includeArchived=true to include archived lists.")]
 	public async Task<object> ListTaskLists(bool includeArchived = false)
 	{
 		var lists = await _service.ListAsync(includeArchived);
 		return lists;
 	}
 
-	[McpServerTool(Name = "tasklist_list_update"), Description("Update a task list's title, description, or color.")]
+	[McpServerTool(Name = "tasklist_update"), Description("Update a task list's title, description, or color.")]
 	public async Task<object> UpdateTaskList(Guid id, string? title = null, string? description = null, string? color = null)
 	{
 		try
@@ -62,7 +62,7 @@ public class TaskListTools
 		}
 	}
 
-	[McpServerTool(Name = "tasklist_list_archive"), Description("Archive a task list by id.")]
+	[McpServerTool(Name = "tasklist_archive"), Description("Archive a task list by id.")]
 	public async Task<object> ArchiveTaskList(Guid id)
 	{
 		try
@@ -76,7 +76,7 @@ public class TaskListTools
 		}
 	}
 
-	[McpServerTool(Name = "tasklist_list_unarchive"), Description("Unarchive a task list by id.")]
+	[McpServerTool(Name = "tasklist_unarchive"), Description("Unarchive a task list by id.")]
 	public async Task<object> UnarchiveTaskList(Guid id)
 	{
 		try
@@ -90,7 +90,7 @@ public class TaskListTools
 		}
 	}
 
-	[McpServerTool(Name = "tasklist_list_delete"), Description("Delete a task list by id. Tasks in the list will be orphaned (moved to no list).")]
+	[McpServerTool(Name = "tasklist_delete"), Description("Delete a task list by id. Tasks in the list will be orphaned (moved to no list).")]
 	public async Task<object> DeleteTaskList(Guid id)
 	{
 		try

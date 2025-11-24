@@ -5,6 +5,11 @@
 docker build -t ownplanner:latest -f OwnPlanner.Web/OwnPlanner.Web.Server/Dockerfile .
 ```
 
+## Save image to tar file (optional)
+```sh
+docker save -o ownplanner_latest.tar ownplanner:latest
+```
+
 ## Run container
 ```sh
 docker run -d --name test -p 8080:8080 -e Chat__Gemini__ApiKey=YOUR_KEY ownplanner:latest

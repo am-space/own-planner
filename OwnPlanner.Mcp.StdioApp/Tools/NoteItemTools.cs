@@ -14,7 +14,7 @@ public class NoteItemTools
 		_service = service;
 	}
 
-	[McpServerTool(Name = "noteitem_item_create"), Description("Create a note. NoteListId is required. Returns note information.")]
+	[McpServerTool(Name = "noteitem_create"), Description("Create a note. NoteListId is required. Returns note information.")]
 	public async Task<object> CreateNote(string title, Guid noteListId, string? content = null)
 	{
 		try
@@ -28,7 +28,7 @@ public class NoteItemTools
 		}
 	}
 
-	[McpServerTool(Name = "noteitem_item_get", Idempotent = true, ReadOnly = true), Description("Get a note by id.")]
+	[McpServerTool(Name = "noteitem_get", Idempotent = true, ReadOnly = true), Description("Get a note by id.")]
 	public async Task<object> GetNote(Guid id)
 	{
 		var dto = await _service.GetAsync(id);
@@ -37,21 +37,22 @@ public class NoteItemTools
 		return dto;
 	}
 
-	[McpServerTool(Name = "noteitem_item_list_all", Idempotent = true, ReadOnly = true), Description("List all notes ordered by pinned status and update time.")]
-	public async Task<object> ListNotes()
+	[McpServerTool(Name = "noteitem_list_items", Idempotent = true, ReadOnly = true), Description("List notes. If noteListId is provided, lists notes by note list id; otherwise, lists all notes ordered by pinned status and update time.")]
+	public async Task<object> ListNotes(Guid? noteListId = null)
 	{
-		var list = await _service.ListAsync();
-		return list;
+		if (noteListId.HasValue)
+		{
+			var list = await _service.ListByNoteListAsync(noteListId.Value);
+			return list;
+		}
+		else
+		{
+			var list = await _service.ListAsync();
+			return list;
+		}
 	}
 
-	[McpServerTool(Name = "noteitem_list_items", Idempotent = true, ReadOnly = true), Description("List notes by note list id.")]
-	public async Task<object> ListNotesByList(Guid noteListId)
-	{
-		var list = await _service.ListByNoteListAsync(noteListId);
-		return list;
-	}
-
-	[McpServerTool(Name = "noteitem_item_update"), Description("Update a note. Provide id and the fields to update (title or content).")]
+	[McpServerTool(Name = "noteitem_update"), Description("Update a note. Provide id and the fields to update (title or content).")]
 	public async Task<object> UpdateNote(Guid id, string? title = null, string? content = null)
 	{
 		try
@@ -65,7 +66,7 @@ public class NoteItemTools
 		}
 	}
 
-	[McpServerTool(Name = "noteitem_item_assign"), Description("Assign a note to a different note list.")]
+	[McpServerTool(Name = "noteitem_assign"), Description("Assign a note to a different note list.")]
 	public async Task<object> AssignNoteToList(Guid noteId, Guid noteListId)
 	{
 		try
@@ -79,7 +80,7 @@ public class NoteItemTools
 		}
 	}
 
-	[McpServerTool(Name = "noteitem_item_pin"), Description("Pin a note by id.")]
+	[McpServerTool(Name = "noteitem_pin"), Description("Pin a note by id.")]
 	public async Task<object> PinNote(Guid id)
 	{
 		try
@@ -93,7 +94,7 @@ public class NoteItemTools
 		}
 	}
 
-	[McpServerTool(Name = "noteitem_item_unpin"), Description("Unpin a note by id.")]
+	[McpServerTool(Name = "noteitem_unpin"), Description("Unpin a note by id.")]
 	public async Task<object> UnpinNote(Guid id)
 	{
 		try
@@ -107,7 +108,7 @@ public class NoteItemTools
 		}
 	}
 
-	[McpServerTool(Name = "noteitem_item_delete"), Description("Delete a note by id.")]
+	[McpServerTool(Name = "noteitem_delete"), Description("Delete a note by id.")]
 	public async Task<object> DeleteNote(Guid id)
 	{
 		try
