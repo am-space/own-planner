@@ -5,6 +5,7 @@ public record TaskItemDto(
 	string Title,
 	string? Description,
 	bool IsCompleted,
+	bool IsImportant, // Added
 	DateTime CreatedAt,
 	DateTime UpdatedAt,
 	DateTime? DueAt,

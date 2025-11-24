@@ -9,14 +9,14 @@ public class TaskItemService(ITaskItemRepository repository, ITaskListRepository
 	private readonly ITaskItemRepository _repository = repository;
 	private readonly ITaskListRepository _taskListRepository = taskListRepository;
 
-	public async Task<TaskItemDto> CreateAsync(string title, Guid taskListId, string? description = null, DateTime? dueAt = null, CancellationToken ct = default)
+	public async Task<TaskItemDto> CreateAsync(string title, Guid taskListId, string? description = null, DateTime? dueAt = null, bool isImportant = false, CancellationToken ct = default)
 	{
 		// Validate that the task list exists
 		var taskList = await _taskListRepository.GetAsync(taskListId, ct);
 		if (taskList is null)
 			throw new KeyNotFoundException($"TaskList {taskListId} not found");
 
-		var item = new TaskItem(title, taskListId, description, dueAt);
+		var item = new TaskItem(title, taskListId, description, dueAt, isImportant);
 		await _repository.AddAsync(item, ct);
 		return Map(item);
 	}
@@ -39,7 +39,7 @@ public class TaskItemService(ITaskItemRepository repository, ITaskListRepository
 		return items.Select(Map).ToList();
 	}
 
-	public async Task<TaskItemDto> UpdateAsync(Guid id, string? title = null, string? description = null, DateTime? dueAt = null, CancellationToken ct = default)
+	public async Task<TaskItemDto> UpdateAsync(Guid id, string? title = null, string? description = null, DateTime? dueAt = null, bool? isImportant = null, CancellationToken ct = default)
 	{
 		var item = await _repository.GetAsync(id, ct) ?? throw new KeyNotFoundException($"Task {id} not found");
 		
@@ -49,6 +49,8 @@ public class TaskItemService(ITaskItemRepository repository, ITaskListRepository
 			item.SetDescription(description);
 		if (dueAt is not null)
 			item.SetDueAt(dueAt);
+		if (isImportant.HasValue)
+			item.SetImportant(isImportant.Value);
 
 		await _repository.UpdateAsync(item, ct);
 		return Map(item);
@@ -92,6 +94,7 @@ public class TaskItemService(ITaskItemRepository repository, ITaskListRepository
 		item.Title,
 		item.Description,
 		item.IsCompleted,
+		item.IsImportant,
 		item.CreatedAt,
 		item.UpdatedAt,
 		item.DueAt,

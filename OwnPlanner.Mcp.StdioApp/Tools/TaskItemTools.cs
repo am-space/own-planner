@@ -42,18 +42,23 @@ public class TaskItemTools
 	}
 
 	[McpServerTool(Name = "taskitem_list_items", Idempotent = true, ReadOnly = true), Description("List tasks. If taskListId is provided, lists tasks by task list id; otherwise, lists all tasks. Set includeCompleted=true to get also completed tasks.")]
-	public async Task<object> ListTasks(Guid? taskListId = null, bool includeCompleted = false)
+	public async Task<object> ListTasks(Guid? taskListId = null, bool onlyImportant = false, bool includeCompleted = false)
 	{
+		IEnumerable<OwnPlanner.Application.Tasks.DTOs.TaskItemDto> list;
 		if (taskListId.HasValue)
 		{
-			var list = await _service.ListByTaskListAsync(taskListId.Value, includeCompleted);
-			return list;
+			list = await _service.ListByTaskListAsync(taskListId.Value, includeCompleted);
 		}
 		else
 		{
-			var list = await _service.ListAsync(includeCompleted);
-			return list;
+			list = await _service.ListAsync(includeCompleted);
 		}
+
+		if (onlyImportant)
+		{
+			list = list.Where(x => x.IsImportant);
+		}
+		return list.ToList();
 	}
 
 	[McpServerTool(Name = "taskitem_update"), Description("Update a task. Provide id and the fields to update (title, description, or dueAt).")]
@@ -128,6 +133,20 @@ public class TaskItemTools
 		{
 			await _service.DeleteAsync(id);
 			return new { success = true, id };
+		}
+		catch (KeyNotFoundException ex)
+		{
+			return new { error = ex.Message };
+		}
+	}
+
+	[McpServerTool(Name = "taskitem_set_important"), Description("Set or unset the important flag for a task.")]
+	public async Task<object> SetTaskImportant(Guid id, bool isImportant)
+	{
+		try
+		{
+			var dto = await _service.UpdateAsync(id, isImportant: isImportant);
+			return dto;
 		}
 		catch (KeyNotFoundException ex)
 		{

@@ -6,6 +6,7 @@ public class TaskItem
 	public string Title { get; private set; } = string.Empty;
 	public string? Description { get; private set; }
 	public bool IsCompleted { get; private set; }
+	public bool IsImportant { get; private set; } // New property
 	public DateTime CreatedAt { get; private set; }
 	public DateTime UpdatedAt { get; private set; }
 	public DateTime? DueAt { get; private set; }
@@ -15,13 +16,14 @@ public class TaskItem
 	// EF Core constructor
 	private TaskItem() { }
 
-	public TaskItem(string title, Guid taskListId, string? description = null, DateTime? dueAt = null)
+	public TaskItem(string title, Guid taskListId, string? description = null, DateTime? dueAt = null, bool isImportant = false)
 	{
 		Id = Guid.NewGuid();
 		SetTitle(title);
 		TaskListId = taskListId;
 		SetDescription(description);
 		SetDueAt(dueAt);
+		IsImportant = isImportant;
 		var now = DateTime.UtcNow;
 		CreatedAt = now;
 		UpdatedAt = now;
@@ -44,6 +46,12 @@ public class TaskItem
 	public void SetDueAt(DateTime? dueAt)
 	{
 		DueAt = dueAt.HasValue ? DateTime.SpecifyKind(dueAt.Value, DateTimeKind.Utc) : null;
+		Touch();
+	}
+
+	public void SetImportant(bool isImportant)
+	{
+		IsImportant = isImportant;
 		Touch();
 	}
 

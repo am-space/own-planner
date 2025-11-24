@@ -19,6 +19,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 		task.Property(t => t.Title).IsRequired().HasMaxLength(256);
 		task.Property(t => t.Description);
 		task.Property(t => t.IsCompleted);
+		task.Property(t => t.IsImportant); // Added
 		task.Property(t => t.CreatedAt);
 		task.Property(t => t.UpdatedAt);
 		task.Property(t => t.DueAt);

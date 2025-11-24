@@ -178,4 +178,36 @@ public class TaskItemServiceTests
 		await act.Should().ThrowAsync<KeyNotFoundException>()
 			.WithMessage($"Task {id} not found");
 	}
+
+	[Fact]
+	public async Task CreateAsync_Adds_And_Maps_IsImportant()
+	{
+		TaskItem? captured = null;
+		var listId = Guid.NewGuid();
+		var taskList = new TaskList("Test List");
+		_taskListRepo.GetAsync(listId, Arg.Any<CancellationToken>()).Returns(taskList);
+		_repo.AddAsync(Arg.Do<TaskItem>(x => captured = x), Arg.Any<CancellationToken>())
+		.Returns(Task.CompletedTask);
+
+		var dto = await _svc.CreateAsync("title", listId, "desc", isImportant: true);
+
+		dto.IsImportant.Should().BeTrue();
+		captured.Should().NotBeNull();
+		captured!.IsImportant.Should().BeTrue();
+	}
+
+	[Fact]
+	public async Task UpdateAsync_UpdatesIsImportant()
+	{
+		var id = Guid.NewGuid();
+		var listId = Guid.NewGuid();
+		var item = new TaskItem("Title", listId);
+		_repo.GetAsync(id, Arg.Any<CancellationToken>()).Returns(item);
+
+		var dto = await _svc.UpdateAsync(id, isImportant: true);
+
+		dto.IsImportant.Should().BeTrue();
+		item.IsImportant.Should().BeTrue();
+		await _repo.Received(1).UpdateAsync(item, Arg.Any<CancellationToken>());
+	}
 }
