@@ -154,11 +154,18 @@ public class TaskItemTools
 		}
 	}
 
-	[McpServerTool(Name = "taskitem_list_by_focus_date", Idempotent = true, ReadOnly = true), Description("List tasks by focus date (My Day). Provide focusDate. Set includeCompleted=true to get also completed tasks.")]
-	public async Task<object> ListTasksByFocusDate(string focusDate, bool includeCompleted = false)
+	[McpServerTool(Name = "taskitem_list_by_focus_date", Idempotent = true, ReadOnly = true), Description("List tasks by focus date (My Day). If focusDate is empty, uses current UTC date. Set includeCompleted=true to get also completed tasks.")]
+	public async Task<object> ListTasksByFocusDate(string? focusDate = null, bool includeCompleted = false)
 	{
-		if (!DateTime.TryParse(focusDate, out var date))
+		DateTime date;
+		if (string.IsNullOrWhiteSpace(focusDate))
+		{
+			date = DateTime.UtcNow.Date;
+		}
+		else if (!DateTime.TryParse(focusDate, out date))
+		{
 			return new { error = "Invalid date format for focusDate" };
+		}
 		var list = await _service.ListByFocusDateAsync(date, includeCompleted);
 		return list.ToList();
 	}

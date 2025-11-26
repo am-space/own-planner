@@ -27,13 +27,18 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OwnPlanner.Console", "OwnPl
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Docs", "Docs", "{6554420F-4B0E-4CE9-9F60-ECBCA6CE3BCC}"
 	ProjectSection(SolutionItems) = preProject
-		docs\MCP_TOOLS_REFERENCE.md = docs\MCP_TOOLS_REFERENCE.md
 		MCP_CONTAINER.md = MCP_CONTAINER.md
+		docs\MCP_TOOLS_REFERENCE.md = docs\MCP_TOOLS_REFERENCE.md
 	EndProjectSection
 EndProject
 Project("{54A90642-561A-4BB1-A94E-469ADEE60C69}") = "ownplanner.web.client", "OwnPlanner.Web\ownplanner.web.client\ownplanner.web.client.esproj", "{AE42EB23-ABC8-1238-7BB8-CD7248EABBF0}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OwnPlanner.Web.Server", "OwnPlanner.Web\OwnPlanner.Web.Server\OwnPlanner.Web.Server.csproj", "{A4A85A89-D91A-4F81-A8B3-FB2622F83BF1}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{1816487B-F93E-4CAD-B204-EC2C029E285E}"
+	ProjectSection(SolutionItems) = preProject
+		README.md = README.md
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

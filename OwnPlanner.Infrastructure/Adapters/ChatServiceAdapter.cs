@@ -83,6 +83,7 @@ namespace OwnPlanner.Infrastructure.Adapters
 					- Task management: Create, list, update, and delete tasks
 					- Note management: Create, list, update, and delete notes
 					- Date/time information: Get current date and time
+					- List tasks by focus date to see if the user has tasks planned for today or other dates
 
 					Guidelines:
 					- Be concise but friendly
