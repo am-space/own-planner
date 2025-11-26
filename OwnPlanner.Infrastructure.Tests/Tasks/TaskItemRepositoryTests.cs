@@ -115,4 +115,92 @@ public class TaskItemRepositoryTests
 		list2Tasks.Should().HaveCount(1);
 		list2Tasks.First().Id.Should().Be(task2.Id);
 	}
+
+	[Fact]
+	public async Task ListByFocusDateAsync_ReturnsTasksWithMatchingFocusDate()
+	{
+		using var db = CreateDb(out var conn);
+		await using var _ = conn;
+		var repo = new TaskItemRepository(db);
+		var listRepo = new TaskListRepository(db);
+
+		var list = new TaskList("Test List");
+		await listRepo.AddAsync(list);
+
+		var focusDate = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+		var a = new TaskItem("a", list.Id); a.SetFocusAt(focusDate);
+		var b = new TaskItem("b", list.Id); b.SetFocusAt(focusDate.AddDays(1));
+		var c = new TaskItem("c", list.Id); c.SetFocusAt(focusDate);
+		await repo.AddAsync(a);
+		await repo.AddAsync(b);
+		await repo.AddAsync(c);
+
+		var result = await repo.ListByFocusDateAsync(focusDate, false);
+		result.Should().HaveCount(2);
+		result.Should().OnlyContain(x => x.FocusAt == focusDate);
+	}
+
+	[Fact]
+	public async Task ListByFocusDateAsync_ExcludesCompletedTasksByDefault()
+	{
+		using var db = CreateDb(out var conn);
+		await using var _ = conn;
+		var repo = new TaskItemRepository(db);
+		var listRepo = new TaskListRepository(db);
+
+		var list = new TaskList("Test List");
+		await listRepo.AddAsync(list);
+
+		var focusDate = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+		var a = new TaskItem("a", list.Id); a.SetFocusAt(focusDate);
+		var b = new TaskItem("b", list.Id); b.SetFocusAt(focusDate); b.Complete();
+		await repo.AddAsync(a);
+		await repo.AddAsync(b);
+
+		var result = await repo.ListByFocusDateAsync(focusDate, false);
+		result.Should().HaveCount(1);
+		result.First().Title.Should().Be("a");
+	}
+
+	[Fact]
+	public async Task ListByFocusDateAsync_IncludesCompletedTasksWhenRequested()
+	{
+		using var db = CreateDb(out var conn);
+		await using var _ = conn;
+		var repo = new TaskItemRepository(db);
+		var listRepo = new TaskListRepository(db);
+
+		var list = new TaskList("Test List");
+		await listRepo.AddAsync(list);
+
+		var focusDate = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+		var a = new TaskItem("a", list.Id); a.SetFocusAt(focusDate);
+		var b = new TaskItem("b", list.Id); b.SetFocusAt(focusDate); b.Complete();
+		await repo.AddAsync(a);
+		await repo.AddAsync(b);
+
+		var result = await repo.ListByFocusDateAsync(focusDate, true);
+		result.Should().HaveCount(2);
+		result.Should().Contain(x => x.Title == "a");
+		result.Should().Contain(x => x.Title == "b");
+	}
+
+	[Fact]
+	public async Task ListByFocusDateAsync_NoTasksWithFocusDate_ReturnsEmpty()
+	{
+		using var db = CreateDb(out var conn);
+		await using var _ = conn;
+		var repo = new TaskItemRepository(db);
+		var listRepo = new TaskListRepository(db);
+
+		var list = new TaskList("Test List");
+		await listRepo.AddAsync(list);
+
+		var focusDate = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+		var a = new TaskItem("a", list.Id); a.SetFocusAt(focusDate.AddDays(1));
+		await repo.AddAsync(a);
+
+		var result = await repo.ListByFocusDateAsync(focusDate, false);
+		result.Should().BeEmpty();
+	}
 }

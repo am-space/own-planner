@@ -89,6 +89,26 @@ public class TaskItemService(ITaskItemRepository repository, ITaskListRepository
 		await _repository.DeleteAsync(item, ct);
 	}
 
+	public async Task SetFocusDateAsync(Guid id, DateTime? focusDateUtc, CancellationToken ct = default)
+	{
+		var item = await _repository.GetAsync(id, ct) ?? throw new KeyNotFoundException($"Task {id} not found");
+		item.SetFocusAt(focusDateUtc);
+		await _repository.UpdateAsync(item, ct);
+	}
+
+	public async Task ClearFocusDateAsync(Guid id, CancellationToken ct = default)
+	{
+		var item = await _repository.GetAsync(id, ct) ?? throw new KeyNotFoundException($"Task {id} not found");
+		item.ClearFocusAt();
+		await _repository.UpdateAsync(item, ct);
+	}
+
+	public async Task<IReadOnlyList<TaskItemDto>> ListByFocusDateAsync(DateTime focusDateUtc, bool includeCompleted = false, CancellationToken ct = default)
+	{
+		var items = await _repository.ListByFocusDateAsync(focusDateUtc, includeCompleted, ct);
+		return items.Select(Map).ToList();
+	}
+
 	private static TaskItemDto Map(TaskItem item) => new(
 		item.Id,
 		item.Title,
@@ -99,6 +119,7 @@ public class TaskItemService(ITaskItemRepository repository, ITaskListRepository
 		item.UpdatedAt,
 		item.DueAt,
 		item.CompletedAt,
-		item.TaskListId
+		item.TaskListId,
+		item.FocusAt // My Day feature
 	);
 }

@@ -5,10 +5,11 @@ public record TaskItemDto(
 	string Title,
 	string? Description,
 	bool IsCompleted,
-	bool IsImportant, // Added
+	bool IsImportant,
 	DateTime CreatedAt,
 	DateTime UpdatedAt,
 	DateTime? DueAt,
 	DateTime? CompletedAt,
-	Guid TaskListId
+	Guid TaskListId,
+	DateTime? FocusAt // My Day feature
 );

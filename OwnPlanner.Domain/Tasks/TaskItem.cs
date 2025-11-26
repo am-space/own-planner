@@ -6,12 +6,13 @@ public class TaskItem
 	public string Title { get; private set; } = string.Empty;
 	public string? Description { get; private set; }
 	public bool IsCompleted { get; private set; }
-	public bool IsImportant { get; private set; } // New property
+	public bool IsImportant { get; private set; }
 	public DateTime CreatedAt { get; private set; }
 	public DateTime UpdatedAt { get; private set; }
 	public DateTime? DueAt { get; private set; }
 	public DateTime? CompletedAt { get; private set; }
 	public Guid TaskListId { get; private set; }
+	public DateTime? FocusAt { get; private set; } // My Day feature: nullable focus date
 
 	// EF Core constructor
 	private TaskItem() { }
@@ -27,6 +28,7 @@ public class TaskItem
 		var now = DateTime.UtcNow;
 		CreatedAt = now;
 		UpdatedAt = now;
+		FocusAt = null;
 	}
 
 	public void SetTitle(string title)
@@ -52,6 +54,18 @@ public class TaskItem
 	public void SetImportant(bool isImportant)
 	{
 		IsImportant = isImportant;
+		Touch();
+	}
+
+	public void SetFocusAt(DateTime? focusAt)
+	{
+		FocusAt = focusAt.HasValue ? DateTime.SpecifyKind(focusAt.Value, DateTimeKind.Utc) : null;
+		Touch();
+	}
+
+	public void ClearFocusAt()
+	{
+		FocusAt = null;
 		Touch();
 	}
 

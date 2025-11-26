@@ -85,7 +85,6 @@ dotnet publish -c Release
 OwnPlanner.Web.Server/
 ??? Controllers/          # API controllers
 ??? Middleware/          # Custom middleware (exception handler)
-??? logs/                # Log files (gitignored)
 ??? wwwroot/             # Static files (production React build)
 ??? Program.cs           # Application entry point & configuration
 ??? appsettings.json     # Application settings

@@ -130,4 +130,52 @@ public class TaskItemTests
 
 		t.DueAt.Should().BeNull();
 	}
+
+	[Fact]
+	public void SetFocusAt_ValidDate_UpdatesFocusAtAndUpdatedAt()
+	{
+		var listId = Guid.NewGuid();
+		var t = new TaskItem("Title", listId);
+		var before = t.UpdatedAt;
+		var focusDate = new DateTime(2025, 1, 1, 8, 0, 0, DateTimeKind.Utc);
+		t.SetFocusAt(focusDate);
+		t.FocusAt.Should().Be(focusDate);
+		t.UpdatedAt.Should().BeOnOrAfter(before);
+	}
+
+	[Fact]
+	public void SetFocusAt_Null_ClearsFocusAt()
+	{
+		var listId = Guid.NewGuid();
+		var t = new TaskItem("Title", listId);
+		t.SetFocusAt(DateTime.UtcNow);
+		t.FocusAt.Should().NotBeNull();
+		t.ClearFocusAt();
+		t.FocusAt.Should().BeNull();
+	}
+
+	[Fact]
+	public void SetFocusAt_NormalizesToUtc()
+	{
+		var listId = Guid.NewGuid();
+		var t = new TaskItem("Title", listId);
+		var local = new DateTime(2025, 1, 1, 8, 0, 0, DateTimeKind.Local);
+		t.SetFocusAt(local);
+		t.FocusAt.Should().NotBeNull();
+		t.FocusAt!.Value.Kind.Should().Be(DateTimeKind.Utc);
+	}
+
+	[Fact]
+	public void SetFocusAt_MultipleUpdates_UpdatesValueAndUpdatedAt()
+	{
+		var listId = Guid.NewGuid();
+		var t = new TaskItem("Title", listId);
+		var first = new DateTime(2025, 1, 1, 8, 0, 0, DateTimeKind.Utc);
+		t.SetFocusAt(first);
+		var before = t.UpdatedAt;
+		var second = new DateTime(2025, 1, 2, 8, 0, 0, DateTimeKind.Utc);
+		t.SetFocusAt(second);
+		t.FocusAt.Should().Be(second);
+		t.UpdatedAt.Should().BeOnOrAfter(before);
+	}
 }

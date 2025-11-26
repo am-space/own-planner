@@ -25,6 +25,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 		task.Property(t => t.DueAt);
 		task.Property(t => t.CompletedAt);
 		task.Property(t => t.TaskListId).IsRequired();
+		task.Property(t => t.FocusAt); // My Day feature: nullable focus date
 		task.HasIndex(t => t.TaskListId);
 
 		// TaskList configuration

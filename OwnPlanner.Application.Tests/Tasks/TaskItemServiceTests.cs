@@ -210,4 +210,68 @@ public class TaskItemServiceTests
 		item.IsImportant.Should().BeTrue();
 		await _repo.Received(1).UpdateAsync(item, Arg.Any<CancellationToken>());
 	}
+
+	[Fact]
+	public async Task SetFocusDateAsync_SetsFocusAtAndUpdates()
+	{
+		var id = Guid.NewGuid();
+		var listId = Guid.NewGuid();
+		var item = new TaskItem("Title", listId);
+		_repo.GetAsync(id, Arg.Any<CancellationToken>()).Returns(item);
+		var focusDate = new DateTime(2025, 1, 1, 8, 0, 0, DateTimeKind.Utc);
+
+		await _svc.SetFocusDateAsync(id, focusDate);
+
+		item.FocusAt.Should().Be(focusDate);
+		await _repo.Received(1).UpdateAsync(item, Arg.Any<CancellationToken>());
+	}
+
+	[Fact]
+	public async Task ClearFocusDateAsync_ClearsFocusAtAndUpdates()
+	{
+		var id = Guid.NewGuid();
+		var listId = Guid.NewGuid();
+		var item = new TaskItem("Title", listId);
+		item.SetFocusAt(DateTime.UtcNow);
+		_repo.GetAsync(id, Arg.Any<CancellationToken>()).Returns(item);
+
+		await _svc.ClearFocusDateAsync(id);
+
+		item.FocusAt.Should().BeNull();
+		await _repo.Received(1).UpdateAsync(item, Arg.Any<CancellationToken>());
+	}
+
+	[Fact]
+	public async Task ListByFocusDateAsync_ReturnsTasksWithFocusDate()
+	{
+		var listId = Guid.NewGuid();
+		var focusDate = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+		var items = new[]
+		{
+			new TaskItem("a", listId) { },
+			new TaskItem("b", listId) { }
+		};
+		items[0].SetFocusAt(focusDate);
+		items[1].SetFocusAt(focusDate.AddDays(1));
+		_repo.ListByFocusDateAsync(focusDate, false, Arg.Any<CancellationToken>()).Returns([items[0]]);
+
+		var result = await _svc.ListByFocusDateAsync(focusDate);
+
+		result.Should().HaveCount(1);
+		result[0].Title.Should().Be("a");
+		result[0].FocusAt.Should().Be(focusDate);
+	}
+
+	[Fact]
+	public async Task Map_IncludesFocusAt()
+	{
+		var listId = Guid.NewGuid();
+		var focusDate = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+		var item = new TaskItem("Title", listId);
+		item.SetFocusAt(focusDate);
+		_repo.GetAsync(item.Id, Arg.Any<CancellationToken>()).Returns(item);
+
+		var dto = await _svc.GetAsync(item.Id);
+		dto!.FocusAt.Should().Be(focusDate);
+	}
 }

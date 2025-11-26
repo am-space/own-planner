@@ -153,4 +153,41 @@ public class TaskItemTools
 			return new { error = ex.Message };
 		}
 	}
+
+	[McpServerTool(Name = "taskitem_list_by_focus_date", Idempotent = true, ReadOnly = true), Description("List tasks by focus date (My Day). Provide focusDate. Set includeCompleted=true to get also completed tasks.")]
+	public async Task<object> ListTasksByFocusDate(string focusDate, bool includeCompleted = false)
+	{
+		if (!DateTime.TryParse(focusDate, out var date))
+			return new { error = "Invalid date format for focusDate" };
+		var list = await _service.ListByFocusDateAsync(date, includeCompleted);
+		return list.ToList();
+	}
+
+	[McpServerTool(Name = "taskitem_set_focus_date"), Description("Set or clear the focus date (My Day) for a task. Provide id and focusDate. If focusDate is empty, clears the focus date.")]
+	public async Task<object> SetTaskFocusDate(Guid id, string? focusDate = null)
+	{
+		if (string.IsNullOrWhiteSpace(focusDate))
+		{
+			try
+			{
+				await _service.ClearFocusDateAsync(id);
+				return new { success = true, id, focusDate = (string?)null };
+			}
+			catch (KeyNotFoundException ex)
+			{
+				return new { error = ex.Message };
+			}
+		}
+		if (!DateTime.TryParse(focusDate, out var date))
+			return new { error = "Invalid date format for focusDate" };
+		try
+		{
+			await _service.SetFocusDateAsync(id, date);
+			return new { success = true, id, focusDate = date };
+		}
+		catch (KeyNotFoundException ex)
+		{
+			return new { error = ex.Message };
+		}
+	}
 }
