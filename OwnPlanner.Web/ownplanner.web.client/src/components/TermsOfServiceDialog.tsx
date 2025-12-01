@@ -8,6 +8,8 @@ import {
   Box,
   IconButton,
   Divider,
+  Alert,
+  AlertTitle,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 
@@ -18,11 +20,11 @@ interface TermsOfServiceDialogProps {
   showAcceptButton?: boolean;
 }
 
-export default function TermsOfServiceDialog({ 
-  open, 
-  onClose, 
+export default function TermsOfServiceDialog({
+  open,
+  onClose,
   onAccept,
-  showAcceptButton = false 
+  showAcceptButton = false
 }: TermsOfServiceDialogProps) {
   const handleAccept = () => {
     if (onAccept) {
@@ -43,12 +45,22 @@ export default function TermsOfServiceDialog({
           <CloseIcon />
         </IconButton>
       </DialogTitle>
-      
+
       <DialogContent dividers>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           <Typography variant="body2" color="text.secondary">
             Last Updated: {new Date().toLocaleDateString()}
           </Typography>
+
+          <Alert severity="warning">
+            <AlertTitle>Alpha Tech Preview</AlertTitle>
+            This is a POC demonstration, not a commercial product.
+            Data may be periodically wiped. Do not store sensitive information.
+          </Alert>
+
+          <Alert severity="info">
+            OwnPlanner uses a single essential authentication cookie (OwnPlanner.Auth) to keep you signed in. No tracking or analytics cookies are set.
+          </Alert>
 
           <Divider />
 
@@ -58,7 +70,7 @@ export default function TermsOfServiceDialog({
               1. Acceptance of Terms
             </Typography>
             <Typography variant="body2" color="text.secondary" paragraph>
-              By accessing and using OwnPlanner ("the Service"), you accept and agree to be bound by 
+              By accessing and using OwnPlanner ("the Service"), you accept and agree to be bound by
               these Terms of Service. If you do not agree to these terms, please do not use the Service.
             </Typography>
           </Box>
@@ -69,8 +81,8 @@ export default function TermsOfServiceDialog({
               2. Service Description
             </Typography>
             <Typography variant="body2" color="text.secondary" paragraph>
-              OwnPlanner is an AI-powered personal planning assistant that helps you manage tasks, 
-              notes, and stay organized through intelligent conversation. The Service uses Google 
+              OwnPlanner is an AI-powered personal planning assistant that helps you manage tasks,
+              notes, and stay organized through intelligent conversation. The Service uses Google
               Gemini AI to provide chat-based assistance.
             </Typography>
           </Box>
@@ -81,7 +93,7 @@ export default function TermsOfServiceDialog({
               3. AI Service and Data Processing
             </Typography>
             <Typography variant="body2" color="text.secondary" paragraph>
-              <strong>Important:</strong> OwnPlanner uses Google Gemini AI to power its chat assistant. 
+              <strong>Important:</strong> OwnPlanner uses Google Gemini AI to power its chat assistant.
               When you interact with the chat feature:
             </Typography>
             <Typography variant="body2" color="text.secondary" component="div">
@@ -93,7 +105,7 @@ export default function TermsOfServiceDialog({
               </ul>
             </Typography>
             <Typography variant="body2" color="text.secondary" paragraph>
-              By using the chat feature, you acknowledge and consent to your data being processed by 
+              By using the chat feature, you acknowledge and consent to your data being processed by
               Google's AI services as described in Google's privacy policy.
             </Typography>
           </Box>
@@ -121,8 +133,8 @@ export default function TermsOfServiceDialog({
               5. Data and Privacy
             </Typography>
             <Typography variant="body2" color="text.secondary" paragraph>
-              We collect and store your account information (email, username) and the tasks/notes you 
-              create. Your chat conversations are processed by Google Gemini AI. We implement reasonable 
+              We collect and store your account information (email, username) and the tasks/notes you
+              create. Your chat conversations are processed by Google Gemini AI. We implement reasonable
               security measures to protect your data, but cannot guarantee absolute security.
             </Typography>
           </Box>
@@ -151,9 +163,9 @@ export default function TermsOfServiceDialog({
               7. Limitation of Liability
             </Typography>
             <Typography variant="body2" color="text.secondary" paragraph>
-              To the fullest extent permitted by law, OwnPlanner and its creators shall not be liable 
-              for any indirect, incidental, special, consequential, or punitive damages resulting from 
-              your use of the Service, including but not limited to data loss, inaccurate AI responses, 
+              To the fullest extent permitted by law, OwnPlanner and its creators shall not be liable
+              for any indirect, incidental, special, consequential, or punitive damages resulting from
+              your use of the Service, including but not limited to data loss, inaccurate AI responses,
               or unauthorized access to your account.
             </Typography>
           </Box>
@@ -164,7 +176,7 @@ export default function TermsOfServiceDialog({
               8. Account Termination
             </Typography>
             <Typography variant="body2" color="text.secondary" paragraph>
-              We reserve the right to suspend or terminate your account at any time for violation of 
+              We reserve the right to suspend or terminate your account at any time for violation of
               these terms or for any other reason. You may delete your account at any time by contacting us.
             </Typography>
           </Box>
@@ -175,7 +187,7 @@ export default function TermsOfServiceDialog({
               9. Changes to Terms
             </Typography>
             <Typography variant="body2" color="text.secondary" paragraph>
-              We may modify these Terms of Service at any time. Continued use of the Service after 
+              We may modify these Terms of Service at any time. Continued use of the Service after
               changes constitutes acceptance of the modified terms.
             </Typography>
           </Box>
@@ -187,9 +199,9 @@ export default function TermsOfServiceDialog({
             </Typography>
             <Typography variant="body2" color="text.secondary" paragraph>
               OwnPlanner is an open-source project. The source code is available at{' '}
-              <a 
-                href="https://github.com/am-space/own-planner" 
-                target="_blank" 
+              <a
+                href="https://github.com/am-space/own-planner"
+                target="_blank"
                 rel="noopener noreferrer"
                 style={{ color: 'inherit' }}
               >
@@ -211,7 +223,7 @@ export default function TermsOfServiceDialog({
           <Divider />
 
           <Typography variant="caption" color="text.secondary" align="center">
-            By using OwnPlanner, you acknowledge that you have read, understood, and agree to be 
+            By using OwnPlanner, you acknowledge that you have read, understood, and agree to be
             bound by these Terms of Service.
           </Typography>
         </Box>

@@ -12,6 +12,8 @@ import {
   ListItem,
   ListItemText,
   ListItemIcon,
+  Alert,
+  AlertTitle,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import GitHubIcon from '@mui/icons-material/GitHub';
@@ -35,7 +37,7 @@ export default function AboutDialog({ open, onClose }: AboutDialogProps) {
           <CloseIcon />
         </IconButton>
       </DialogTitle>
-      
+
       <DialogContent dividers>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           {/* App Info */}
@@ -47,10 +49,21 @@ export default function AboutDialog({ open, onClose }: AboutDialogProps) {
               Version 1.0.0
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-              An AI-powered personal planning assistant that helps you manage tasks, 
+              An AI-powered personal planning assistant that helps you manage tasks,
               notes, and stay organized with intelligent conversation.
             </Typography>
+
           </Box>
+
+          <Alert severity="warning">
+            <AlertTitle>Alpha Tech Preview</AlertTitle>
+            This is a POC demonstration, not a commercial product.
+            Data may be periodically wiped. Do not store sensitive information.
+          </Alert>
+
+          <Alert severity="info">
+            OwnPlanner uses a single essential authentication cookie (OwnPlanner.Auth) to keep you signed in. No tracking or analytics cookies are set.
+          </Alert>
 
           <Divider />
 
@@ -64,7 +77,7 @@ export default function AboutDialog({ open, onClose }: AboutDialogProps) {
                 <ListItemIcon sx={{ minWidth: 24 }}>
                   <FiberManualRecordIcon sx={{ fontSize: 8 }} />
                 </ListItemIcon>
-                <ListItemText 
+                <ListItemText
                   primary="Frontend: React 18 + TypeScript + Material-UI"
                   primaryTypographyProps={{ variant: 'body2', color: 'text.secondary' }}
                 />
@@ -73,7 +86,7 @@ export default function AboutDialog({ open, onClose }: AboutDialogProps) {
                 <ListItemIcon sx={{ minWidth: 24 }}>
                   <FiberManualRecordIcon sx={{ fontSize: 8 }} />
                 </ListItemIcon>
-                <ListItemText 
+                <ListItemText
                   primary="Backend: .NET 9 + ASP.NET Core"
                   primaryTypographyProps={{ variant: 'body2', color: 'text.secondary' }}
                 />
@@ -82,7 +95,7 @@ export default function AboutDialog({ open, onClose }: AboutDialogProps) {
                 <ListItemIcon sx={{ minWidth: 24 }}>
                   <FiberManualRecordIcon sx={{ fontSize: 8 }} />
                 </ListItemIcon>
-                <ListItemText 
+                <ListItemText
                   primary="AI: Google Gemini + Mscc.GenerativeAI SDK"
                   primaryTypographyProps={{ variant: 'body2', color: 'text.secondary' }}
                 />
@@ -125,6 +138,6 @@ export default function AboutDialog({ open, onClose }: AboutDialogProps) {
           Close
         </Button>
       </DialogActions>
-    </Dialog>
+    </Dialog >
   );
 }
