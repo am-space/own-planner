@@ -1,23 +1,15 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { ThemeProvider, createTheme, CssBaseline } from '@mui/material';
+import { ThemeProvider, CssBaseline } from '@mui/material';
 import { AuthProvider } from './contexts/AuthContext';
+import ThemeContextProvider from './contexts/ThemeContextProvider';
+import { useThemeContext } from './contexts/ThemeContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ChatPage from './pages/ChatPage';
 
-const theme = createTheme({
-  palette: {
-    primary: {
-      main: '#1976d2',
-    },
-    secondary: {
-      main: '#dc004e',
-    },
-  },
-});
-
-function App() {
+function ThemedApp() {
+  const { theme } = useThemeContext();
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
@@ -39,6 +31,14 @@ function App() {
         </BrowserRouter>
       </AuthProvider>
     </ThemeProvider>
+  );
+}
+
+function App() {
+  return (
+    <ThemeContextProvider>
+      <ThemedApp />
+    </ThemeContextProvider>
   );
 }
 

@@ -9,13 +9,35 @@ import {
   Paper,
   Link,
   Alert,
+  IconButton,
+  Tooltip,
 } from '@mui/material';
+import LightModeIcon from '@mui/icons-material/LightMode';
+import DarkModeIcon from '@mui/icons-material/DarkMode';
+import ContrastIcon from '@mui/icons-material/Contrast';
 import { useAuth } from '../contexts/AuthContext';
+import { useThemeContext } from '../contexts/ThemeContext';
+import type { ColorModePreference } from '../contexts/ThemeContext';
 import AboutDialog from '../components/AboutDialog';
+
+const MODE_CYCLE: ColorModePreference[] = ['light', 'dark', 'system'];
+
+const MODE_ICON: Record<ColorModePreference, React.ReactElement> = {
+  light: <LightModeIcon />,
+  dark: <DarkModeIcon />,
+  system: <ContrastIcon />,
+};
+
+const MODE_LABEL: Record<ColorModePreference, string> = {
+  light: 'Light mode',
+  dark: 'Dark mode',
+  system: 'System mode',
+};
 
 export default function LoginPage() {
   const navigate = useNavigate();
   const { login } = useAuth();
+  const { mode: colorMode, setMode: setColorMode } = useThemeContext();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -23,6 +45,11 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
+
+  const handleCycleColorMode = () => {
+    const next = MODE_CYCLE[(MODE_CYCLE.indexOf(colorMode) + 1) % MODE_CYCLE.length];
+    setColorMode(next);
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -60,9 +87,15 @@ export default function LoginPage() {
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          py: 4,
         }}
       >
+        <Box sx={{ position: 'absolute', top: 16, right: 16 }}>
+          <Tooltip title={MODE_LABEL[colorMode]}>
+            <IconButton onClick={handleCycleColorMode} color="inherit">
+              {MODE_ICON[colorMode]}
+            </IconButton>
+          </Tooltip>
+        </Box>
         <Paper elevation={3} sx={{ p: 4, width: '100%' }}>
           <Typography component="h1" variant="h5" align="center" gutterBottom>
             Sign In
@@ -84,6 +117,7 @@ export default function LoginPage() {
               name="email"
               autoComplete="email"
               autoFocus
+              variant="outlined"
               value={formData.email}
               onChange={handleChange}
               disabled={isLoading}
@@ -97,6 +131,7 @@ export default function LoginPage() {
               type="password"
               id="password"
               autoComplete="current-password"
+              variant="outlined"
               value={formData.password}
               onChange={handleChange}
               disabled={isLoading}

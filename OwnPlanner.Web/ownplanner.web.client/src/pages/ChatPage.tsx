@@ -15,6 +15,7 @@ import {
     CircularProgress,
     Alert,
     Snackbar,
+    Tooltip,
     useMediaQuery,
     useTheme,
 } from '@mui/material';
@@ -23,7 +24,12 @@ import LogoutIcon from '@mui/icons-material/Logout';
 import DeleteIcon from '@mui/icons-material/Delete';
 import InfoIcon from '@mui/icons-material/Info';
 import LightbulbOutlinedIcon from '@mui/icons-material/LightbulbOutlined';
+import LightModeIcon from '@mui/icons-material/LightMode';
+import DarkModeIcon from '@mui/icons-material/DarkMode';
+import ContrastIcon from '@mui/icons-material/Contrast';
 import { useAuth } from '../contexts/AuthContext';
+import { useThemeContext } from '../contexts/ThemeContext';
+import type { ColorModePreference } from '../contexts/ThemeContext';
 import { apiService } from '../services/api';
 import AboutDialog from '../components/AboutDialog';
 import ReactMarkdown from 'react-markdown';
@@ -46,10 +52,25 @@ const SUGGESTED_PROMPTS = [
     "Help me design a 12-Week Year plan"
 ];
 
+const MODE_CYCLE: ColorModePreference[] = ['light', 'dark', 'system'];
+
+const MODE_ICON: Record<ColorModePreference, React.ReactElement> = {
+    light: <LightModeIcon />,
+    dark: <DarkModeIcon />,
+    system: <ContrastIcon />,
+};
+
+const MODE_LABEL: Record<ColorModePreference, string> = {
+    light: 'Light mode',
+    dark: 'Dark mode',
+    system: 'System mode',
+};
+
 export default function ChatPage() {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
     const theme = useTheme();
+    const { mode: colorMode, setMode: setColorMode } = useThemeContext();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const [messages, setMessages] = useState<Message[]>([]);
     const [inputText, setInputText] = useState('');
@@ -58,6 +79,11 @@ export default function ChatPage() {
     const [aboutOpen, setAboutOpen] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
+
+    const handleCycleColorMode = () => {
+        const next = MODE_CYCLE[(MODE_CYCLE.indexOf(colorMode) + 1) % MODE_CYCLE.length];
+        setColorMode(next);
+    };
 
     // Auto-scroll to bottom when messages change
     useEffect(() => {
@@ -167,6 +193,13 @@ export default function ChatPage() {
                         </Button>
                     )}
 
+                    {/* Theme toggle */}
+                    <Tooltip title={MODE_LABEL[colorMode]}>
+                        <IconButton color="inherit" onClick={handleCycleColorMode} sx={{ mr: 1 }}>
+                            {MODE_ICON[colorMode]}
+                        </IconButton>
+                    </Tooltip>
+
                     {user && (
                         <>
                             <Chip
@@ -246,9 +279,9 @@ export default function ChatPage() {
                                 sx={{
                                     p: 3,
                                     textAlign: 'center',
-                                    bgcolor: 'grey.50',
+                                    bgcolor: 'background.default',
                                     border: '1px dashed',
-                                    borderColor: 'grey.300',
+                                    borderColor: 'divider',
                                 }}
                             >
                                 <Typography variant="h6" color="text.secondary" gutterBottom>
