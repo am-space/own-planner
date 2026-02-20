@@ -47,7 +47,7 @@ namespace OwnPlanner.Infrastructure.Adapters
 			_googleAI = new GoogleAI(apiKey);
 			_model = model;
 			_mcpClient = mcpAdapter;
-			_shouldDisposeMcp = false; // Don't dispose injected adapter
+			_shouldDisposeMcp = mcpAdapter != null; // Don't dispose injected adapter
 			_maxToolCallRounds = maxToolCallRounds;
 			// Initialize timestamps
 			CreatedTime = DateTime.UtcNow;

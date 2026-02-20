@@ -34,6 +34,7 @@ import { apiService } from '../services/api';
 import AboutDialog from '../components/AboutDialog';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import logo from '../assets/logo.svg';
 
 interface Message {
     id: string;
@@ -169,6 +170,15 @@ export default function ChatPage() {
             {/* Header */}
             <AppBar position="static">
                 <Toolbar>
+                    <Box
+                        component="img"
+                        src={logo}
+                        alt="OwnPlanner Logo"
+                        sx={{
+                            height: 40,
+                            mr: 2,
+                        }}
+                    />
                     <Typography variant="h6" component="div" sx={{ mr: 2 }}>
                         OwnPlanner Chat
                     </Typography>
@@ -352,7 +362,9 @@ export default function ChatPage() {
                                 sx={{
                                     p: 2,
                                     maxWidth: '70%',
-                                    bgcolor: message.sender === 'user' ? 'primary.main' : 'grey.100',
+                                    bgcolor: message.sender === 'user'
+                                        ? 'primary.main'
+                                        : (theme.palette.mode === 'dark' ? 'grey.800' : 'grey.100'),
                                     color: message.sender === 'user' ? 'white' : 'text.primary',
                                 }}
                             >
@@ -361,14 +373,14 @@ export default function ChatPage() {
                                     '& ul, & ol': { mt: 0.5, mb: 0.5, pl: 2 },
                                     '& li': { mb: 0.25 },
                                     '& code': {
-                                        bgcolor: 'rgba(0,0,0,0.1)',
+                                        bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
                                         p: 0.5,
                                         borderRadius: 1,
                                         fontFamily: 'monospace',
                                         fontSize: '0.875rem'
                                     },
                                     '& pre': {
-                                        bgcolor: 'rgba(0,0,0,0.1)',
+                                        bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
                                         p: 1,
                                         borderRadius: 1,
                                         overflowX: 'auto',
@@ -393,7 +405,7 @@ export default function ChatPage() {
                                         p: 1
                                     },
                                     '& th': {
-                                        bgcolor: 'rgba(0,0,0,0.05)',
+                                        bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
                                         fontWeight: 'bold'
                                     }
                                 }}>
@@ -430,7 +442,7 @@ export default function ChatPage() {
                                 elevation={1}
                                 sx={{
                                     p: 2,
-                                    bgcolor: 'grey.100',
+                                    bgcolor: theme.palette.mode === 'dark' ? 'grey.800' : 'grey.100',
                                     display: 'flex',
                                     alignItems: 'center',
                                     gap: 1,
