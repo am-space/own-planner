@@ -105,7 +105,7 @@ namespace OwnPlanner.Infrastructure.Adapters
 
 			// Start chat with the initial instructions
 			_chat = _generativeModel.StartChat(history: initialHistory);
-			
+
 			Log.Debug("Chat initialized with system instructions");
 		}
 
@@ -139,9 +139,7 @@ namespace OwnPlanner.Infrastructure.Adapters
 						catch (Exception ex)
 						{
 							// Log schema parse issues but continue
-							var schemaErrorMessage = $"Warning: Failed to parse schema for tool '{d.Name}': {ex.Message}";
-							System.Console.WriteLine(schemaErrorMessage);
-							Log.Warning(ex, "Failed to parse schema for tool: {ToolName}", d.Name);
+						Log.Warning(ex, "Failed to parse schema for tool: {ToolName}", d.Name);
 						}
 
 						functionDeclarations.Add(new FunctionDeclaration
@@ -159,17 +157,11 @@ namespace OwnPlanner.Infrastructure.Adapters
 						new Tool { FunctionDeclarations = functionDeclarations }
 					};
 
-					var toolsMessage = $"[MCP] Loaded {functionDeclarations.Count} tools for Gemini: {string.Join(", ", functionDeclarations.Select(f => f.Name))}";
-					System.Console.WriteLine(toolsMessage);
-					System.Console.WriteLine();
-					Log.Information(toolsMessage);
+					Log.Information("[MCP] Loaded {ToolCount} tools for Gemini: {Tools}", functionDeclarations.Count, string.Join(", ", functionDeclarations.Select(f => f.Name)));
 				}
 			}
 			catch (Exception ex)
 			{
-				var initErrorMessage = $"Warning: MCP initialization failed: {ex.Message}";
-				System.Console.WriteLine(initErrorMessage);
-				System.Console.WriteLine();
 				Log.Error(ex, "MCP initialization failed");
 			}
 		}
@@ -183,10 +175,29 @@ namespace OwnPlanner.Infrastructure.Adapters
 			}
 			catch (Exception ex)
 			{
-				System.Console.WriteLine($"Warning: Schema conversion failed: {ex.Message}");
 				Log.Warning(ex, "Schema conversion failed");
 				return null;
 			}
+		}
+
+		private void LogUsageMetadata(GenerateContentResponse? response, string stage)
+		{
+			var usage = response?.UsageMetadata;
+			if (usage == null)
+			{
+				Log.Debug("Gemini usage metadata not available at stage {Stage}", stage);
+				return;
+			}
+
+			Log.Debug(
+				"Gemini token usage ({Stage}): prompt={PromptTokens}, candidates={CandidateTokens}, total={TotalTokens}, cachedContent={CachedContentTokens}, toolUsePrompt={ToolUsePromptTokens}, thoughts={ThoughtsTokens}",
+				stage,
+				usage.PromptTokenCount,
+				usage.CandidatesTokenCount,
+				usage.TotalTokenCount,
+				usage.CachedContentTokenCount,
+				usage.ToolUsePromptTokenCount,
+				usage.ThoughtsTokenCount);
 		}
 
 		public async Task<string> GetResponse(string text)
@@ -197,6 +208,7 @@ namespace OwnPlanner.Infrastructure.Adapters
 			try
 			{
 				var response = await _chat.SendMessage(text);
+				LogUsageMetadata(response, "user-message");
 				int roundCount = 0;
 				while (roundCount < _maxToolCallRounds)
 				{
@@ -221,9 +233,7 @@ namespace OwnPlanner.Infrastructure.Adapters
 						{
 							continue;
 						}
-						var toolCallMessage = $"[MCP] Gemini requested to call tool: {functionCall.Name}";
-						System.Console.WriteLine(toolCallMessage);
-						Log.Information(toolCallMessage);
+						Log.Information("[MCP] Gemini requested to call tool: {ToolName}", functionCall.Name);
 						try
 						{
 							var argsDict = functionCall.Args != null
@@ -274,13 +284,12 @@ namespace OwnPlanner.Infrastructure.Adapters
 					}
 					Log.Debug("Sending {Count} tool results back to model", toolResults.Count);
 					response = await _chat.SendMessage(toolResults);
+					LogUsageMetadata(response, $"tool-results-round-{roundCount + 1}");
 					roundCount++;
 				}
 				if (roundCount >= _maxToolCallRounds)
 				{
-					var warningMessage = $"Warning: Reached maximum tool call rounds ({_maxToolCallRounds}). Returning current response.";
-					System.Console.WriteLine(warningMessage);
-					Log.Warning(warningMessage);
+					Log.Warning("Reached maximum tool call rounds ({MaxRounds}). Returning current response.", _maxToolCallRounds);
 				}
 				string safeText;
 				try
