@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: read
+  packages: write
 
 jobs:
   build-test:
@@ -16,6 +17,13 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
@@ -39,14 +47,8 @@ jobs:
         with:
           context: .
           file: OwnPlanner.Web/OwnPlanner.Web.Server/Dockerfile
-          tags: ownplanner:latest
-          load: true
-
-      - name: Export image to tar
-        run: docker save -o ownplanner_latest.tar ownplanner:latest
-
-      - name: Upload image artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ownplanner-image-tar
-          path: ownplanner_latest.tar
+          tags: |
+            ghcr.io/${{ github.repository }}:latest
+            ghcr.io/${{ github.repository }}:${{ github.sha }}
+          push: ${{ github.event_name == 'push' }}
+          load: ${{ github.event_name != 'push' }}
