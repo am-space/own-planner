@@ -4,6 +4,8 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Serilog;
 using Serilog.Events;
+using OwnPlanner.Application.Contexts;
+using OwnPlanner.Application.Goals;
 using OwnPlanner.Application.Tasks;
 using OwnPlanner.Application.Notes;
 using OwnPlanner.Infrastructure.Persistence;
@@ -99,11 +101,19 @@ namespace OwnPlanner.Mcp.StdioApp
 					services.AddScoped<NoteItemRepository>();
 					services.AddScoped<OwnPlanner.Domain.Notes.INoteItemRepository, NoteItemRepository>();
 
+					services.AddScoped<GoalRepository>();
+					services.AddScoped<OwnPlanner.Domain.Goals.IGoalRepository, GoalRepository>();
+					services.AddScoped<PlanningContextRepository>();
+					services.AddScoped<OwnPlanner.Domain.Contexts.IPlanningContextRepository, PlanningContextRepository>();
+
 					// Application services
 					services.AddScoped<ITaskItemService, TaskItemService>();
 					services.AddScoped<ITaskListService, TaskListService>();
 					services.AddScoped<INoteListService, NoteListService>();
 					services.AddScoped<INoteItemService, NoteItemService>();
+
+					services.AddScoped<IGoalService, GoalService>();
+					services.AddScoped<IPlanningContextService, PlanningContextService>();
 
 					// MCP server (stdio transport + register tools via DI)
 					services
@@ -113,6 +123,8 @@ namespace OwnPlanner.Mcp.StdioApp
 						.WithTools<TaskListTools>()
 						.WithTools<NoteListTools>()
 						.WithTools<NoteItemTools>()
+						.WithTools<GoalTools>()
+						.WithTools<PlanningContextTools>()
 						.WithTools<DateTimeTools>();
 				});
 
