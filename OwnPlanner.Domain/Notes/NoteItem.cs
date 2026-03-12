@@ -1,5 +1,3 @@
-using OwnPlanner.Domain;
-
 namespace OwnPlanner.Domain.Notes;
 
 public class NoteItem : EntityBase

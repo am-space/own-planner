@@ -1,5 +1,3 @@
-using OwnPlanner.Domain;
-
 namespace OwnPlanner.Domain.Tasks;
 
 public class TaskItem : EntityBase
