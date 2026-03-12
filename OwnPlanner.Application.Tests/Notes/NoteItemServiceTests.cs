@@ -1,7 +1,6 @@
 using FluentAssertions;
 using NSubstitute;
 using OwnPlanner.Application.Notes;
-using OwnPlanner.Application.Notes.Interfaces;
 using OwnPlanner.Domain.Notes;
 
 namespace OwnPlanner.Application.Tests.Notes;

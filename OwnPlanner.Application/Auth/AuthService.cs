@@ -1,6 +1,4 @@
 using Microsoft.Extensions.Logging;
-using OwnPlanner.Application.Auth.DTOs;
-using OwnPlanner.Application.Auth.Interfaces;
 using OwnPlanner.Domain.Users;
 
 namespace OwnPlanner.Application.Auth;

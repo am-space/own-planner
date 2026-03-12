@@ -1,5 +1,3 @@
-using OwnPlanner.Application.Notes.DTOs;
-using OwnPlanner.Application.Notes.Interfaces;
 using OwnPlanner.Domain.Notes;
 
 namespace OwnPlanner.Application.Notes;

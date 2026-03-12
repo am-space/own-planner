@@ -1,4 +1,4 @@
-namespace OwnPlanner.Application.Auth.DTOs;
+namespace OwnPlanner.Application.Auth;
 
 public record RegisterRequest(
 	string Email,

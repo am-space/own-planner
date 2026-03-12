@@ -1,6 +1,4 @@
-using OwnPlanner.Application.Tasks.DTOs;
-
-namespace OwnPlanner.Application.Tasks.Interfaces;
+namespace OwnPlanner.Application.Tasks;
 
 public interface ITaskListService
 {

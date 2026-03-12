@@ -1,5 +1,3 @@
-using OwnPlanner.Application.Tasks.DTOs;
-using OwnPlanner.Application.Tasks.Interfaces;
 using OwnPlanner.Domain.Tasks;
 
 namespace OwnPlanner.Application.Tasks;

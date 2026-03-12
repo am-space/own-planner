@@ -1,4 +1,4 @@
-namespace OwnPlanner.Application.Notes.DTOs;
+namespace OwnPlanner.Application.Notes;
 
 public record NoteListDto(
 	Guid Id,

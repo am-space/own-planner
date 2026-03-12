@@ -1,4 +1,4 @@
-namespace OwnPlanner.Application.Tasks.DTOs;
+namespace OwnPlanner.Application.Tasks;
 
 public record TaskItemDto(
 	Guid Id,

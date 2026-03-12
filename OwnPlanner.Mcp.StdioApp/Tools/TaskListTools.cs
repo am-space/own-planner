@@ -1,6 +1,6 @@
 using System.ComponentModel;
 using ModelContextProtocol.Server;
-using OwnPlanner.Application.Tasks.Interfaces;
+using OwnPlanner.Application.Tasks;
 
 namespace OwnPlanner.Mcp.StdioApp.Tools;
 

@@ -1,7 +1,6 @@
 using FluentAssertions;
 using NSubstitute;
 using OwnPlanner.Application.Tasks;
-using OwnPlanner.Application.Tasks.Interfaces;
 using OwnPlanner.Domain.Tasks;
 
 namespace OwnPlanner.Application.Tests.Tasks;

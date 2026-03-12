@@ -1,27 +1,23 @@
+using OwnPlanner.Domain;
+
 namespace OwnPlanner.Domain.Notes;
 
-public class NoteItem
+public class NoteItem : EntityBase
 {
-	public Guid Id { get; private set; }
 	public string Title { get; private set; } = string.Empty;
 	public string? Content { get; private set; }
 	public bool IsPinned { get; private set; }
-	public DateTime CreatedAt { get; private set; }
-	public DateTime UpdatedAt { get; private set; }
 	public Guid NoteListId { get; private set; }
 
 	// EF Core constructor
 	private NoteItem() { }
 
 	public NoteItem(string title, Guid noteListId, string? content = null)
+		: base(Guid.NewGuid())
 	{
-		Id = Guid.NewGuid();
 		SetTitle(title);
 		NoteListId = noteListId;
 		SetContent(content);
-		var now = DateTime.UtcNow;
-		CreatedAt = now;
-		UpdatedAt = now;
 	}
 
 	public void SetTitle(string title)
@@ -62,5 +58,5 @@ public class NoteItem
 		Touch();
 	}
 
-	private void Touch() => UpdatedAt = DateTime.UtcNow;
+
 }

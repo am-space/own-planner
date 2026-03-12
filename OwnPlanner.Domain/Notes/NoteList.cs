@@ -1,27 +1,23 @@
+using OwnPlanner.Domain;
+
 namespace OwnPlanner.Domain.Notes;
 
-public class NoteList
+public class NoteList : EntityBase
 {
-	public Guid Id { get; private set; }
 	public string Title { get; private set; } = string.Empty;
 	public string? Description { get; private set; }
 	public string? Color { get; private set; }
 	public bool IsArchived { get; private set; }
-	public DateTime CreatedAt { get; private set; }
-	public DateTime UpdatedAt { get; private set; }
 
 	// EF Core constructor
 	private NoteList() { }
 
 	public NoteList(string title, string? description = null, string? color = null)
+		: base(Guid.NewGuid())
 	{
-		Id = Guid.NewGuid();
 		SetTitle(title);
 		SetDescription(description);
 		SetColor(color);
-		var now = DateTime.UtcNow;
-		CreatedAt = now;
-		UpdatedAt = now;
 	}
 
 	public void SetTitle(string title)
@@ -62,5 +58,5 @@ public class NoteList
 		}
 	}
 
-	private void Touch() => UpdatedAt = DateTime.UtcNow;
+
 }
