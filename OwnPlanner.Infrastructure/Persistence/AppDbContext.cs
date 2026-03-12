@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using OwnPlanner.Domain.Contexts;
+using OwnPlanner.Domain.Goals;
 using OwnPlanner.Domain.Tasks;
 using OwnPlanner.Domain.Notes;
 
@@ -10,6 +12,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 	public DbSet<TaskList> TaskLists => Set<TaskList>();
 	public DbSet<NoteList> NoteLists => Set<NoteList>();
 	public DbSet<NoteItem> NoteItems => Set<NoteItem>();
+	public DbSet<Goal> Goals => Set<Goal>();
+	public DbSet<PlanningContext> PlanningContexts => Set<PlanningContext>();
 
 	protected override void OnModelCreating(ModelBuilder modelBuilder)
 	{
@@ -72,5 +76,30 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 			.WithOne()
 			.HasForeignKey(n => n.NoteListId)
 			.OnDelete(DeleteBehavior.Cascade);
+
+		// Goal configuration
+		var goal = modelBuilder.Entity<Goal>();
+		goal.HasKey(g => g.Id);
+		goal.Property(g => g.Title).IsRequired().HasMaxLength(256);
+		goal.Property(g => g.Description);
+		goal.Property(g => g.Horizon).IsRequired();
+		goal.Property(g => g.TargetPeriod).HasMaxLength(20);
+		goal.Property(g => g.TargetDate);
+		goal.Property(g => g.Status).IsRequired();
+		goal.Property(g => g.Metric);
+		goal.Property(g => g.MetricCurrent);
+		goal.Property(g => g.CreatedAt);
+		goal.Property(g => g.UpdatedAt);
+
+		// PlanningContext configuration
+		var planningContext = modelBuilder.Entity<PlanningContext>();
+		planningContext.HasKey(c => c.Id);
+		planningContext.Property(c => c.Name).IsRequired().HasMaxLength(256);
+		planningContext.Property(c => c.Type).IsRequired();
+		planningContext.Property(c => c.Description);
+		planningContext.Property(c => c.Status).IsRequired();
+		planningContext.Property(c => c.Color).HasMaxLength(50);
+		planningContext.Property(c => c.CreatedAt);
+		planningContext.Property(c => c.UpdatedAt);
 	}
 }
