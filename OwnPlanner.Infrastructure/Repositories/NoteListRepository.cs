@@ -11,11 +11,15 @@ public class NoteListRepository(AppDbContext db) : INoteListRepository
 	public async Task<NoteList?> GetAsync(Guid id, CancellationToken ct = default)
 		=> await _db.NoteLists.FirstOrDefaultAsync(nl => nl.Id == id, ct);
 
-	public async Task<IReadOnlyList<NoteList>> ListAsync(bool includeArchived, CancellationToken ct = default)
+	public async Task<IReadOnlyList<NoteList>> ListAsync(bool includeArchived, Guid? contextId = null, bool excludeUnassigned = false, CancellationToken ct = default)
 	{
 		var query = _db.NoteLists.AsQueryable();
 		if (!includeArchived)
 			query = query.Where(nl => !nl.IsArchived);
+		if (contextId.HasValue)
+			query = query.Where(nl => nl.ContextId == contextId.Value);
+		else if (excludeUnassigned)
+			query = query.Where(nl => nl.ContextId != null);
 
 		// SQLite cannot translate ORDER BY on DateTimeOffset; order in-memory instead
 		var lists = await query.ToListAsync(ct);

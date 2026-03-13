@@ -6,6 +6,7 @@ public record NoteListDto(
 	string? Description,
 	string? Color,
 	bool IsArchived,
+	Guid? ContextId,
 	DateTime CreatedAt,
 	DateTime UpdatedAt
 );

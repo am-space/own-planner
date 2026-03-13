@@ -6,6 +6,7 @@ public record TaskListDto(
 	string? Description,
 	string? Color,
 	bool IsArchived,
+	Guid? ContextId,
 	DateTime CreatedAt,
 	DateTime UpdatedAt
 );

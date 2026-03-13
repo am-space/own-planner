@@ -6,9 +6,11 @@ public class NoteListService(INoteListRepository repository) : INoteListService
 {
 	private readonly INoteListRepository _repository = repository;
 
-	public async Task<NoteListDto> CreateAsync(string title, string? description = null, string? color = null, CancellationToken ct = default)
+	public async Task<NoteListDto> CreateAsync(string title, Guid contextId, string? description = null, string? color = null, CancellationToken ct = default)
 	{
-		var noteList = new NoteList(title, description, color);
+		if (contextId == Guid.Empty)
+			throw new ArgumentException("A valid context ID is required to create a note list.", nameof(contextId));
+		var noteList = new NoteList(title, description, color, contextId);
 		await _repository.AddAsync(noteList, ct);
 		return Map(noteList);
 	}
@@ -19,9 +21,9 @@ public class NoteListService(INoteListRepository repository) : INoteListService
 		return noteList is null ? null : Map(noteList);
 	}
 
-	public async Task<IReadOnlyList<NoteListDto>> ListAsync(bool includeArchived = false, CancellationToken ct = default)
+	public async Task<IReadOnlyList<NoteListDto>> ListAsync(bool includeArchived = false, Guid? contextId = null, bool excludeUnassigned = false, CancellationToken ct = default)
 	{
-		var noteLists = await _repository.ListAsync(includeArchived, ct);
+		var noteLists = await _repository.ListAsync(includeArchived, contextId, excludeUnassigned, ct);
 		return noteLists.Select(Map).ToList();
 	}
 
@@ -66,6 +68,7 @@ public class NoteListService(INoteListRepository repository) : INoteListService
 		noteList.Description,
 		noteList.Color,
 		noteList.IsArchived,
+		noteList.ContextId,
 		noteList.CreatedAt,
 		noteList.UpdatedAt
 	);

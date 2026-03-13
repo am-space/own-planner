@@ -39,8 +39,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 		taskList.Property(tl => tl.Description);
 		taskList.Property(tl => tl.Color).HasMaxLength(50);
 		taskList.Property(tl => tl.IsArchived);
+		taskList.Property(tl => tl.ContextId);
 		taskList.Property(tl => tl.CreatedAt);
 		taskList.Property(tl => tl.UpdatedAt);
+		taskList.HasIndex(tl => tl.ContextId);
 
 		// Configure relationship - TaskList to TaskItems (one-to-many)
 		// When a TaskList is deleted, cascade delete all associated TaskItems
@@ -56,8 +58,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 		noteList.Property(nl => nl.Description);
 		noteList.Property(nl => nl.Color).HasMaxLength(50);
 		noteList.Property(nl => nl.IsArchived);
+		noteList.Property(nl => nl.ContextId);
 		noteList.Property(nl => nl.CreatedAt);
 		noteList.Property(nl => nl.UpdatedAt);
+		noteList.HasIndex(nl => nl.ContextId);
 
 		// NoteItem configuration
 		var note = modelBuilder.Entity<NoteItem>();

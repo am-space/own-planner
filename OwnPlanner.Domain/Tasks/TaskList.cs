@@ -7,15 +7,19 @@ public class TaskList : EntityBase
 	public string? Color { get; private set; }
 	public bool IsArchived { get; private set; }
 
+	/// <summary>Optional reference to the owning <see cref="OwnPlanner.Domain.Contexts.PlanningContext"/>. Null for legacy/unassigned lists.</summary>
+	public Guid? ContextId { get; private set; }
+
 	// EF Core constructor
 	private TaskList() { }
 
-	public TaskList(string title, string? description = null, string? color = null)
+	public TaskList(string title, string? description = null, string? color = null, Guid? contextId = null)
 		: base(Guid.NewGuid())
 	{
 		SetTitle(title);
 		SetDescription(description);
 		SetColor(color);
+		ContextId = contextId;
 	}
 
 	public void SetTitle(string title)
@@ -54,6 +58,12 @@ public class TaskList : EntityBase
 			IsArchived = false;
 			Touch();
 		}
+	}
+
+	public void SetContextId(Guid? contextId)
+	{
+		ContextId = contextId;
+		Touch();
 	}
 
 
