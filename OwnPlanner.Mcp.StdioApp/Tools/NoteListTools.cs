@@ -74,6 +74,10 @@ public class NoteListTools
 		{
 			return new { error = ex.Message };
 		}
+		catch (InvalidOperationException ex)
+		{
+			return new { error = ex.Message };
+		}
 	}
 
 	[McpServerTool(Name = "notelist_unarchive"), Description("Unarchive a note list by id.")]
@@ -99,6 +103,10 @@ public class NoteListTools
 			return new { success = true, id };
 		}
 		catch (KeyNotFoundException ex)
+		{
+			return new { error = ex.Message };
+		}
+		catch (InvalidOperationException ex)
 		{
 			return new { error = ex.Message };
 		}

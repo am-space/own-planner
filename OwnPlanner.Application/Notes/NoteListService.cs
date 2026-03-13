@@ -45,6 +45,8 @@ public class NoteListService(INoteListRepository repository) : INoteListService
 	public async Task ArchiveAsync(Guid id, CancellationToken ct = default)
 	{
 		var noteList = await _repository.GetAsync(id, ct) ?? throw new KeyNotFoundException($"NoteList {id} not found");
+		if (noteList.IsSystem)
+			throw new InvalidOperationException("System lists cannot be archived.");
 		noteList.Archive();
 		await _repository.UpdateAsync(noteList, ct);
 	}
@@ -59,6 +61,8 @@ public class NoteListService(INoteListRepository repository) : INoteListService
 	public async Task DeleteAsync(Guid id, CancellationToken ct = default)
 	{
 		var noteList = await _repository.GetAsync(id, ct) ?? throw new KeyNotFoundException($"NoteList {id} not found");
+		if (noteList.IsSystem)
+			throw new InvalidOperationException("System lists cannot be deleted.");
 		await _repository.DeleteAsync(noteList, ct);
 	}
 
@@ -68,6 +72,7 @@ public class NoteListService(INoteListRepository repository) : INoteListService
 		noteList.Description,
 		noteList.Color,
 		noteList.IsArchived,
+		noteList.IsSystem,
 		noteList.ContextId,
 		noteList.CreatedAt,
 		noteList.UpdatedAt

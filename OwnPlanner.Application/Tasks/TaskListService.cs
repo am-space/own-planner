@@ -45,6 +45,8 @@ public class TaskListService(ITaskListRepository repository) : ITaskListService
 	public async Task ArchiveAsync(Guid id, CancellationToken ct = default)
 	{
 		var taskList = await _repository.GetAsync(id, ct) ?? throw new KeyNotFoundException($"TaskList {id} not found");
+		if (taskList.IsSystem)
+			throw new InvalidOperationException("System lists cannot be archived.");
 		taskList.Archive();
 		await _repository.UpdateAsync(taskList, ct);
 	}
@@ -59,6 +61,8 @@ public class TaskListService(ITaskListRepository repository) : ITaskListService
 	public async Task DeleteAsync(Guid id, CancellationToken ct = default)
 	{
 		var taskList = await _repository.GetAsync(id, ct) ?? throw new KeyNotFoundException($"TaskList {id} not found");
+		if (taskList.IsSystem)
+			throw new InvalidOperationException("System lists cannot be deleted.");
 		await _repository.DeleteAsync(taskList, ct);
 	}
 
@@ -68,6 +72,7 @@ public class TaskListService(ITaskListRepository repository) : ITaskListService
 		taskList.Description,
 		taskList.Color,
 		taskList.IsArchived,
+		taskList.IsSystem,
 		taskList.ContextId,
 		taskList.CreatedAt,
 		taskList.UpdatedAt

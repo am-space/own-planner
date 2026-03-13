@@ -74,6 +74,10 @@ public class TaskListTools
 		{
 			return new { error = ex.Message };
 		}
+		catch (InvalidOperationException ex)
+		{
+			return new { error = ex.Message };
+		}
 	}
 
 	[McpServerTool(Name = "tasklist_unarchive"), Description("Unarchive a task list by id.")]
@@ -99,6 +103,10 @@ public class TaskListTools
 			return new { success = true, id };
 		}
 		catch (KeyNotFoundException ex)
+		{
+			return new { error = ex.Message };
+		}
+		catch (InvalidOperationException ex)
 		{
 			return new { error = ex.Message };
 		}

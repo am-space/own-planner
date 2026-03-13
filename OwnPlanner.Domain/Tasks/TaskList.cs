@@ -7,11 +7,22 @@ public class TaskList : EntityBase
 	public string? Color { get; private set; }
 	public bool IsArchived { get; private set; }
 
+	// System lists are built-in lists that cannot be archived or deleted (e.g. "Inbox"). They are created via code, not user actions.
+	public bool IsSystem { get; private set; }
+
 	/// <summary>Optional reference to the owning <see cref="OwnPlanner.Domain.Contexts.PlanningContext"/>. Null for legacy/unassigned lists.</summary>
 	public Guid? ContextId { get; private set; }
 
 	// EF Core constructor
 	private TaskList() { }
+
+	private TaskList(Guid id, string title) : base(id)
+	{
+		SetTitle(title);
+		IsSystem = true;
+	}
+
+	public static TaskList CreateSystem(Guid id, string title) => new(id, title);
 
 	public TaskList(string title, string? description = null, string? color = null, Guid? contextId = null)
 		: base(Guid.NewGuid())

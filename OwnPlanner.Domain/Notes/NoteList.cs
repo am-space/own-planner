@@ -7,11 +7,22 @@ public class NoteList : EntityBase
 	public string? Color { get; private set; }
 	public bool IsArchived { get; private set; }
 
+	// System lists are built-in lists that cannot be archived or deleted (e.g. "Inbox"). They are created via code, not user actions.
+	public bool IsSystem { get; private set; }
+
 	/// <summary>Optional reference to the owning <see cref="OwnPlanner.Domain.Contexts.PlanningContext"/>. Null for legacy/unassigned lists.</summary>
 	public Guid? ContextId { get; private set; }
 
 	// EF Core constructor
 	private NoteList() { }
+
+	private NoteList(Guid id, string title) : base(id)
+	{
+		SetTitle(title);
+		IsSystem = true;
+	}
+
+	public static NoteList CreateSystem(Guid id, string title) => new(id, title);
 
 	public NoteList(string title, string? description = null, string? color = null, Guid? contextId = null)
 		: base(Guid.NewGuid())

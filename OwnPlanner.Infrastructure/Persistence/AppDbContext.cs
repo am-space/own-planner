@@ -39,6 +39,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 		taskList.Property(tl => tl.Description);
 		taskList.Property(tl => tl.Color).HasMaxLength(50);
 		taskList.Property(tl => tl.IsArchived);
+		taskList.Property(tl => tl.IsSystem);
 		taskList.Property(tl => tl.ContextId);
 		taskList.Property(tl => tl.CreatedAt);
 		taskList.Property(tl => tl.UpdatedAt);
@@ -58,6 +59,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 		noteList.Property(nl => nl.Description);
 		noteList.Property(nl => nl.Color).HasMaxLength(50);
 		noteList.Property(nl => nl.IsArchived);
+		noteList.Property(nl => nl.IsSystem);
 		noteList.Property(nl => nl.ContextId);
 		noteList.Property(nl => nl.CreatedAt);
 		noteList.Property(nl => nl.UpdatedAt);

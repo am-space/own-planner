@@ -6,6 +6,7 @@ using Serilog;
 using Serilog.Events;
 using OwnPlanner.Application.Contexts;
 using OwnPlanner.Application.Goals;
+using OwnPlanner.Application.Inbox;
 using OwnPlanner.Application.Tasks;
 using OwnPlanner.Application.Notes;
 using OwnPlanner.Infrastructure.Persistence;
@@ -115,6 +116,9 @@ namespace OwnPlanner.Mcp.StdioApp
 					services.AddScoped<IGoalService, GoalService>();
 					services.AddScoped<IPlanningContextService, PlanningContextService>();
 
+					// Inbox seeder
+					services.AddScoped<IInboxSeeder, InboxSeeder>();
+
 					// MCP server (stdio transport + register tools via DI)
 					services
 						.AddMcpServer()
@@ -135,6 +139,13 @@ namespace OwnPlanner.Mcp.StdioApp
 			{
 				var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 				await db.Database.MigrateAsync();
+			}
+
+			// Seed system lists (Inbox TaskList and Inbox NoteList)
+			using (var scope = host.Services.CreateScope())
+			{
+				var seeder = scope.ServiceProvider.GetRequiredService<IInboxSeeder>();
+				await seeder.SeedAsync();
 			}
 
 			var logger = host.Services.GetRequiredService<ILogger<Program>>();
