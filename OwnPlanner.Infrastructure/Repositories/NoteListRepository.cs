@@ -31,7 +31,18 @@ public class NoteListRepository(AppDbContext db) : INoteListRepository
 	public async Task AddAsync(NoteList noteList, CancellationToken ct = default)
 	{
 		await _db.NoteLists.AddAsync(noteList, ct);
-		await _db.SaveChangesAsync(ct);
+		try
+		{
+			await _db.SaveChangesAsync(ct);
+		}
+		catch (DbUpdateException)
+		{
+			var exists = await _db.NoteLists.AsNoTracking().AnyAsync(nl => nl.Id == noteList.Id, ct);
+			if (!exists)
+				throw;
+			// Concurrent insert: another instance already created the same row; safe to ignore.
+			_db.Entry(noteList).State = EntityState.Detached;
+		}
 	}
 
 	public async Task UpdateAsync(NoteList noteList, CancellationToken ct = default)

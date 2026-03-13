@@ -31,7 +31,18 @@ public class TaskListRepository(AppDbContext db) : ITaskListRepository
 	public async Task AddAsync(TaskList taskList, CancellationToken ct = default)
 	{
 		await _db.TaskLists.AddAsync(taskList, ct);
-		await _db.SaveChangesAsync(ct);
+		try
+		{
+			await _db.SaveChangesAsync(ct);
+		}
+		catch (DbUpdateException)
+		{
+			var exists = await _db.TaskLists.AsNoTracking().AnyAsync(tl => tl.Id == taskList.Id, ct);
+			if (!exists)
+				throw;
+			// Concurrent insert: another instance already created the same row; safe to ignore.
+			_db.Entry(taskList).State = EntityState.Detached;
+		}
 	}
 
 	public async Task UpdateAsync(TaskList taskList, CancellationToken ct = default)
