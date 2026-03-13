@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using Microsoft.EntityFrameworkCore;
 using OwnPlanner.Domain;
 using OwnPlanner.Domain.Notes;
 using OwnPlanner.Domain.Tasks;
@@ -26,8 +27,15 @@ public class InboxSeeder(
 		if (existing is null)
 		{
 			var inbox = TaskList.CreateSystem(WellKnownIds.InboxTaskList, "Inbox");
-			await _taskListRepository.AddAsync(inbox, ct);
-			_logger.LogInformation("Created Inbox TaskList with id {Id}", WellKnownIds.InboxTaskList);
+			try
+			{
+				await _taskListRepository.AddAsync(inbox, ct);
+				_logger.LogInformation("Created Inbox TaskList with id {Id}", WellKnownIds.InboxTaskList);
+			}
+			catch (DbUpdateException ex)
+			{
+				_logger.LogDebug(ex, "Inbox TaskList with id {Id} already exists, likely created concurrently.", WellKnownIds.InboxTaskList);
+			}
 		}
 	}
 
@@ -37,8 +45,15 @@ public class InboxSeeder(
 		if (existing is null)
 		{
 			var inbox = NoteList.CreateSystem(WellKnownIds.InboxNoteList, "Inbox");
-			await _noteListRepository.AddAsync(inbox, ct);
-			_logger.LogInformation("Created Inbox NoteList with id {Id}", WellKnownIds.InboxNoteList);
+			try
+			{
+				await _noteListRepository.AddAsync(inbox, ct);
+				_logger.LogInformation("Created Inbox NoteList with id {Id}", WellKnownIds.InboxNoteList);
+			}
+			catch (DbUpdateException ex)
+			{
+				_logger.LogDebug(ex, "Inbox NoteList with id {Id} already exists, likely created concurrently.", WellKnownIds.InboxNoteList);
+			}
 		}
 	}
 }
