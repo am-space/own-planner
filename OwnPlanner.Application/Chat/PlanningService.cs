@@ -35,6 +35,11 @@ public sealed class PlanningService(IChatAdapter chatAdapter, IMcpAdapter? mcpAd
 
 	public async Task<string> GetResponseAsync(string userMessage, CancellationToken cancellationToken = default)
 	{
+		if (!_modeActivated)
+		{
+			await SwitchModeAsync(_currentMode, cancellationToken).ConfigureAwait(false);
+		}
+
 		string message = userMessage;
 
 		if (_modeActivated && _currentConfig.RefreshOnTurn && _mcpAdapter != null)
