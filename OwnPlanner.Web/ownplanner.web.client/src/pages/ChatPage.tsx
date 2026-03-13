@@ -98,7 +98,15 @@ export default function ChatPage() {
     }, []);
 
     useEffect(() => {
-        fetchAndSetStarterPrompts('DayWork');
+        const init = async () => {
+            try {
+                await apiService.switchPlanningMode('DayWork');
+            } catch {
+                // non-critical: server activates DayWork lazily on first message
+            }
+            await fetchAndSetStarterPrompts('DayWork');
+        };
+        init();
     }, [fetchAndSetStarterPrompts]);
 
     const handleCycleColorMode = () => {
@@ -122,6 +130,11 @@ export default function ChatPage() {
             setMessages([]);
             setPlanningMode('DayWork');
             setError(null);
+            try {
+                await apiService.switchPlanningMode('DayWork');
+            } catch {
+                // non-critical: server activates DayWork lazily on first message
+            }
             await fetchAndSetStarterPrompts('DayWork');
             // Refocus input after clearing
             inputRef.current?.focus();
