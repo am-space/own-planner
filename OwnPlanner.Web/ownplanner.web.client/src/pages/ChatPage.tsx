@@ -16,6 +16,7 @@ import {
     Alert,
     Snackbar,
     Tooltip,
+    Divider,
     useMediaQuery,
     useTheme,
 } from '@mui/material';
@@ -41,9 +42,17 @@ import logo from '../assets/logo.svg';
 interface Message {
     id: string;
     text: string;
-    sender: 'user' | 'assistant';
+    sender: 'user' | 'assistant' | 'system';
     timestamp: Date;
 }
+
+const MODE_LABELS: Record<string, string> = {
+    GlobalPlanning: 'Global Planning',
+    WeekPlanning: 'Week Planning',
+    DayWork: 'Day Work',
+    Reflection: 'Reflection',
+    SystemAnalysis: 'System Analysis',
+};
 
 const MODE_CYCLE: ColorModePreference[] = ['light', 'dark', 'system'];
 
@@ -129,6 +138,15 @@ export default function ChatPage() {
             await apiService.switchPlanningMode(mode);
             setPlanningMode(mode);
             await fetchAndSetStarterPrompts(mode);
+            setMessages((prev) => [
+                ...prev,
+                {
+                    id: `mode-switch-${Date.now()}`,
+                    text: `Switched to ${MODE_LABELS[mode] ?? mode}`,
+                    sender: 'system',
+                    timestamp: new Date(),
+                },
+            ]);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to switch planning mode');
         } finally {
@@ -356,82 +374,90 @@ export default function ChatPage() {
                                 justifyContent: message.sender === 'user' ? 'flex-end' : 'flex-start',
                             }}
                         >
-                            <Paper
-                                elevation={1}
-                                sx={{
-                                    p: 2,
-                                    maxWidth: '70%',
-                                    bgcolor: message.sender === 'user'
-                                        ? 'primary.main'
-                                        : (theme.palette.mode === 'dark' ? 'grey.800' : 'grey.100'),
-                                    color: message.sender === 'user' ? 'white' : 'text.primary',
-                                }}
-                            >
-                                <Box sx={{
-                                    '& p': { m: 0 },
-                                    '& ul, & ol': { mt: 0.5, mb: 0.5, pl: 2 },
-                                    '& li': { mb: 0.25 },
-                                    '& code': {
-                                        bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
-                                        p: 0.5,
-                                        borderRadius: 1,
-                                        fontFamily: 'monospace',
-                                        fontSize: '0.875rem'
-                                    },
-                                    '& pre': {
-                                        bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
-                                        p: 1,
-                                        borderRadius: 1,
-                                        overflowX: 'auto',
-                                        '& code': {
-                                            bgcolor: 'transparent',
-                                            p: 0
-                                        }
-                                    },
-                                    '& a': {
-                                        color: 'inherit',
-                                        textDecoration: 'underline'
-                                    },
-                                    '& table': {
-                                        borderCollapse: 'collapse',
-                                        width: '100%',
-                                        mt: 1,
-                                        mb: 1
-                                    },
-                                    '& th, & td': {
-                                        border: '1px solid',
-                                        borderColor: 'divider',
-                                        p: 1
-                                    },
-                                    '& th': {
-                                        bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
-                                        fontWeight: 'bold'
-                                    }
-                                }}>
-                                    <ReactMarkdown
-                                        remarkPlugins={[remarkGfm]}
-                                        components={{
-                                            table: ({ node, ...props }) => (
-                                                <Box sx={{ overflowX: 'auto', display: 'block', maxWidth: '100%' }}>
-                                                    <table {...props} />
-                                                </Box>
-                                            )
-                                        }}
-                                    >
+                            {message.sender === 'system' ? (
+                                <Divider sx={{ width: '100%', my: 1 }}>
+                                    <Typography variant="caption" color="text.secondary">
                                         {message.text}
-                                    </ReactMarkdown>
-                                </Box>
-                                <Typography
-                                    variant="caption"
+                                    </Typography>
+                                </Divider>
+                            ) : (
+                                <Paper
+                                    elevation={1}
                                     sx={{
-                                        display: 'block',
-                                        mt: 0.5,
-                                        opacity: 0.7,
+                                        p: 2,
+                                        maxWidth: '90%',
+                                        bgcolor: message.sender === 'user'
+                                            ? 'primary.main'
+                                            : (theme.palette.mode === 'dark' ? 'grey.800' : 'grey.100'),
+                                        color: message.sender === 'user' ? 'white' : 'text.primary',
                                     }}
                                 >
-                                    {message.timestamp.toLocaleTimeString()}
-                                </Typography>
-                            </Paper>
+                                    <Box sx={{
+                                        '& p': { m: 0 },
+                                        '& ul, & ol': { mt: 0.5, mb: 0.5, pl: 2 },
+                                        '& li': { mb: 0.25 },
+                                        '& code': {
+                                            bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+                                            p: 0.5,
+                                            borderRadius: 1,
+                                            fontFamily: 'monospace',
+                                            fontSize: '0.875rem'
+                                        },
+                                        '& pre': {
+                                            bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+                                            p: 1,
+                                            borderRadius: 1,
+                                            overflowX: 'auto',
+                                            '& code': {
+                                                bgcolor: 'transparent',
+                                                p: 0
+                                            }
+                                        },
+                                        '& a': {
+                                            color: 'inherit',
+                                            textDecoration: 'underline'
+                                        },
+                                        '& table': {
+                                            borderCollapse: 'collapse',
+                                            width: '100%',
+                                            mt: 1,
+                                            mb: 1
+                                        },
+                                        '& th, & td': {
+                                            border: '1px solid',
+                                            borderColor: 'divider',
+                                            p: 1
+                                        },
+                                        '& th': {
+                                            bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
+                                            fontWeight: 'bold'
+                                        }
+                                    }}>
+                                        <ReactMarkdown
+                                            remarkPlugins={[remarkGfm]}
+                                            components={{
+                                                table: ({ node: _node, ...props }) => (
+                                                    <Box sx={{ overflowX: 'auto', display: 'block', maxWidth: '100%' }}>
+                                                        <table {...props} />
+                                                    </Box>
+                                                )
+                                            }}
+                                        >
+                                            {message.text}
+                                        </ReactMarkdown>
+                                    </Box>
+                                    <Typography
+                                        variant="caption"
+                                        sx={{
+                                            display: 'block',
+                                            mt: 0.5,
+                                            opacity: 0.7,
+                                        }}
+                                    >
+                                        {message.timestamp.toLocaleTimeString()}
+                                    </Typography>
+                                </Paper>
+                            )}
                         </Box>
                     ))}
 
