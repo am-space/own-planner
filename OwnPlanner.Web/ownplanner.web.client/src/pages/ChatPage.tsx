@@ -31,7 +31,9 @@ import { useAuth } from '../contexts/AuthContext';
 import { useThemeContext } from '../contexts/ThemeContext';
 import type { ColorModePreference } from '../contexts/ThemeContext';
 import { apiService } from '../services/api';
+import type { PlanningMode } from '../types/api.types';
 import AboutDialog from '../components/AboutDialog';
+import PlanningModeSelector from '../components/PlanningModeSelector';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import logo from '../assets/logo.svg';
@@ -80,6 +82,8 @@ export default function ChatPage() {
     const [aboutOpen, setAboutOpen] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
+    const [planningMode, setPlanningMode] = useState<PlanningMode>('GlobalPlanning');
+    const [isSwitchingMode, setIsSwitchingMode] = useState(false);
 
     const handleCycleColorMode = () => {
         const next = MODE_CYCLE[(MODE_CYCLE.indexOf(colorMode) + 1) % MODE_CYCLE.length];
@@ -100,12 +104,26 @@ export default function ChatPage() {
         try {
             await apiService.clearChatSession();
             setMessages([]);
+            setPlanningMode('GlobalPlanning');
             setError(null);
             // Refocus input after clearing
             inputRef.current?.focus();
         } catch (err) {
             setError('Failed to clear session');
             console.error('Error clearing session:', err);
+        }
+    };
+
+    const handleSwitchMode = async (mode: PlanningMode) => {
+        if (mode === planningMode || isSwitchingMode) return;
+        setIsSwitchingMode(true);
+        try {
+            await apiService.switchPlanningMode(mode);
+            setPlanningMode(mode);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to switch planning mode');
+        } finally {
+            setIsSwitchingMode(false);
         }
     };
 
@@ -209,6 +227,23 @@ export default function ChatPage() {
                             {MODE_ICON[colorMode]}
                         </IconButton>
                     </Tooltip>
+
+                    {/* Planning mode selector (desktop) */}
+                    <Box sx={{ display: { xs: 'none', sm: 'flex' }, mr: 1 }}>
+                        <PlanningModeSelector
+                            currentMode={planningMode}
+                            disabled={isLoading || isSwitchingMode}
+                            loading={isSwitchingMode}
+                            onChange={handleSwitchMode}
+                            sx={{
+                                color: 'white',
+                                '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.5)' },
+                                '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'white' },
+                                '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: 'white' },
+                                '& .MuiSvgIcon-root': { color: 'white' },
+                            }}
+                        />
+                    </Box>
 
                     {user && (
                         <>
@@ -459,6 +494,27 @@ export default function ChatPage() {
                     <div ref={messagesEndRef} />
                 </Box>
             </Container>
+
+            {/* Planning mode selector (mobile) */}
+            <Box
+                sx={{
+                    display: { xs: 'flex', sm: 'none' },
+                    px: 2,
+                    py: 1,
+                    bgcolor: 'background.paper',
+                    borderTop: 1,
+                    borderColor: 'divider',
+                    justifyContent: 'center',
+                }}
+            >
+                <PlanningModeSelector
+                    currentMode={planningMode}
+                    disabled={isLoading || isSwitchingMode}
+                    loading={isSwitchingMode}
+                    onChange={handleSwitchMode}
+                    fullWidth
+                />
+            </Box>
 
             {/* Input Area */}
             <Paper

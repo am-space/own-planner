@@ -9,6 +9,8 @@ import type {
   ChatResponse,
   SessionStatusResponse,
   ChatHealthResponse,
+  PlanningMode,
+  SwitchModeResponse,
 } from '../types/api.types';
 
 class ApiService {
@@ -123,6 +125,22 @@ class ApiService {
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.message || 'Failed to clear session');
+    }
+
+    return await response.json();
+  }
+
+  async switchPlanningMode(mode: PlanningMode): Promise<SwitchModeResponse> {
+    const response = await fetch(`${this.baseUrl}/chat/mode`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode }),
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to switch planning mode');
     }
 
     return await response.json();

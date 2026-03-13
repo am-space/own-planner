@@ -55,3 +55,15 @@ export interface ChatHealthResponse {
   activeSessions: number;
   timestamp: string;
 }
+
+export type PlanningMode =
+  | 'GlobalPlanning'
+  | 'WeekPlanning'
+  | 'DayWork'
+  | 'Reflection'
+  | 'SystemAnalysis';
+
+export interface SwitchModeResponse {
+  mode: PlanningMode;
+  sessionId: string;
+}
