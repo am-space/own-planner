@@ -64,7 +64,7 @@ public class TaskListServiceTests
 	{
 		var ctxId = Guid.NewGuid();
 		var lists = new[] { new TaskList("Personal", contextId: ctxId), new TaskList("Work", contextId: ctxId) }.ToList();
-		_repo.ListAsync(false, Arg.Any<Guid?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>()).Returns(lists);
+		_repo.ListAsync(Arg.Is<bool>(false), Arg.Any<Guid?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>()).Returns(lists);
 
 		var result = await _svc.ListAsync(false);
 
