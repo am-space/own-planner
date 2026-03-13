@@ -67,3 +67,8 @@ export interface SwitchModeResponse {
   mode: PlanningMode;
   sessionId: string;
 }
+
+export interface ModeStarterPromptsResponse {
+  mode: PlanningMode;
+  starterPrompts: string[];
+}

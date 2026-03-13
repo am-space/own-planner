@@ -11,6 +11,7 @@ import type {
   ChatHealthResponse,
   PlanningMode,
   SwitchModeResponse,
+  ModeStarterPromptsResponse,
 } from '../types/api.types';
 
 class ApiService {
@@ -165,6 +166,19 @@ class ApiService {
 
     if (!response.ok) {
       throw new Error('Failed to get chat health');
+    }
+
+    return await response.json();
+  }
+
+  async getModeStarterPrompts(mode: PlanningMode): Promise<ModeStarterPromptsResponse> {
+    const response = await fetch(`${this.baseUrl}/chat/mode/${mode}/prompts`, {
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to fetch mode prompts');
     }
 
     return await response.json();

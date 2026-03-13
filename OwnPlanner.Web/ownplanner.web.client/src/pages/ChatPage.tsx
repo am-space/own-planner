@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     Box,
@@ -45,16 +45,6 @@ interface Message {
     timestamp: Date;
 }
 
-// Suggested prompts for empty chat
-const SUGGESTED_PROMPTS = [
-    "Help me plan my day",
-    "Create a to-do list for a project",
-    "Suggest productivity tips",
-    "Organize my weekly schedule",
-    "Break down a large task",
-    "Help me design a 12-Week Year plan"
-];
-
 const MODE_CYCLE: ColorModePreference[] = ['light', 'dark', 'system'];
 
 const MODE_ICON: Record<ColorModePreference, React.ReactElement> = {
@@ -82,8 +72,25 @@ export default function ChatPage() {
     const [aboutOpen, setAboutOpen] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
-    const [planningMode, setPlanningMode] = useState<PlanningMode>('GlobalPlanning');
+    const [planningMode, setPlanningMode] = useState<PlanningMode>('DayWork');
     const [isSwitchingMode, setIsSwitchingMode] = useState(false);
+    const [starterPrompts, setStarterPrompts] = useState<string[]>([]);
+    const [showStarterPrompts, setShowStarterPrompts] = useState(false);
+
+    const fetchAndSetStarterPrompts = useCallback(async (mode: PlanningMode) => {
+        try {
+            const result = await apiService.getModeStarterPrompts(mode);
+            setStarterPrompts(result.starterPrompts);
+            setShowStarterPrompts(true);
+        } catch {
+            setStarterPrompts([]);
+            setShowStarterPrompts(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        fetchAndSetStarterPrompts('DayWork');
+    }, [fetchAndSetStarterPrompts]);
 
     const handleCycleColorMode = () => {
         const next = MODE_CYCLE[(MODE_CYCLE.indexOf(colorMode) + 1) % MODE_CYCLE.length];
@@ -104,8 +111,9 @@ export default function ChatPage() {
         try {
             await apiService.clearChatSession();
             setMessages([]);
-            setPlanningMode('GlobalPlanning');
+            setPlanningMode('DayWork');
             setError(null);
+            await fetchAndSetStarterPrompts('DayWork');
             // Refocus input after clearing
             inputRef.current?.focus();
         } catch (err) {
@@ -120,6 +128,7 @@ export default function ChatPage() {
         try {
             await apiService.switchPlanningMode(mode);
             setPlanningMode(mode);
+            await fetchAndSetStarterPrompts(mode);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to switch planning mode');
         } finally {
@@ -142,6 +151,7 @@ export default function ChatPage() {
         setInputText('');
         setIsLoading(true);
         setError(null);
+        setShowStarterPrompts(false);
 
         try {
             const response = await apiService.sendChatMessage(messageToSend);
@@ -318,70 +328,24 @@ export default function ChatPage() {
             <Container maxWidth="md" sx={{ flexGrow: 1, overflow: 'auto', py: 3 }}>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                     {messages.length === 0 && (
-                        <>
-                            <Paper
-                                elevation={0}
-                                sx={{
-                                    p: 3,
-                                    textAlign: 'center',
-                                    bgcolor: 'background.default',
-                                    border: '1px dashed',
-                                    borderColor: 'divider',
-                                }}
-                            >
-                                <Typography variant="h6" color="text.secondary" gutterBottom>
-                                    Welcome to OwnPlanner Chat!
-                                </Typography>
-                                <Typography variant="body2" color="text.secondary">
-                                    I'm your AI assistant. I can help you manage tasks, notes, and answer questions.
-                                    Start by typing a message below or try one of these suggestions!
-                                </Typography>
-                            </Paper>
-
-                            {/* Suggested Prompts */}
-                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, alignItems: 'center' }}>
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                    <LightbulbOutlinedIcon fontSize="small" color="action" />
-                                    <Typography variant="body2" color="text.secondary" fontWeight="medium">
-                                        Suggestions:
-                                    </Typography>
-                                </Box>
-                                <Box
-                                    sx={{
-                                        display: 'flex',
-                                        flexWrap: 'wrap',
-                                        gap: 1,
-                                        justifyContent: 'center',
-                                    }}
-                                >
-                                    {SUGGESTED_PROMPTS.map((prompt, index) => (
-                                        <Chip
-                                            key={index}
-                                            label={prompt}
-                                            onClick={() => handlePromptClick(prompt)}
-                                            sx={(theme) => ({
-                                                cursor: 'pointer',
-                                                bgcolor: 'background.paper',
-                                                borderColor: 'primary.main',
-                                                '& .MuiChip-label': {
-                                                    color: 'text.primary',
-                                                },
-                                                transition: 'background-color 0.2s, transform 0.2s, color 0.2s',
-                                                '&:hover': {
-                                                    bgcolor: 'primary.main',
-                                                    '& .MuiChip-label': {
-                                                        color: theme.palette.primary.dark,
-                                                    },
-                                                    transform: 'scale(1.06)',
-                                                },
-                                            })}
-                                            variant="outlined"
-                                            color="primary"
-                                        />
-                                    ))}
-                                </Box>
-                            </Box>
-                        </>
+                        <Paper
+                            elevation={0}
+                            sx={{
+                                p: 3,
+                                textAlign: 'center',
+                                bgcolor: 'background.default',
+                                border: '1px dashed',
+                                borderColor: 'divider',
+                            }}
+                        >
+                            <Typography variant="h6" color="text.secondary" gutterBottom>
+                                Welcome to OwnPlanner Chat!
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                                I'm your AI assistant. I can help you manage tasks, notes, and answer questions.
+                                Start by typing a message below or try one of these suggestions!
+                            </Typography>
+                        </Paper>
                     )}
 
                     {messages.map((message) => (
@@ -494,6 +458,67 @@ export default function ChatPage() {
                     <div ref={messagesEndRef} />
                 </Box>
             </Container>
+
+            {/* Starter Prompts — fixed above input */}
+            {showStarterPrompts && starterPrompts.length > 0 && (
+                <Box
+                    sx={{
+                        px: 2,
+                        py: 1,
+                        bgcolor: 'background.paper',
+                        borderTop: 1,
+                        borderColor: 'divider',
+                    }}
+                >
+                    <Container maxWidth="md">
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, alignItems: 'center' }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <LightbulbOutlinedIcon fontSize="small" color="action" />
+                                <Typography variant="body2" color="text.secondary" fontWeight="medium">
+                                    {planningMode === 'SystemAnalysis' ? 'Run analysis:' : 'Suggestions:'}
+                                </Typography>
+                            </Box>
+                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, justifyContent: 'center' }}>
+                                {planningMode === 'SystemAnalysis' ? (
+                                    starterPrompts.map((prompt, index) => (
+                                        <Button
+                                            key={index}
+                                            variant="contained"
+                                            color="primary"
+                                            onClick={() => handlePromptClick(prompt)}
+                                            sx={{ textTransform: 'none' }}
+                                        >
+                                            {prompt}
+                                        </Button>
+                                    ))
+                                ) : (
+                                    starterPrompts.map((prompt, index) => (
+                                        <Chip
+                                            key={index}
+                                            label={prompt}
+                                            onClick={() => handlePromptClick(prompt)}
+                                            sx={(theme) => ({
+                                                cursor: 'pointer',
+                                                bgcolor: 'background.paper',
+                                                borderColor: 'primary.main',
+                                                '& .MuiChip-label': { color: 'text.primary' },
+                                                transition: 'background-color 0.2s, transform 0.2s, color 0.2s',
+                                                '&:hover': {
+                                                    bgcolor: 'primary.main',
+                                                    '& .MuiChip-label': { color: theme.palette.primary.dark },
+                                                    transform: 'scale(1.06)',
+                                                },
+                                            })}
+                                            variant="outlined"
+                                            color="primary"
+                                        />
+                                    ))
+                                )}
+                            </Box>
+                        </Box>
+                    </Container>
+                </Box>
+            )}
 
             {/* Planning mode selector (mobile) */}
             <Box

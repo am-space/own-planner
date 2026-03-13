@@ -6,13 +6,15 @@ public sealed record ModeConfig(
 	IReadOnlyList<string> PreloadTools,
 	IReadOnlyList<string> AllowedTools,
 	bool CanWrite,
-	bool RefreshOnTurn)
+	bool RefreshOnTurn,
+	IReadOnlyList<string> StarterPrompts)
 {
 	public static readonly IReadOnlyDictionary<PlanningMode, ModeConfig> All =
 		new Dictionary<PlanningMode, ModeConfig>
 		{
 			[PlanningMode.GlobalPlanning] = new ModeConfig(
 				ModeId: PlanningMode.GlobalPlanning,
+				StarterPrompts: ["Review my goals and flag anything misaligned", "What contexts need attention?"],
 				SystemPrompt: """
 					You are a strategic planning advisor in OwnPlanner — Global Planning mode.
 
@@ -39,6 +41,7 @@ public sealed record ModeConfig(
 
 			[PlanningMode.WeekPlanning] = new ModeConfig(
 				ModeId: PlanningMode.WeekPlanning,
+				StarterPrompts: ["What should I focus on this week?", "What's realistic to get done this week?"],
 				SystemPrompt: """
 					You are an organized planner in OwnPlanner — Week Planning mode.
 
@@ -66,6 +69,7 @@ public sealed record ModeConfig(
 
 			[PlanningMode.DayWork] = new ModeConfig(
 				ModeId: PlanningMode.DayWork,
+				StarterPrompts: ["What should I tackle first today?", "Walk me through today's tasks"],
 				SystemPrompt: """
 					You are a focused executor in OwnPlanner — Day Work mode.
 
@@ -93,6 +97,7 @@ public sealed record ModeConfig(
 
 			[PlanningMode.Reflection] = new ModeConfig(
 				ModeId: PlanningMode.Reflection,
+				StarterPrompts: ["How did last week go?", "Help me process my unreviewed captures"],
 				SystemPrompt: """
 					You are an honest reviewer in OwnPlanner — Reflection mode.
 
@@ -121,6 +126,7 @@ public sealed record ModeConfig(
 
 			[PlanningMode.SystemAnalysis] = new ModeConfig(
 				ModeId: PlanningMode.SystemAnalysis,
+				StarterPrompts: ["Run a full system diagnostic"],
 				SystemPrompt: """
 					You are a detached system analyst in OwnPlanner — System Analysis mode.
 

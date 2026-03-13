@@ -89,6 +89,25 @@ namespace OwnPlanner.Web.Server.Controllers
 		}
 
 		/// <summary>
+		/// Get starter prompts for a planning mode
+		/// </summary>
+		[HttpGet("mode/{mode}/prompts")]
+		public IActionResult GetModeStarterPrompts(string mode)
+		{
+			if (!Enum.TryParse<PlanningMode>(mode, ignoreCase: true, out var planningMode))
+			{
+				return BadRequest(new { message = $"Invalid mode '{mode}'. Valid values: {string.Join(", ", Enum.GetNames<PlanningMode>())}" });
+			}
+
+			var config = ModeConfig.All[planningMode];
+			return Ok(new ModeStarterPromptsResponse
+			{
+				Mode = planningMode.ToString(),
+				StarterPrompts = config.StarterPrompts,
+			});
+		}
+
+		/// <summary>
 		/// Clear the current user's chat session (start a new conversation)
 		/// </summary>
 		[HttpPost("clear")]
