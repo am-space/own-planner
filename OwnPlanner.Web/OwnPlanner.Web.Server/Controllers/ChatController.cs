@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using OwnPlanner.Application.Chat;
 using OwnPlanner.Web.Server.Models;
 using OwnPlanner.Web.Server.Services;
 
@@ -41,7 +42,7 @@ namespace OwnPlanner.Web.Server.Controllers
 			try
 			{
 				var chatService = await _sessionManager.GetOrCreateSessionAsync(sessionId, userId, cancellationToken);
-				var response = await chatService.GetResponse(request.Message);
+				var response = await chatService.GetResponseAsync(request.Message, cancellationToken);
 
 				_logger.LogInformation("Chat response generated for sessionId: {SessionId}", sessionId);
 
@@ -56,6 +57,34 @@ namespace OwnPlanner.Web.Server.Controllers
 			{
 				_logger.LogError(ex, "Error processing chat message for sessionId: {SessionId}", sessionId);
 				return StatusCode(500, new { message = "An error occurred while processing your message" });
+			}
+		}
+
+		/// <summary>
+		/// Switch the planning mode for the current session
+		/// </summary>
+		[HttpPost("mode")]
+		public async Task<IActionResult> SwitchMode([FromBody] SwitchModeRequest request, CancellationToken cancellationToken)
+		{
+			if (!Enum.TryParse<PlanningMode>(request.Mode, ignoreCase: true, out var mode))
+			{
+				return BadRequest(new { message = $"Invalid mode '{request.Mode}'. Valid values: {string.Join(", ", Enum.GetNames<PlanningMode>())}" });
+			}
+
+			var sessionId = GetSessionId();
+			var userId = GetUserId();
+			_logger.LogInformation("Switching planning mode to {Mode} for sessionId: {SessionId}", mode, sessionId);
+
+			try
+			{
+				var chatService = await _sessionManager.GetOrCreateSessionAsync(sessionId, userId, cancellationToken);
+				await chatService.SwitchModeAsync(mode, cancellationToken);
+				return Ok(new { mode = mode.ToString(), sessionId });
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error switching planning mode for sessionId: {SessionId}", sessionId);
+				return StatusCode(500, new { message = "An error occurred while switching the mode" });
 			}
 		}
 

@@ -1,5 +1,5 @@
 using System.Collections.Concurrent;
-using OwnPlanner.Infrastructure.Adapters;
+using OwnPlanner.Application.Chat;
 
 namespace OwnPlanner.Web.Server.Services
 {
@@ -12,7 +12,7 @@ namespace OwnPlanner.Web.Server.Services
 	{
 		private readonly IChatServiceFactory _factory;
 		private readonly ILogger<ChatSessionManager> _logger;
-		private readonly ConcurrentDictionary<string, ChatServiceAdapter> _sessions = new();
+		private readonly ConcurrentDictionary<string, IPlanningService> _sessions = new();
 		private readonly Timer _cleanupTimer;
 		private readonly TimeSpan _sessionTimeout = TimeSpan.FromMinutes(30);
 		private bool _disposed;
@@ -34,7 +34,7 @@ namespace OwnPlanner.Web.Server.Services
 		/// <param name="sessionId">The unique session identifier from authentication cookie</param>
 		/// <param name="userId">The user identifier for database isolation</param>
 		/// <param name="cancellationToken">Cancellation token</param>
-		public async Task<ChatServiceAdapter> GetOrCreateSessionAsync(string sessionId, string userId, CancellationToken cancellationToken = default)
+		public async Task<IPlanningService> GetOrCreateSessionAsync(string sessionId, string userId, CancellationToken cancellationToken = default)
 		{
 			if (string.IsNullOrWhiteSpace(sessionId))
 			{

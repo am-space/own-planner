@@ -1,7 +1,10 @@
 ﻿using Microsoft.Extensions.Configuration;
-using Serilog;
-using Spectre.Console;
+using Microsoft.Extensions.Logging;
+using OwnPlanner.Application.Chat;
 using OwnPlanner.Infrastructure.Adapters;
+using Serilog;
+using Serilog.Extensions.Logging;
+using Spectre.Console;
 
 namespace OwnPlanner.Console
 {
@@ -67,20 +70,29 @@ namespace OwnPlanner.Console
 					}
 				}
 				
-				AnsiConsole.MarkupLine("[dim]Type 'exit' to end the chat.[/]");
+				AnsiConsole.MarkupLine("[dim]Type 'exit' to quit. Type '/mode <name>' to switch mode.[/]");
+				AnsiConsole.MarkupLine($"[dim]Modes: {string.Join(", ", Enum.GetNames<PlanningMode>())}[/]");
 				AnsiConsole.WriteLine();
 
 				await using (mcpAdapter)
 				{
-					await using var chatService = new ChatServiceAdapter(
-						settings.Gemini.ApiKey, 
+					using var loggerFactory = new SerilogLoggerFactory(Log.Logger, dispose: false);
+					var planningLogger = loggerFactory.CreateLogger<PlanningService>();
+
+					var chatAdapter = new ChatServiceAdapter(
+						settings.Gemini.ApiKey,
 						settings.Gemini.Model,
 						settings.Gemini.MaxToolCallRounds,
 						mcpAdapter);
 
+					await using var planningService = new PlanningService(
+						chatAdapter,
+						mcpAdapter,
+						planningLogger);
+
 					while (true)
 					{
-						AnsiConsole.Markup("[bold green]You:[/] ");
+						AnsiConsole.Markup($"[bold green][[{planningService.CurrentMode}]] You:[/] ");
 						var prompt = System.Console.ReadLine();
 
 						if (string.IsNullOrWhiteSpace(prompt))
@@ -93,10 +105,42 @@ namespace OwnPlanner.Console
 							break;
 						}
 
+						if (prompt.StartsWith("/mode", StringComparison.OrdinalIgnoreCase))
+						{
+							var parts = prompt.Split(' ', 2, StringSplitOptions.TrimEntries);
+							if (parts.Length < 2 || string.IsNullOrWhiteSpace(parts[1]))
+							{
+								AnsiConsole.MarkupLine($"[dim]Current mode: {planningService.CurrentMode}[/]");
+								AnsiConsole.MarkupLine($"[dim]Available: {string.Join(", ", Enum.GetNames<PlanningMode>())}[/]");
+							}
+							else if (!Enum.TryParse<PlanningMode>(parts[1], ignoreCase: true, out var mode))
+							{
+								AnsiConsole.MarkupLine($"[yellow]Unknown mode '{parts[1]}'. Available: {string.Join(", ", Enum.GetNames<PlanningMode>())}[/]");
+							}
+							else
+							{
+								try
+								{
+									await AnsiConsole.Status().StartAsync(
+										$"Switching to {mode}, loading context...",
+										async _ => await planningService.SwitchModeAsync(mode));
+									AnsiConsole.MarkupLine($"[bold cyan]Mode switched to {mode}.[/]");
+								}
+								catch (Exception ex)
+								{
+									Log.Error(ex, "Error switching mode to {Mode}", mode);
+									var safeMessage = ex.Message.Replace("[", "[[").Replace("]", "]]");
+									AnsiConsole.MarkupLine($"[red]Failed to switch mode: {safeMessage}[/]");
+								}
+							}
+							AnsiConsole.WriteLine();
+							continue;
+						}
+
 						try
 						{
 							Log.Debug("Sending prompt to Gemini: {Prompt}", prompt);
-							var response = await chatService.GetResponse(prompt);
+							var response = await planningService.GetResponseAsync(prompt);
 
 							// Display response with markdown formatting
 							AnsiConsole.MarkupLine("[bold blue]Gemini:[/]");

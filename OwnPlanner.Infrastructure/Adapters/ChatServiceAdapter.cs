@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Mscc.GenerativeAI;
+using OwnPlanner.Application.Chat;
 using Serilog;
 
 namespace OwnPlanner.Infrastructure.Adapters
@@ -7,7 +8,7 @@ namespace OwnPlanner.Infrastructure.Adapters
 	/// <summary>
 	/// Adapter for Gemini AI chat service with MCP tool integration
 	/// </summary>
-	public class ChatServiceAdapter : IAsyncDisposable
+	public class ChatServiceAdapter : IChatAdapter
 	{
 		private readonly GoogleAI _googleAI;
 		private readonly string _model;
@@ -15,6 +16,7 @@ namespace OwnPlanner.Infrastructure.Adapters
 		private readonly bool _shouldDisposeMcp;
 		private readonly int _maxToolCallRounds;
 		private Tools? _geminiTools;
+		private List<FunctionDeclaration> _allFunctionDeclarations = [];
 		private GenerativeModel _generativeModel = null!; // Initialized in constructor
 		private ChatSession _chat = null!; // Initialized in InitializeChatWithInstructions
 
@@ -28,17 +30,24 @@ namespace OwnPlanner.Infrastructure.Adapters
 		/// </summary>
 		public DateTime LastAccessTime { get; private set; }
 
-		private void InitializeChatSession()
+		private void InitializeChatSession(string? systemPrompt = null, IReadOnlyList<string>? allowedTools = null)
 		{
-			// Initialize the generative model and chat session with any available tools
+			// Rebuild tool set, applying allow-list filter when provided
+			if (_allFunctionDeclarations.Count > 0)
+			{
+				var declarations = allowedTools?.Count > 0
+					? _allFunctionDeclarations.Where(f => f.Name != null && allowedTools.Contains(f.Name)).ToList()
+					: _allFunctionDeclarations;
+				_geminiTools = new Tools { new Tool { FunctionDeclarations = declarations } };
+			}
 			_generativeModel = _googleAI.GenerativeModel(_model, tools: _geminiTools);
-			InitializeChatWithInstructions();
+			InitializeChatWithInstructions(systemPrompt);
 			Log.Information("Chat session initialized successfully");
 		}
 
-		public void ResetChatSession()
+		public void ResetChatSession(string? systemPrompt = null, IReadOnlyList<string>? allowedTools = null)
 		{
-			InitializeChatSession();
+			InitializeChatSession(systemPrompt, allowedTools);
 		}
 
 		public ChatServiceAdapter(string apiKey, string model, int maxToolCallRounds = 10, McpAdapter? mcpAdapter = null)
@@ -67,10 +76,10 @@ namespace OwnPlanner.Infrastructure.Adapters
 			Log.Information("ChatServiceAdapter initialized successfully");
 		}
 
-		private void InitializeChatWithInstructions()
+		private void InitializeChatWithInstructions(string? systemPrompt = null)
 		{
 			// Define the system instructions / initial prompt
-			var systemInstructions =
+			var systemInstructions = systemPrompt ??
 				@"  You are a helpful personal planning assistant integrated into OwnPlanner application.
 
 					Your capabilities:
@@ -123,7 +132,7 @@ namespace OwnPlanner.Infrastructure.Adapters
 
 				if (details.Any())
 				{
-					var functionDeclarations = new List<FunctionDeclaration>();
+					_allFunctionDeclarations = [];
 					foreach (var d in details)
 					{
 						Schema? schema = null;
@@ -142,22 +151,17 @@ namespace OwnPlanner.Infrastructure.Adapters
 						Log.Warning(ex, "Failed to parse schema for tool: {ToolName}", d.Name);
 						}
 
-						functionDeclarations.Add(new FunctionDeclaration
+						_allFunctionDeclarations.Add(new FunctionDeclaration
 						{
 							Name = d.Name,
 							Description = d.Description,
 							Parameters = schema
 						});
-						
+
 						Log.Debug("Added function declaration: {ToolName}", d.Name);
 					}
 
-					_geminiTools = new Tools
-					{
-						new Tool { FunctionDeclarations = functionDeclarations }
-					};
-
-					Log.Information("[MCP] Loaded {ToolCount} tools for Gemini: {Tools}", functionDeclarations.Count, string.Join(", ", functionDeclarations.Select(f => f.Name)));
+					Log.Information("[MCP] Loaded {ToolCount} tools for Gemini: {Tools}", _allFunctionDeclarations.Count, string.Join(", ", _allFunctionDeclarations.Select(f => f.Name)));
 				}
 			}
 			catch (Exception ex)
