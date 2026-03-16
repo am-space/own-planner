@@ -1,6 +1,4 @@
-using OwnPlanner.Application.Notes.DTOs;
-
-namespace OwnPlanner.Application.Notes.Interfaces;
+namespace OwnPlanner.Application.Notes;
 
 public interface INoteItemService
 {

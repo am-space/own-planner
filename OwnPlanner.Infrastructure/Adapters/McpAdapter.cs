@@ -2,12 +2,13 @@ using System.Reflection;
 using System.Text;
 using System.Text.Json;
 using ModelContextProtocol.Client;
+using OwnPlanner.Application.Chat;
 using Serilog;
 
 namespace OwnPlanner.Infrastructure.Adapters
 {
 	// Wrapper around the official MCP C# SDK client using Stdio transport
-	public class McpAdapter : IAsyncDisposable
+	public class McpAdapter : IMcpAdapter
 	{
 		private readonly string _command;
 		private readonly string[] _arguments;
@@ -73,7 +74,7 @@ namespace OwnPlanner.Infrastructure.Adapters
 			}
 		}
 
-		public async Task<List<string>> ListToolsAsync(CancellationToken cancellationToken = default)
+		public async Task<List<string>> ListToolNamesAsync(CancellationToken cancellationToken = default)
 		{
 			Log.Debug("Listing MCP tools...");
 			await EnsureClientAsync(cancellationToken).ConfigureAwait(false);

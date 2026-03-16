@@ -1,6 +1,6 @@
 using System.ComponentModel;
 using ModelContextProtocol.Server;
-using OwnPlanner.Application.Notes.Interfaces;
+using OwnPlanner.Application.Notes;
 
 namespace OwnPlanner.Mcp.StdioApp.Tools;
 
@@ -15,11 +15,11 @@ public class NoteListTools
 	}
 
 	[McpServerTool(Name = "notelist_create"), Description("Create a note list. Returns note list information.")]
-	public async Task<object> CreateNoteList(string title, string? description = null, string? color = null)
+	public async Task<object> CreateNoteList(Guid contextId, string title, string? description = null, string? color = null)
 	{
 		try
 		{
-			var dto = await _service.CreateAsync(title, description, color);
+			var dto = await _service.CreateAsync(title, contextId, description, color);
 			return dto;
 		}
 		catch (ArgumentException ex)
@@ -37,10 +37,10 @@ public class NoteListTools
 		return dto;
 	}
 
-	[McpServerTool(Name = "notelist_all", Idempotent = true, ReadOnly = true), Description("List all note lists. Set includeArchived=true to include archived lists.")]
-	public async Task<object> ListNoteLists(bool includeArchived = false)
+	[McpServerTool(Name = "notelist_all", Idempotent = true, ReadOnly = true), Description("List all note lists. Optionally filter by contextId. Set includeArchived=true to include archived lists. Set includeUnassigned=true to also return legacy lists that have no context assigned.")]
+	public async Task<object> ListNoteLists(bool includeArchived = false, Guid? contextId = null, bool includeUnassigned = false)
 	{
-		var lists = await _service.ListAsync(includeArchived);
+		var lists = await _service.ListAsync(includeArchived, contextId, excludeUnassigned: !includeUnassigned);
 		return lists;
 	}
 
@@ -74,6 +74,10 @@ public class NoteListTools
 		{
 			return new { error = ex.Message };
 		}
+		catch (InvalidOperationException ex)
+		{
+			return new { error = ex.Message };
+		}
 	}
 
 	[McpServerTool(Name = "notelist_unarchive"), Description("Unarchive a note list by id.")]
@@ -99,6 +103,10 @@ public class NoteListTools
 			return new { success = true, id };
 		}
 		catch (KeyNotFoundException ex)
+		{
+			return new { error = ex.Message };
+		}
+		catch (InvalidOperationException ex)
 		{
 			return new { error = ex.Message };
 		}

@@ -1,14 +1,11 @@
 namespace OwnPlanner.Domain.Tasks;
 
-public class TaskItem
+public class TaskItem : EntityBase
 {
-	public Guid Id { get; private set; }
 	public string Title { get; private set; } = string.Empty;
 	public string? Description { get; private set; }
 	public bool IsCompleted { get; private set; }
 	public bool IsImportant { get; private set; }
-	public DateTime CreatedAt { get; private set; }
-	public DateTime UpdatedAt { get; private set; }
 	public DateTime? DueAt { get; private set; }
 	public DateTime? CompletedAt { get; private set; }
 	public Guid TaskListId { get; private set; }
@@ -18,16 +15,13 @@ public class TaskItem
 	private TaskItem() { }
 
 	public TaskItem(string title, Guid taskListId, string? description = null, DateTime? dueAt = null, bool isImportant = false)
+		: base(Guid.NewGuid())
 	{
-		Id = Guid.NewGuid();
 		SetTitle(title);
 		TaskListId = taskListId;
 		SetDescription(description);
 		SetDueAt(dueAt);
 		IsImportant = isImportant;
-		var now = DateTime.UtcNow;
-		CreatedAt = now;
-		UpdatedAt = now;
 		FocusAt = null;
 	}
 
@@ -95,5 +89,5 @@ public class TaskItem
 		Touch();
 	}
 
-	private void Touch() => UpdatedAt = DateTime.UtcNow;
+
 }

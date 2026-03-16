@@ -1,27 +1,36 @@
 namespace OwnPlanner.Domain.Notes;
 
-public class NoteList
+public class NoteList : EntityBase
 {
-	public Guid Id { get; private set; }
 	public string Title { get; private set; } = string.Empty;
 	public string? Description { get; private set; }
 	public string? Color { get; private set; }
 	public bool IsArchived { get; private set; }
-	public DateTime CreatedAt { get; private set; }
-	public DateTime UpdatedAt { get; private set; }
+
+	// System lists are built-in lists that cannot be archived or deleted (e.g. "Inbox"). They are created via code, not user actions.
+	public bool IsSystem { get; private set; }
+
+	/// <summary>Optional reference to the owning <see cref="OwnPlanner.Domain.Contexts.PlanningContext"/>. Null for legacy/unassigned lists.</summary>
+	public Guid? ContextId { get; private set; }
 
 	// EF Core constructor
 	private NoteList() { }
 
-	public NoteList(string title, string? description = null, string? color = null)
+	private NoteList(Guid id, string title) : base(id)
 	{
-		Id = Guid.NewGuid();
+		SetTitle(title);
+		IsSystem = true;
+	}
+
+	public static NoteList CreateSystem(Guid id, string title) => new(id, title);
+
+	public NoteList(string title, string? description = null, string? color = null, Guid? contextId = null)
+		: base(Guid.NewGuid())
+	{
 		SetTitle(title);
 		SetDescription(description);
 		SetColor(color);
-		var now = DateTime.UtcNow;
-		CreatedAt = now;
-		UpdatedAt = now;
+		ContextId = contextId;
 	}
 
 	public void SetTitle(string title)
@@ -62,5 +71,11 @@ public class NoteList
 		}
 	}
 
-	private void Touch() => UpdatedAt = DateTime.UtcNow;
+	public void SetContextId(Guid? contextId)
+	{
+		ContextId = contextId;
+		Touch();
+	}
+
+
 }

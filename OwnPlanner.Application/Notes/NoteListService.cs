@@ -1,5 +1,3 @@
-using OwnPlanner.Application.Notes.DTOs;
-using OwnPlanner.Application.Notes.Interfaces;
 using OwnPlanner.Domain.Notes;
 
 namespace OwnPlanner.Application.Notes;
@@ -8,9 +6,11 @@ public class NoteListService(INoteListRepository repository) : INoteListService
 {
 	private readonly INoteListRepository _repository = repository;
 
-	public async Task<NoteListDto> CreateAsync(string title, string? description = null, string? color = null, CancellationToken ct = default)
+	public async Task<NoteListDto> CreateAsync(string title, Guid contextId, string? description = null, string? color = null, CancellationToken ct = default)
 	{
-		var noteList = new NoteList(title, description, color);
+		if (contextId == Guid.Empty)
+			throw new ArgumentException("A valid context ID is required to create a note list.", nameof(contextId));
+		var noteList = new NoteList(title, description, color, contextId);
 		await _repository.AddAsync(noteList, ct);
 		return Map(noteList);
 	}
@@ -21,9 +21,9 @@ public class NoteListService(INoteListRepository repository) : INoteListService
 		return noteList is null ? null : Map(noteList);
 	}
 
-	public async Task<IReadOnlyList<NoteListDto>> ListAsync(bool includeArchived = false, CancellationToken ct = default)
+	public async Task<IReadOnlyList<NoteListDto>> ListAsync(bool includeArchived = false, Guid? contextId = null, bool excludeUnassigned = false, CancellationToken ct = default)
 	{
-		var noteLists = await _repository.ListAsync(includeArchived, ct);
+		var noteLists = await _repository.ListAsync(includeArchived, contextId, excludeUnassigned, ct);
 		return noteLists.Select(Map).ToList();
 	}
 
@@ -45,6 +45,8 @@ public class NoteListService(INoteListRepository repository) : INoteListService
 	public async Task ArchiveAsync(Guid id, CancellationToken ct = default)
 	{
 		var noteList = await _repository.GetAsync(id, ct) ?? throw new KeyNotFoundException($"NoteList {id} not found");
+		if (noteList.IsSystem)
+			throw new InvalidOperationException("System lists cannot be archived.");
 		noteList.Archive();
 		await _repository.UpdateAsync(noteList, ct);
 	}
@@ -59,6 +61,8 @@ public class NoteListService(INoteListRepository repository) : INoteListService
 	public async Task DeleteAsync(Guid id, CancellationToken ct = default)
 	{
 		var noteList = await _repository.GetAsync(id, ct) ?? throw new KeyNotFoundException($"NoteList {id} not found");
+		if (noteList.IsSystem)
+			throw new InvalidOperationException("System lists cannot be deleted.");
 		await _repository.DeleteAsync(noteList, ct);
 	}
 
@@ -68,6 +72,8 @@ public class NoteListService(INoteListRepository repository) : INoteListService
 		noteList.Description,
 		noteList.Color,
 		noteList.IsArchived,
+		noteList.IsSystem,
+		noteList.ContextId,
 		noteList.CreatedAt,
 		noteList.UpdatedAt
 	);

@@ -1,6 +1,4 @@
-using OwnPlanner.Application.Auth.DTOs;
-
-namespace OwnPlanner.Application.Auth.Interfaces;
+namespace OwnPlanner.Application.Auth;
 
 /// <summary>
 /// Service interface for authentication operations.

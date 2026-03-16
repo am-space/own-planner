@@ -1,6 +1,6 @@
 using System.ComponentModel;
 using ModelContextProtocol.Server;
-using OwnPlanner.Application.Tasks.Interfaces;
+using OwnPlanner.Application.Tasks;
 
 namespace OwnPlanner.Mcp.StdioApp.Tools;
 
@@ -44,7 +44,7 @@ public class TaskItemTools
 	[McpServerTool(Name = "taskitem_list_items", Idempotent = true, ReadOnly = true), Description("List tasks. If taskListId is provided, lists tasks by task list id; otherwise, lists all tasks. Set includeCompleted=true to get also completed tasks.")]
 	public async Task<object> ListTasks(Guid? taskListId = null, bool onlyImportant = false, bool includeCompleted = false)
 	{
-		IEnumerable<OwnPlanner.Application.Tasks.DTOs.TaskItemDto> list;
+		IEnumerable<TaskItemDto> list;
 		if (taskListId.HasValue)
 		{
 			list = await _service.ListByTaskListAsync(taskListId.Value, includeCompleted);

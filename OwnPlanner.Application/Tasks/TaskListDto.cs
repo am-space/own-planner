@@ -1,4 +1,4 @@
-namespace OwnPlanner.Application.Tasks.DTOs;
+namespace OwnPlanner.Application.Tasks;
 
 public record TaskListDto(
 	Guid Id,
@@ -6,6 +6,8 @@ public record TaskListDto(
 	string? Description,
 	string? Color,
 	bool IsArchived,
+	bool IsSystem,
+	Guid? ContextId,
 	DateTime CreatedAt,
 	DateTime UpdatedAt
 );

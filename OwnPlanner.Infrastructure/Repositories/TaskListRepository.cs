@@ -11,11 +11,15 @@ public class TaskListRepository(AppDbContext db) : ITaskListRepository
 	public async Task<TaskList?> GetAsync(Guid id, CancellationToken ct = default)
 		=> await _db.TaskLists.FirstOrDefaultAsync(tl => tl.Id == id, ct);
 
-	public async Task<IReadOnlyList<TaskList>> ListAsync(bool includeArchived, CancellationToken ct = default)
+	public async Task<IReadOnlyList<TaskList>> ListAsync(bool includeArchived, Guid? contextId = null, bool excludeUnassigned = false, CancellationToken ct = default)
 	{
 		var query = _db.TaskLists.AsQueryable();
 		if (!includeArchived)
 			query = query.Where(tl => !tl.IsArchived);
+		if (contextId.HasValue)
+			query = query.Where(tl => tl.ContextId == contextId.Value);
+		else if (excludeUnassigned)
+			query = query.Where(tl => tl.ContextId != null);
 
 		// SQLite cannot translate ORDER BY on DateTimeOffset; order in-memory instead
 		var lists = await query.ToListAsync(ct);
@@ -27,7 +31,18 @@ public class TaskListRepository(AppDbContext db) : ITaskListRepository
 	public async Task AddAsync(TaskList taskList, CancellationToken ct = default)
 	{
 		await _db.TaskLists.AddAsync(taskList, ct);
-		await _db.SaveChangesAsync(ct);
+		try
+		{
+			await _db.SaveChangesAsync(ct);
+		}
+		catch (DbUpdateException)
+		{
+			var exists = await _db.TaskLists.AsNoTracking().AnyAsync(tl => tl.Id == taskList.Id, ct);
+			if (!exists)
+				throw;
+			// Concurrent insert: another instance already created the same row; safe to ignore.
+			_db.Entry(taskList).State = EntityState.Detached;
+		}
 	}
 
 	public async Task UpdateAsync(TaskList taskList, CancellationToken ct = default)

@@ -33,6 +33,26 @@ namespace OwnPlanner.Web.Server.Models
 	}
 
 	/// <summary>
+	/// Request model for switching the planning mode
+	/// </summary>
+	public class SwitchModeRequest
+	{
+		/// <summary>
+		/// The planning mode to switch to (GlobalPlanning, WeekPlanning, DayWork, Reflection, SystemAnalysis)
+		/// </summary>
+		public required string Mode { get; set; }
+	}
+
+	/// <summary>
+	/// Response for starter prompts of a planning mode
+	/// </summary>
+	public class ModeStarterPromptsResponse
+	{
+		public required string Mode { get; set; }
+		public required IReadOnlyList<string> StarterPrompts { get; set; }
+	}
+
+	/// <summary>
 	/// Response for session status
 	/// </summary>
 	public class SessionStatusResponse

@@ -1,7 +1,6 @@
 using FluentAssertions;
 using NSubstitute;
 using OwnPlanner.Application.Notes;
-using OwnPlanner.Application.Notes.Interfaces;
 using OwnPlanner.Domain.Notes;
 
 namespace OwnPlanner.Application.Tests.Notes;
@@ -20,13 +19,15 @@ public class NoteListServiceTests
 		_repo.AddAsync(Arg.Do<NoteList>(x => captured = x), Arg.Any<CancellationToken>())
 			.Returns(Task.CompletedTask);
 
-		var dto = await _svc.CreateAsync("My Notes", "A collection", "#FF5733");
+		var contextId = Guid.NewGuid();
+		var dto = await _svc.CreateAsync("My Notes", contextId, "A collection", "#FF5733");
 
 		await _repo.Received(1).AddAsync(Arg.Any<NoteList>(), Arg.Any<CancellationToken>());
 		dto.Title.Should().Be("My Notes");
 		dto.Description.Should().Be("A collection");
 		dto.Color.Should().Be("#FF5733");
 		dto.IsArchived.Should().BeFalse();
+		dto.ContextId.Should().Be(contextId);
 		captured.Should().NotBeNull();
 		dto.Id.Should().Be(captured!.Id);
 	}
@@ -59,8 +60,9 @@ public class NoteListServiceTests
 	[Fact]
 	public async Task ListAsync_Maps_Lists()
 	{
-		var lists = new[] { new NoteList("Personal"), new NoteList("Work") }.ToList();
-		_repo.ListAsync(false, Arg.Any<CancellationToken>()).Returns(lists);
+		var ctxId = Guid.NewGuid();
+		var lists = new[] { new NoteList("Personal", contextId: ctxId), new NoteList("Work", contextId: ctxId) }.ToList();
+		_repo.ListAsync(Arg.Is<bool>(false), Arg.Any<Guid?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>()).Returns(lists);
 
 		var result = await _svc.ListAsync(false);
 
@@ -134,6 +136,14 @@ public class NoteListServiceTests
 		dto.Title.Should().Be("New Title");
 		dto.Description.Should().Be("Original Description");
 		await _repo.Received(1).UpdateAsync(noteList, Arg.Any<CancellationToken>());
+	}
+
+	[Fact]
+	public async Task CreateAsync_EmptyContextId_ThrowsArgumentException()
+	{
+		var act = async () => await _svc.CreateAsync("My Notes", Guid.Empty);
+
+		await act.Should().ThrowAsync<ArgumentException>().WithParameterName("contextId");
 	}
 
 	[Fact]

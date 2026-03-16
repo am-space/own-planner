@@ -5,7 +5,6 @@ using Microsoft.EntityFrameworkCore;
 using OwnPlanner.Infrastructure.Persistence;
 using OwnPlanner.Domain.Users;
 using OwnPlanner.Infrastructure.Repositories;
-using OwnPlanner.Application.Auth.Interfaces;
 using OwnPlanner.Application.Auth;
 using OwnPlanner.Web.Server.Configuration;
 using OwnPlanner.Web.Server.Services;

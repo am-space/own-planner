@@ -1,5 +1,3 @@
-using OwnPlanner.Application.Tasks.DTOs;
-using OwnPlanner.Application.Tasks.Interfaces;
 using OwnPlanner.Domain.Tasks;
 
 namespace OwnPlanner.Application.Tasks;
@@ -8,9 +6,11 @@ public class TaskListService(ITaskListRepository repository) : ITaskListService
 {
 	private readonly ITaskListRepository _repository = repository;
 
-	public async Task<TaskListDto> CreateAsync(string title, string? description = null, string? color = null, CancellationToken ct = default)
+	public async Task<TaskListDto> CreateAsync(string title, Guid contextId, string? description = null, string? color = null, CancellationToken ct = default)
 	{
-		var taskList = new TaskList(title, description, color);
+		if (contextId == Guid.Empty)
+			throw new ArgumentException("A valid context ID is required to create a task list.", nameof(contextId));
+		var taskList = new TaskList(title, description, color, contextId);
 		await _repository.AddAsync(taskList, ct);
 		return Map(taskList);
 	}
@@ -21,9 +21,9 @@ public class TaskListService(ITaskListRepository repository) : ITaskListService
 		return taskList is null ? null : Map(taskList);
 	}
 
-	public async Task<IReadOnlyList<TaskListDto>> ListAsync(bool includeArchived = false, CancellationToken ct = default)
+	public async Task<IReadOnlyList<TaskListDto>> ListAsync(bool includeArchived = false, Guid? contextId = null, bool excludeUnassigned = false, CancellationToken ct = default)
 	{
-		var taskLists = await _repository.ListAsync(includeArchived, ct);
+		var taskLists = await _repository.ListAsync(includeArchived, contextId, excludeUnassigned, ct);
 		return taskLists.Select(Map).ToList();
 	}
 
@@ -45,6 +45,8 @@ public class TaskListService(ITaskListRepository repository) : ITaskListService
 	public async Task ArchiveAsync(Guid id, CancellationToken ct = default)
 	{
 		var taskList = await _repository.GetAsync(id, ct) ?? throw new KeyNotFoundException($"TaskList {id} not found");
+		if (taskList.IsSystem)
+			throw new InvalidOperationException("System lists cannot be archived.");
 		taskList.Archive();
 		await _repository.UpdateAsync(taskList, ct);
 	}
@@ -59,6 +61,8 @@ public class TaskListService(ITaskListRepository repository) : ITaskListService
 	public async Task DeleteAsync(Guid id, CancellationToken ct = default)
 	{
 		var taskList = await _repository.GetAsync(id, ct) ?? throw new KeyNotFoundException($"TaskList {id} not found");
+		if (taskList.IsSystem)
+			throw new InvalidOperationException("System lists cannot be deleted.");
 		await _repository.DeleteAsync(taskList, ct);
 	}
 
@@ -68,6 +72,8 @@ public class TaskListService(ITaskListRepository repository) : ITaskListService
 		taskList.Description,
 		taskList.Color,
 		taskList.IsArchived,
+		taskList.IsSystem,
+		taskList.ContextId,
 		taskList.CreatedAt,
 		taskList.UpdatedAt
 	);

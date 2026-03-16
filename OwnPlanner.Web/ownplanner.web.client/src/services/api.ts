@@ -9,6 +9,9 @@ import type {
   ChatResponse,
   SessionStatusResponse,
   ChatHealthResponse,
+  PlanningMode,
+  SwitchModeResponse,
+  ModeStarterPromptsResponse,
 } from '../types/api.types';
 
 class ApiService {
@@ -128,6 +131,24 @@ class ApiService {
     return await response.json();
   }
 
+  async switchPlanningMode(mode: PlanningMode): Promise<SwitchModeResponse> {
+    const response = await fetch(`${this.baseUrl}/chat/mode`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode }),
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      let message = 'Failed to switch planning mode';
+      try { message = (JSON.parse(text) as { message?: string }).message || message; } catch { if (text) message = text; }
+      throw new Error(message);
+    }
+
+    return await response.json();
+  }
+
   async getChatSessionStatus(): Promise<SessionStatusResponse> {
     const response = await fetch(`${this.baseUrl}/chat/status`, {
       credentials: 'include',
@@ -147,6 +168,21 @@ class ApiService {
 
     if (!response.ok) {
       throw new Error('Failed to get chat health');
+    }
+
+    return await response.json();
+  }
+
+  async getModeStarterPrompts(mode: PlanningMode): Promise<ModeStarterPromptsResponse> {
+    const response = await fetch(`${this.baseUrl}/chat/mode/${mode}/prompts`, {
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      let message = 'Failed to fetch mode prompts';
+      try { message = (JSON.parse(text) as { message?: string }).message || message; } catch { if (text) message = text; }
+      throw new Error(message);
     }
 
     return await response.json();

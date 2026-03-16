@@ -1,7 +1,6 @@
 using FluentAssertions;
 using NSubstitute;
 using OwnPlanner.Application.Tasks;
-using OwnPlanner.Application.Tasks.Interfaces;
 using OwnPlanner.Domain.Tasks;
 
 namespace OwnPlanner.Application.Tests.Tasks;
@@ -20,13 +19,15 @@ public class TaskListServiceTests
 		_repo.AddAsync(Arg.Do<TaskList>(x => captured = x), Arg.Any<CancellationToken>())
 			.Returns(Task.CompletedTask);
 
-		var dto = await _svc.CreateAsync("Shopping List", "Weekly groceries", "#FF5733");
+		var contextId = Guid.NewGuid();
+		var dto = await _svc.CreateAsync("Shopping List", contextId, "Weekly groceries", "#FF5733");
 
 		await _repo.Received(1).AddAsync(Arg.Any<TaskList>(), Arg.Any<CancellationToken>());
 		dto.Title.Should().Be("Shopping List");
 		dto.Description.Should().Be("Weekly groceries");
 		dto.Color.Should().Be("#FF5733");
 		dto.IsArchived.Should().BeFalse();
+		dto.ContextId.Should().Be(contextId);
 		captured.Should().NotBeNull();
 		dto.Id.Should().Be(captured!.Id);
 	}
@@ -35,7 +36,7 @@ public class TaskListServiceTests
 	public async Task ArchiveAsync_Gets_Updates()
 	{
 		var id = Guid.NewGuid();
-		var taskList = new TaskList("Test List");
+		var taskList = new TaskList("Test List", contextId: Guid.NewGuid());
 		_repo.GetAsync(id, Arg.Any<CancellationToken>()).Returns(taskList);
 
 		await _svc.ArchiveAsync(id);
@@ -48,7 +49,7 @@ public class TaskListServiceTests
 	public async Task UnarchiveAsync_Gets_Updates()
 	{
 		var id = Guid.NewGuid();
-		var taskList = new TaskList("Test List");
+		var taskList = new TaskList("Test List", contextId: Guid.NewGuid());
 		taskList.Archive();
 		_repo.GetAsync(id, Arg.Any<CancellationToken>()).Returns(taskList);
 
@@ -61,8 +62,9 @@ public class TaskListServiceTests
 	[Fact]
 	public async Task ListAsync_Maps_Lists()
 	{
-		var lists = new[] { new TaskList("Personal"), new TaskList("Work") }.ToList();
-		_repo.ListAsync(false, Arg.Any<CancellationToken>()).Returns(lists);
+		var ctxId = Guid.NewGuid();
+		var lists = new[] { new TaskList("Personal", contextId: ctxId), new TaskList("Work", contextId: ctxId) }.ToList();
+		_repo.ListAsync(Arg.Is<bool>(false), Arg.Any<Guid?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>()).Returns(lists);
 
 		var result = await _svc.ListAsync(false);
 
@@ -71,10 +73,18 @@ public class TaskListServiceTests
 	}
 
 	[Fact]
+	public async Task CreateAsync_EmptyContextId_ThrowsArgumentException()
+	{
+		var act = async () => await _svc.CreateAsync("My List", Guid.Empty);
+
+		await act.Should().ThrowAsync<ArgumentException>().WithParameterName("contextId");
+	}
+
+	[Fact]
 	public async Task UpdateAsync_Updates_Properties()
 	{
 		var id = Guid.NewGuid();
-		var taskList = new TaskList("Old Title");
+		var taskList = new TaskList("Old Title", contextId: Guid.NewGuid());
 		_repo.GetAsync(id, Arg.Any<CancellationToken>()).Returns(taskList);
 
 		var dto = await _svc.UpdateAsync(id, "New Title", "New Description", "#00FF00");

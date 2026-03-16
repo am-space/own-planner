@@ -1,24 +1,27 @@
 using Microsoft.Extensions.Options;
+using OwnPlanner.Application.Chat;
 using OwnPlanner.Infrastructure.Adapters;
 using OwnPlanner.Web.Server.Configuration;
 
 namespace OwnPlanner.Web.Server.Services
 {
 	/// <summary>
-	/// Factory implementation for creating ChatServiceAdapter instances with per-session MCP support
+	/// Factory implementation for creating IPlanningService instances with per-session MCP support
 	/// </summary>
 	public class ChatServiceFactory : IChatServiceFactory
 	{
 		private readonly ChatSettings _settings;
 		private readonly ILogger<ChatServiceFactory> _logger;
+		private readonly ILogger<PlanningService> _planningServiceLogger;
 
-		public ChatServiceFactory(IOptions<ChatSettings> settings, ILogger<ChatServiceFactory> logger)
+		public ChatServiceFactory(IOptions<ChatSettings> settings, ILogger<ChatServiceFactory> logger, ILogger<PlanningService> planningServiceLogger)
 		{
 			_settings = settings.Value;
 			_logger = logger;
+			_planningServiceLogger = planningServiceLogger;
 		}
 
-		public async Task<ChatServiceAdapter> CreateAsync(string sessionId, string userId, CancellationToken cancellationToken = default)
+		public async Task<IPlanningService> CreateAsync(string sessionId, string userId, CancellationToken cancellationToken = default)
 		{
 			_logger.LogDebug("Creating new ChatServiceAdapter instance for session: {SessionId}, user: {UserId}", sessionId, userId);
 
@@ -57,7 +60,7 @@ namespace OwnPlanner.Web.Server.Services
 			);
 
 			_logger.LogDebug("ChatServiceAdapter instance created successfully for session: {SessionId}, user: {UserId}", sessionId, userId);
-			return chatService;
+			return new PlanningService(chatService, mcpAdapter, _planningServiceLogger);
 		}
 	}
 }

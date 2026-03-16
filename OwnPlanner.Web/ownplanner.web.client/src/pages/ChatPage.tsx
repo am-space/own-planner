@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     Box,
@@ -16,6 +16,7 @@ import {
     Alert,
     Snackbar,
     Tooltip,
+    Divider,
     useMediaQuery,
     useTheme,
 } from '@mui/material';
@@ -31,7 +32,9 @@ import { useAuth } from '../contexts/AuthContext';
 import { useThemeContext } from '../contexts/ThemeContext';
 import type { ColorModePreference } from '../contexts/ThemeContext';
 import { apiService } from '../services/api';
+import type { PlanningMode } from '../types/api.types';
 import AboutDialog from '../components/AboutDialog';
+import PlanningModeSelector from '../components/PlanningModeSelector';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import logo from '../assets/logo.svg';
@@ -39,19 +42,17 @@ import logo from '../assets/logo.svg';
 interface Message {
     id: string;
     text: string;
-    sender: 'user' | 'assistant';
+    sender: 'user' | 'assistant' | 'system';
     timestamp: Date;
 }
 
-// Suggested prompts for empty chat
-const SUGGESTED_PROMPTS = [
-    "Help me plan my day",
-    "Create a to-do list for a project",
-    "Suggest productivity tips",
-    "Organize my weekly schedule",
-    "Break down a large task",
-    "Help me design a 12-Week Year plan"
-];
+const MODE_LABELS: Record<string, string> = {
+    GlobalPlanning: 'Global Planning',
+    WeekPlanning: 'Week Planning',
+    DayWork: 'Day Work',
+    Reflection: 'Reflection',
+    SystemAnalysis: 'System Analysis',
+};
 
 const MODE_CYCLE: ColorModePreference[] = ['light', 'dark', 'system'];
 
@@ -80,6 +81,33 @@ export default function ChatPage() {
     const [aboutOpen, setAboutOpen] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
+    const [planningMode, setPlanningMode] = useState<PlanningMode>('DayWork');
+    const [isSwitchingMode, setIsSwitchingMode] = useState(false);
+    const [starterPrompts, setStarterPrompts] = useState<string[]>([]);
+    const [showStarterPrompts, setShowStarterPrompts] = useState(false);
+
+    const fetchAndSetStarterPrompts = useCallback(async (mode: PlanningMode) => {
+        try {
+            const result = await apiService.getModeStarterPrompts(mode);
+            setStarterPrompts(result.starterPrompts);
+            setShowStarterPrompts(true);
+        } catch {
+            setStarterPrompts([]);
+            setShowStarterPrompts(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        const init = async () => {
+            try {
+                await apiService.switchPlanningMode('DayWork');
+            } catch {
+                // non-critical: server activates DayWork lazily on first message
+            }
+            await fetchAndSetStarterPrompts('DayWork');
+        };
+        init();
+    }, [fetchAndSetStarterPrompts]);
 
     const handleCycleColorMode = () => {
         const next = MODE_CYCLE[(MODE_CYCLE.indexOf(colorMode) + 1) % MODE_CYCLE.length];
@@ -100,12 +128,42 @@ export default function ChatPage() {
         try {
             await apiService.clearChatSession();
             setMessages([]);
+            setPlanningMode('DayWork');
             setError(null);
+            try {
+                await apiService.switchPlanningMode('DayWork');
+            } catch {
+                // non-critical: server activates DayWork lazily on first message
+            }
+            await fetchAndSetStarterPrompts('DayWork');
             // Refocus input after clearing
             inputRef.current?.focus();
         } catch (err) {
             setError('Failed to clear session');
             console.error('Error clearing session:', err);
+        }
+    };
+
+    const handleSwitchMode = async (mode: PlanningMode) => {
+        if (mode === planningMode || isSwitchingMode) return;
+        setIsSwitchingMode(true);
+        try {
+            await apiService.switchPlanningMode(mode);
+            setPlanningMode(mode);
+            await fetchAndSetStarterPrompts(mode);
+            setMessages((prev) => [
+                ...prev,
+                {
+                    id: `mode-switch-${Date.now()}`,
+                    text: `Switched to ${MODE_LABELS[mode] ?? mode}`,
+                    sender: 'system',
+                    timestamp: new Date(),
+                },
+            ]);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to switch planning mode');
+        } finally {
+            setIsSwitchingMode(false);
         }
     };
 
@@ -124,6 +182,7 @@ export default function ChatPage() {
         setInputText('');
         setIsLoading(true);
         setError(null);
+        setShowStarterPrompts(false);
 
         try {
             const response = await apiService.sendChatMessage(messageToSend);
@@ -210,6 +269,23 @@ export default function ChatPage() {
                         </IconButton>
                     </Tooltip>
 
+                    {/* Planning mode selector (desktop) */}
+                    <Box sx={{ display: { xs: 'none', sm: 'flex' }, mr: 1 }}>
+                        <PlanningModeSelector
+                            currentMode={planningMode}
+                            disabled={isLoading || isSwitchingMode}
+                            loading={isSwitchingMode}
+                            onChange={handleSwitchMode}
+                            sx={{
+                                color: 'white',
+                                '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.5)' },
+                                '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'white' },
+                                '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: 'white' },
+                                '& .MuiSvgIcon-root': { color: 'white' },
+                            }}
+                        />
+                    </Box>
+
                     {user && (
                         <>
                             <Chip
@@ -283,70 +359,24 @@ export default function ChatPage() {
             <Container maxWidth="md" sx={{ flexGrow: 1, overflow: 'auto', py: 3 }}>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                     {messages.length === 0 && (
-                        <>
-                            <Paper
-                                elevation={0}
-                                sx={{
-                                    p: 3,
-                                    textAlign: 'center',
-                                    bgcolor: 'background.default',
-                                    border: '1px dashed',
-                                    borderColor: 'divider',
-                                }}
-                            >
-                                <Typography variant="h6" color="text.secondary" gutterBottom>
-                                    Welcome to OwnPlanner Chat!
-                                </Typography>
-                                <Typography variant="body2" color="text.secondary">
-                                    I'm your AI assistant. I can help you manage tasks, notes, and answer questions.
-                                    Start by typing a message below or try one of these suggestions!
-                                </Typography>
-                            </Paper>
-
-                            {/* Suggested Prompts */}
-                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, alignItems: 'center' }}>
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                    <LightbulbOutlinedIcon fontSize="small" color="action" />
-                                    <Typography variant="body2" color="text.secondary" fontWeight="medium">
-                                        Suggestions:
-                                    </Typography>
-                                </Box>
-                                <Box
-                                    sx={{
-                                        display: 'flex',
-                                        flexWrap: 'wrap',
-                                        gap: 1,
-                                        justifyContent: 'center',
-                                    }}
-                                >
-                                    {SUGGESTED_PROMPTS.map((prompt, index) => (
-                                        <Chip
-                                            key={index}
-                                            label={prompt}
-                                            onClick={() => handlePromptClick(prompt)}
-                                            sx={(theme) => ({
-                                                cursor: 'pointer',
-                                                bgcolor: 'background.paper',
-                                                borderColor: 'primary.main',
-                                                '& .MuiChip-label': {
-                                                    color: 'text.primary',
-                                                },
-                                                transition: 'background-color 0.2s, transform 0.2s, color 0.2s',
-                                                '&:hover': {
-                                                    bgcolor: 'primary.main',
-                                                    '& .MuiChip-label': {
-                                                        color: theme.palette.primary.dark,
-                                                    },
-                                                    transform: 'scale(1.06)',
-                                                },
-                                            })}
-                                            variant="outlined"
-                                            color="primary"
-                                        />
-                                    ))}
-                                </Box>
-                            </Box>
-                        </>
+                        <Paper
+                            elevation={0}
+                            sx={{
+                                p: 3,
+                                textAlign: 'center',
+                                bgcolor: 'background.default',
+                                border: '1px dashed',
+                                borderColor: 'divider',
+                            }}
+                        >
+                            <Typography variant="h6" color="text.secondary" gutterBottom>
+                                Welcome to OwnPlanner Chat!
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                                I'm your AI assistant. I can help you manage tasks, notes, and answer questions.
+                                Start by typing a message below or try one of these suggestions!
+                            </Typography>
+                        </Paper>
                     )}
 
                     {messages.map((message) => (
@@ -357,82 +387,90 @@ export default function ChatPage() {
                                 justifyContent: message.sender === 'user' ? 'flex-end' : 'flex-start',
                             }}
                         >
-                            <Paper
-                                elevation={1}
-                                sx={{
-                                    p: 2,
-                                    maxWidth: '70%',
-                                    bgcolor: message.sender === 'user'
-                                        ? 'primary.main'
-                                        : (theme.palette.mode === 'dark' ? 'grey.800' : 'grey.100'),
-                                    color: message.sender === 'user' ? 'white' : 'text.primary',
-                                }}
-                            >
-                                <Box sx={{
-                                    '& p': { m: 0 },
-                                    '& ul, & ol': { mt: 0.5, mb: 0.5, pl: 2 },
-                                    '& li': { mb: 0.25 },
-                                    '& code': {
-                                        bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
-                                        p: 0.5,
-                                        borderRadius: 1,
-                                        fontFamily: 'monospace',
-                                        fontSize: '0.875rem'
-                                    },
-                                    '& pre': {
-                                        bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
-                                        p: 1,
-                                        borderRadius: 1,
-                                        overflowX: 'auto',
-                                        '& code': {
-                                            bgcolor: 'transparent',
-                                            p: 0
-                                        }
-                                    },
-                                    '& a': {
-                                        color: 'inherit',
-                                        textDecoration: 'underline'
-                                    },
-                                    '& table': {
-                                        borderCollapse: 'collapse',
-                                        width: '100%',
-                                        mt: 1,
-                                        mb: 1
-                                    },
-                                    '& th, & td': {
-                                        border: '1px solid',
-                                        borderColor: 'divider',
-                                        p: 1
-                                    },
-                                    '& th': {
-                                        bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
-                                        fontWeight: 'bold'
-                                    }
-                                }}>
-                                    <ReactMarkdown
-                                        remarkPlugins={[remarkGfm]}
-                                        components={{
-                                            table: ({ node, ...props }) => (
-                                                <Box sx={{ overflowX: 'auto', display: 'block', maxWidth: '100%' }}>
-                                                    <table {...props} />
-                                                </Box>
-                                            )
-                                        }}
-                                    >
+                            {message.sender === 'system' ? (
+                                <Divider sx={{ width: '100%', my: 1 }}>
+                                    <Typography variant="caption" color="text.secondary">
                                         {message.text}
-                                    </ReactMarkdown>
-                                </Box>
-                                <Typography
-                                    variant="caption"
+                                    </Typography>
+                                </Divider>
+                            ) : (
+                                <Paper
+                                    elevation={1}
                                     sx={{
-                                        display: 'block',
-                                        mt: 0.5,
-                                        opacity: 0.7,
+                                        p: 2,
+                                        maxWidth: '90%',
+                                        bgcolor: message.sender === 'user'
+                                            ? 'primary.main'
+                                            : (theme.palette.mode === 'dark' ? 'grey.800' : 'grey.100'),
+                                        color: message.sender === 'user' ? 'white' : 'text.primary',
                                     }}
                                 >
-                                    {message.timestamp.toLocaleTimeString()}
-                                </Typography>
-                            </Paper>
+                                    <Box sx={{
+                                        '& p': { m: 0 },
+                                        '& ul, & ol': { mt: 0.5, mb: 0.5, pl: 2 },
+                                        '& li': { mb: 0.25 },
+                                        '& code': {
+                                            bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+                                            p: 0.5,
+                                            borderRadius: 1,
+                                            fontFamily: 'monospace',
+                                            fontSize: '0.875rem'
+                                        },
+                                        '& pre': {
+                                            bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+                                            p: 1,
+                                            borderRadius: 1,
+                                            overflowX: 'auto',
+                                            '& code': {
+                                                bgcolor: 'transparent',
+                                                p: 0
+                                            }
+                                        },
+                                        '& a': {
+                                            color: 'inherit',
+                                            textDecoration: 'underline'
+                                        },
+                                        '& table': {
+                                            borderCollapse: 'collapse',
+                                            width: '100%',
+                                            mt: 1,
+                                            mb: 1
+                                        },
+                                        '& th, & td': {
+                                            border: '1px solid',
+                                            borderColor: 'divider',
+                                            p: 1
+                                        },
+                                        '& th': {
+                                            bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
+                                            fontWeight: 'bold'
+                                        }
+                                    }}>
+                                        <ReactMarkdown
+                                            remarkPlugins={[remarkGfm]}
+                                            components={{
+                                                table: ({ node: _node, ...props }) => (
+                                                    <Box sx={{ overflowX: 'auto', display: 'block', maxWidth: '100%' }}>
+                                                        <table {...props} />
+                                                    </Box>
+                                                )
+                                            }}
+                                        >
+                                            {message.text}
+                                        </ReactMarkdown>
+                                    </Box>
+                                    <Typography
+                                        variant="caption"
+                                        sx={{
+                                            display: 'block',
+                                            mt: 0.5,
+                                            opacity: 0.7,
+                                        }}
+                                    >
+                                        {message.timestamp.toLocaleTimeString()}
+                                    </Typography>
+                                </Paper>
+                            )}
                         </Box>
                     ))}
 
@@ -459,6 +497,88 @@ export default function ChatPage() {
                     <div ref={messagesEndRef} />
                 </Box>
             </Container>
+
+            {/* Starter Prompts — fixed above input */}
+            {showStarterPrompts && starterPrompts.length > 0 && (
+                <Box
+                    sx={{
+                        px: 2,
+                        py: 1,
+                        bgcolor: 'background.paper',
+                        borderTop: 1,
+                        borderColor: 'divider',
+                    }}
+                >
+                    <Container maxWidth="md">
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, alignItems: 'center' }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <LightbulbOutlinedIcon fontSize="small" color="action" />
+                                <Typography variant="body2" color="text.secondary" fontWeight="medium">
+                                    {planningMode === 'SystemAnalysis' ? 'Run analysis:' : 'Suggestions:'}
+                                </Typography>
+                            </Box>
+                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, justifyContent: 'center' }}>
+                                {planningMode === 'SystemAnalysis' ? (
+                                    starterPrompts.map((prompt, index) => (
+                                        <Button
+                                            key={index}
+                                            variant="contained"
+                                            color="primary"
+                                            onClick={() => handlePromptClick(prompt)}
+                                            sx={{ textTransform: 'none' }}
+                                        >
+                                            {prompt}
+                                        </Button>
+                                    ))
+                                ) : (
+                                    starterPrompts.map((prompt, index) => (
+                                        <Chip
+                                            key={index}
+                                            label={prompt}
+                                            onClick={() => handlePromptClick(prompt)}
+                                            sx={(theme) => ({
+                                                cursor: 'pointer',
+                                                bgcolor: 'background.paper',
+                                                borderColor: 'primary.main',
+                                                '& .MuiChip-label': { color: 'text.primary' },
+                                                transition: 'background-color 0.2s, transform 0.2s, color 0.2s',
+                                                '&:hover': {
+                                                    bgcolor: 'primary.main',
+                                                    '& .MuiChip-label': { color: theme.palette.primary.dark },
+                                                    transform: 'scale(1.06)',
+                                                },
+                                            })}
+                                            variant="outlined"
+                                            color="primary"
+                                        />
+                                    ))
+                                )}
+                            </Box>
+                        </Box>
+                    </Container>
+                </Box>
+            )}
+
+            {/* Planning mode selector (mobile) */}
+            <Box
+                sx={{
+                    display: { xs: 'flex', sm: 'none' },
+                    px: 2,
+                    py: 1,
+                    bgcolor: 'background.paper',
+                    borderTop: 1,
+                    borderColor: 'divider',
+                    justifyContent: 'center',
+                }}
+            >
+                <PlanningModeSelector
+                    currentMode={planningMode}
+                    disabled={isLoading || isSwitchingMode}
+                    loading={isSwitchingMode}
+                    onChange={handleSwitchMode}
+                    fullWidth
+                />
+            </Box>
 
             {/* Input Area */}
             <Paper

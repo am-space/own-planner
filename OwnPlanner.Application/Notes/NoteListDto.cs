@@ -1,4 +1,4 @@
-namespace OwnPlanner.Application.Notes.DTOs;
+namespace OwnPlanner.Application.Notes;
 
 public record NoteListDto(
 	Guid Id,
@@ -6,6 +6,8 @@ public record NoteListDto(
 	string? Description,
 	string? Color,
 	bool IsArchived,
+	bool IsSystem,
+	Guid? ContextId,
 	DateTime CreatedAt,
 	DateTime UpdatedAt
 );
