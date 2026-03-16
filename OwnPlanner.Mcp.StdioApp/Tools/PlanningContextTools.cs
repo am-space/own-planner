@@ -64,7 +64,7 @@ public class PlanningContextTools(IPlanningContextService service)
 		if (!string.IsNullOrEmpty(type))
 		{
 			if (!Enum.TryParse<ContextType>(type, ignoreCase: true, out var t))
-				return new { error = $"Invalid type '{t}'. Valid values: Area, Project." };
+				return new { error = $"Invalid type '{type}'. Valid values: Area, Project." };
 			parsedType = t;
 		}
 

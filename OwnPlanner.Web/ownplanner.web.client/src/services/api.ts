@@ -140,8 +140,10 @@ class ApiService {
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Failed to switch planning mode');
+      const text = await response.text();
+      let message = 'Failed to switch planning mode';
+      try { message = (JSON.parse(text) as { message?: string }).message || message; } catch { if (text) message = text; }
+      throw new Error(message);
     }
 
     return await response.json();
@@ -177,8 +179,10 @@ class ApiService {
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Failed to fetch mode prompts');
+      const text = await response.text();
+      let message = 'Failed to fetch mode prompts';
+      try { message = (JSON.parse(text) as { message?: string }).message || message; } catch { if (text) message = text; }
+      throw new Error(message);
     }
 
     return await response.json();

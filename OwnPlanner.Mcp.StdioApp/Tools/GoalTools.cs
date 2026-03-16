@@ -64,7 +64,7 @@ public class GoalTools(IGoalService service)
 
 	[McpServerTool(Name = "goal_update"), Description("""
 		Update a goal. Only provided fields are changed.
-		Horizon fields (horizon, targetPeriod, targetDate) are updated together — omitted ones keep their current value,
+		Horizon fields (horizon, targetPeriod, targetDate) are updated together - omitted ones keep their current value,
 		except when switching to TargetDate horizon which always clears targetPeriod.
 		Valid horizon values: Monthly, Quarterly, Yearly, TargetDate.
 		Valid status values: Active, Achieved, Dropped.

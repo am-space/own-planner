@@ -131,12 +131,21 @@ public class PlanningServiceTests
 	// --- GetResponseAsync ---
 
 	[Fact]
-	public async Task GetResponseAsync_BeforeModeSwitch_ForwardsMessageDirectly()
+	public async Task GetResponseAsync_BeforeModeSwitch_ActivatesDefaultModeAndPrependsContext()
 	{
+		_mcpAdapter.CallToolAsync(Arg.Any<string>(), Arg.Any<Dictionary<string, object?>?>(), Arg.Any<CancellationToken>())
+			.Returns("today-tasks");
+
+		string? captured = null;
+		_chatAdapter.GetResponse(Arg.Do<string>(m => captured = m)).Returns("ok");
+
 		await _svc.GetResponseAsync("hello");
 
-		await _chatAdapter.Received(1).GetResponse("hello");
-		await _mcpAdapter.DidNotReceive().CallToolAsync(Arg.Any<string>(), Arg.Any<Dictionary<string, object?>?>(), Arg.Any<CancellationToken>());
+		_chatAdapter.Received(1).ResetChatSession(Arg.Any<string?>(), Arg.Any<IReadOnlyList<string>?>());
+		captured.Should().Contain("[Refreshed context]");
+		captured.Should().Contain("today-tasks");
+		captured.Should().Contain("[User message]");
+		captured.Should().Contain("hello");
 	}
 
 	[Fact]
