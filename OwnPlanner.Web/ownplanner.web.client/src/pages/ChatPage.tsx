@@ -229,48 +229,42 @@ export default function ChatPage() {
             {/* Header */}
             <AppBar position="static">
                 <Toolbar>
-                    <Box
-                        component="img"
-                        src={logo}
-                        alt="OwnPlanner Logo"
-                        sx={{
-                            height: 40,
-                            mr: 2,
-                        }}
-                    />
-                    <Typography variant="h6" component="div" sx={{ mr: 2 }}>
-                        OwnPlanner Chat
-                    </Typography>
+                    {/* Left group */}
+                    <Box sx={{ display: 'flex', alignItems: 'center', flex: 1 }}>
+                        <Box
+                            component="img"
+                            src={logo}
+                            alt="OwnPlanner Logo"
+                            sx={{
+                                height: 40,
+                                mr: 2,
+                            }}
+                        />
+                        <Typography variant="h6" component="div" sx={{ mr: 2 }}>
+                            OwnPlanner Chat
+                        </Typography>
 
-                    {/* About Button - Left Side */}
-                    {isMobile ? (
-                        <IconButton
-                            color="inherit"
-                            onClick={() => setAboutOpen(true)}
-                            sx={{ mr: 'auto' }}
-                        >
-                            <InfoIcon />
-                        </IconButton>
-                    ) : (
-                        <Button
-                            color="inherit"
-                            startIcon={<InfoIcon />}
-                            onClick={() => setAboutOpen(true)}
-                            sx={{ mr: 'auto' }}
-                        >
-                            About
-                        </Button>
-                    )}
+                        {/* About Button */}
+                        {isMobile ? (
+                            <IconButton
+                                color="inherit"
+                                onClick={() => setAboutOpen(true)}
+                            >
+                                <InfoIcon />
+                            </IconButton>
+                        ) : (
+                            <Button
+                                color="inherit"
+                                startIcon={<InfoIcon />}
+                                onClick={() => setAboutOpen(true)}
+                            >
+                                About
+                            </Button>
+                        )}
+                    </Box>
 
-                    {/* Theme toggle */}
-                    <Tooltip title={MODE_LABEL[colorMode]}>
-                        <IconButton color="inherit" onClick={handleCycleColorMode} sx={{ mr: 1 }}>
-                            {MODE_ICON[colorMode]}
-                        </IconButton>
-                    </Tooltip>
-
-                    {/* Planning mode selector (desktop) */}
-                    <Box sx={{ display: { xs: 'none', sm: 'flex' }, mr: 1 }}>
+                    {/* Center: Planning mode selector (desktop) */}
+                    <Box sx={{ display: { xs: 'none', sm: 'flex' }, justifyContent: 'center' }}>
                         <PlanningModeSelector
                             currentMode={planningMode}
                             disabled={isLoading || isSwitchingMode}
@@ -286,57 +280,67 @@ export default function ChatPage() {
                         />
                     </Box>
 
-                    {user && (
-                        <>
-                            <Chip
-                                avatar={<Avatar>{user.username[0].toUpperCase()}</Avatar>}
-                                label={user.username}
-                                sx={{
-                                    mr: isMobile ? 1 : 2,
-                                    bgcolor: 'rgba(255,255,255,0.2)',
-                                    color: 'white',
-                                    display: isMobile ? 'none' : 'flex'
-                                }}
-                            />
-                            {isMobile ? (
-                                <>
-                                    <IconButton
-                                        color="inherit"
-                                        onClick={handleClearSession}
-                                        disabled={isLoading}
-                                        sx={{ mr: 0.5 }}
-                                    >
-                                        <DeleteIcon />
-                                    </IconButton>
-                                    <IconButton
-                                        color="inherit"
-                                        onClick={handleLogout}
-                                    >
-                                        <LogoutIcon />
-                                    </IconButton>
-                                </>
-                            ) : (
-                                <>
-                                    <Button
-                                        color="inherit"
-                                        startIcon={<DeleteIcon />}
-                                        onClick={handleClearSession}
-                                        sx={{ mr: 1 }}
-                                        disabled={isLoading}
-                                    >
-                                        Clear
-                                    </Button>
-                                    <Button
-                                        color="inherit"
-                                        startIcon={<LogoutIcon />}
-                                        onClick={handleLogout}
-                                    >
-                                        Logout
-                                    </Button>
-                                </>
-                            )}
-                        </>
-                    )}
+                    {/* Right group */}
+                    <Box sx={{ display: 'flex', alignItems: 'center', flex: 1, justifyContent: 'flex-end' }}>
+                        {/* Theme toggle */}
+                        <Tooltip title={MODE_LABEL[colorMode]}>
+                            <IconButton color="inherit" onClick={handleCycleColorMode} sx={{ mr: 1 }}>
+                                {MODE_ICON[colorMode]}
+                            </IconButton>
+                        </Tooltip>
+
+                        {user && (
+                            <>
+                                <Chip
+                                    avatar={<Avatar>{user.username[0].toUpperCase()}</Avatar>}
+                                    label={user.username}
+                                    sx={{
+                                        mr: isMobile ? 1 : 2,
+                                        bgcolor: 'rgba(255,255,255,0.2)',
+                                        color: 'white',
+                                        display: isMobile ? 'none' : 'flex'
+                                    }}
+                                />
+                                {isMobile ? (
+                                    <>
+                                        <IconButton
+                                            color="inherit"
+                                            onClick={handleClearSession}
+                                            disabled={isLoading}
+                                            sx={{ mr: 0.5 }}
+                                        >
+                                            <DeleteIcon />
+                                        </IconButton>
+                                        <IconButton
+                                            color="inherit"
+                                            onClick={handleLogout}
+                                        >
+                                            <LogoutIcon />
+                                        </IconButton>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Button
+                                            color="inherit"
+                                            startIcon={<DeleteIcon />}
+                                            onClick={handleClearSession}
+                                            sx={{ mr: 1 }}
+                                            disabled={isLoading}
+                                        >
+                                            Clear
+                                        </Button>
+                                        <Button
+                                            color="inherit"
+                                            startIcon={<LogoutIcon />}
+                                            onClick={handleLogout}
+                                        >
+                                            Logout
+                                        </Button>
+                                    </>
+                                )}
+                            </>
+                        )}
+                    </Box>
                 </Toolbar>
             </AppBar>
 
