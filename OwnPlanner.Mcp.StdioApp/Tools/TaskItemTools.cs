@@ -15,15 +15,15 @@ public class TaskItemTools
 	}
 
 	[McpServerTool(Name = "taskitem_create"), Description("Create a task. TaskListId is required. Returns task information.")]
-	public async Task<object> CreateTask(string title, Guid taskListId, string? description = null, string? dueAt = null)
+	public async Task<object> CreateTask(string title, Guid taskListId, string? description = null, string? dueAt = null, Guid? goalId = null)
 	{
 		try
 		{
 			DateTime? dueDate = null;
 			if (!string.IsNullOrEmpty(dueAt) && DateTime.TryParse(dueAt, out var parsed))
 				dueDate = parsed;
-			
-			var dto = await _service.CreateAsync(title, taskListId, description, dueDate);
+
+			var dto = await _service.CreateAsync(title, taskListId, description, dueDate, goalId: goalId);
 			return dto;
 		}
 		catch (KeyNotFoundException ex)
@@ -61,8 +61,8 @@ public class TaskItemTools
 		return list.ToList();
 	}
 
-	[McpServerTool(Name = "taskitem_update"), Description("Update a task. Provide id and the fields to update (title, description, or dueAt).")]
-	public async Task<object> UpdateTask(Guid id, string? title = null, string? description = null, string? dueAt = null)
+	[McpServerTool(Name = "taskitem_update"), Description("Update a task. Provide id and the fields to update (title, description, dueAt, or goalId). Set clearGoalId=true to remove the goal association.")]
+	public async Task<object> UpdateTask(Guid id, string? title = null, string? description = null, string? dueAt = null, Guid? goalId = null, bool clearGoalId = false)
 	{
 		try
 		{
@@ -74,14 +74,21 @@ public class TaskItemTools
 				else
 					return new { error = "Invalid date format for dueAt" };
 			}
-			
-			var dto = await _service.UpdateAsync(id, title, description, dueDate);
+
+			var dto = await _service.UpdateAsync(id, title, description, dueDate, goalId: goalId, clearGoalId: clearGoalId);
 			return dto;
 		}
 		catch (KeyNotFoundException ex)
 		{
 			return new { error = ex.Message };
 		}
+	}
+
+	[McpServerTool(Name = "taskitem_list_by_goal", Idempotent = true, ReadOnly = true), Description("List tasks linked to a specific goal. Set includeCompleted=true to also return completed tasks.")]
+	public async Task<object> ListTasksByGoal(Guid goalId, bool includeCompleted = false)
+	{
+		var list = await _service.ListByGoalAsync(goalId, includeCompleted);
+		return list.ToList();
 	}
 
 	[McpServerTool(Name = "taskitem_assign"), Description("Assign a task to a different list.")]

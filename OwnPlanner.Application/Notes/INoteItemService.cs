@@ -2,11 +2,12 @@ namespace OwnPlanner.Application.Notes;
 
 public interface INoteItemService
 {
-	Task<NoteItemDto> CreateAsync(string title, Guid noteListId, string? content = null, CancellationToken ct = default);
+	Task<NoteItemDto> CreateAsync(string title, Guid noteListId, string? content = null, Guid? goalId = null, CancellationToken ct = default);
 	Task<NoteItemDto?> GetAsync(Guid id, CancellationToken ct = default);
 	Task<IReadOnlyList<NoteItemDto>> ListAsync(CancellationToken ct = default);
 	Task<IReadOnlyList<NoteItemDto>> ListByNoteListAsync(Guid noteListId, CancellationToken ct = default);
-	Task<NoteItemDto> UpdateAsync(Guid id, string? title = null, string? content = null, CancellationToken ct = default);
+	Task<IReadOnlyList<NoteItemDto>> ListByGoalAsync(Guid goalId, CancellationToken ct = default);
+	Task<NoteItemDto> UpdateAsync(Guid id, string? title = null, string? content = null, Guid? goalId = null, bool clearGoalId = false, CancellationToken ct = default);
 	Task AssignToListAsync(Guid noteId, Guid noteListId, CancellationToken ct = default);
 	Task PinAsync(Guid id, CancellationToken ct = default);
 	Task UnpinAsync(Guid id, CancellationToken ct = default);

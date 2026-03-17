@@ -30,7 +30,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 		task.Property(t => t.CompletedAt);
 		task.Property(t => t.TaskListId).IsRequired();
 		task.Property(t => t.FocusAt); // My Day feature: nullable focus date
+		task.Property(t => t.GoalId); // Soft reference to a Goal
 		task.HasIndex(t => t.TaskListId);
+		task.HasIndex(t => t.GoalId);
 
 		// TaskList configuration
 		var taskList = modelBuilder.Entity<TaskList>();
@@ -74,7 +76,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 		note.Property(n => n.CreatedAt);
 		note.Property(n => n.UpdatedAt);
 		note.Property(n => n.NoteListId).IsRequired();
+		note.Property(n => n.GoalId); // Soft reference to a Goal
 		note.HasIndex(n => n.NoteListId);
+		note.HasIndex(n => n.GoalId);
 
 		// Configure relationship - NoteList to NoteItems (one-to-many)
 		// When a NoteList is deleted, cascade delete all associated NoteItems

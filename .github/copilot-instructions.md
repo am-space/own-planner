@@ -23,6 +23,10 @@ OwnPlanner is a layered `.NET 9` solution with multiple entry points:
 - Preserve nullability annotations and existing async APIs.
 - Keep parameter ordering consistent across similar APIs.
 
+## Database Migrations
+
+- Always create EF Core migrations using the dotnet ef CLI tool, never manually. Use the command: `dotnet ef migrations add <MigrationName> --project OwnPlanner.Infrastructure --startup-project OwnPlanner.Infrastructure`.
+
 ## Testing and validation
 
 - Prefer adding or updating tests only when they are directly relevant to the requested change.

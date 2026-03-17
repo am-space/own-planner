@@ -10,11 +10,13 @@ public class TaskItem : EntityBase
 	public DateTime? CompletedAt { get; private set; }
 	public Guid TaskListId { get; private set; }
 	public DateTime? FocusAt { get; private set; } // My Day feature: nullable focus date
+	/// <summary>Optional soft reference to a Goal. No FK constraint — stale references are acceptable.</summary>
+	public Guid? GoalId { get; private set; }
 
 	// EF Core constructor
 	private TaskItem() { }
 
-	public TaskItem(string title, Guid taskListId, string? description = null, DateTime? dueAt = null, bool isImportant = false)
+	public TaskItem(string title, Guid taskListId, string? description = null, DateTime? dueAt = null, bool isImportant = false, Guid? goalId = null)
 		: base(Guid.NewGuid())
 	{
 		SetTitle(title);
@@ -23,6 +25,7 @@ public class TaskItem : EntityBase
 		SetDueAt(dueAt);
 		IsImportant = isImportant;
 		FocusAt = null;
+		GoalId = goalId;
 	}
 
 	public void SetTitle(string title)
@@ -60,6 +63,12 @@ public class TaskItem : EntityBase
 	public void ClearFocusAt()
 	{
 		FocusAt = null;
+		Touch();
+	}
+
+	public void SetGoalId(Guid? goalId)
+	{
+		GoalId = goalId;
 		Touch();
 	}
 

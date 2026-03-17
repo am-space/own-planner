@@ -7,14 +7,14 @@ public class TaskItemService(ITaskItemRepository repository, ITaskListRepository
 	private readonly ITaskItemRepository _repository = repository;
 	private readonly ITaskListRepository _taskListRepository = taskListRepository;
 
-	public async Task<TaskItemDto> CreateAsync(string title, Guid taskListId, string? description = null, DateTime? dueAt = null, bool isImportant = false, CancellationToken ct = default)
+	public async Task<TaskItemDto> CreateAsync(string title, Guid taskListId, string? description = null, DateTime? dueAt = null, bool isImportant = false, Guid? goalId = null, CancellationToken ct = default)
 	{
 		// Validate that the task list exists
 		var taskList = await _taskListRepository.GetAsync(taskListId, ct);
 		if (taskList is null)
 			throw new KeyNotFoundException($"TaskList {taskListId} not found");
 
-		var item = new TaskItem(title, taskListId, description, dueAt, isImportant);
+		var item = new TaskItem(title, taskListId, description, dueAt, isImportant, goalId);
 		await _repository.AddAsync(item, ct);
 		return Map(item);
 	}
@@ -37,10 +37,10 @@ public class TaskItemService(ITaskItemRepository repository, ITaskListRepository
 		return items.Select(Map).ToList();
 	}
 
-	public async Task<TaskItemDto> UpdateAsync(Guid id, string? title = null, string? description = null, DateTime? dueAt = null, bool? isImportant = null, CancellationToken ct = default)
+	public async Task<TaskItemDto> UpdateAsync(Guid id, string? title = null, string? description = null, DateTime? dueAt = null, bool? isImportant = null, Guid? goalId = null, bool clearGoalId = false, CancellationToken ct = default)
 	{
 		var item = await _repository.GetAsync(id, ct) ?? throw new KeyNotFoundException($"Task {id} not found");
-		
+
 		if (title is not null)
 			item.SetTitle(title);
 		if (description is not null)
@@ -49,6 +49,10 @@ public class TaskItemService(ITaskItemRepository repository, ITaskListRepository
 			item.SetDueAt(dueAt);
 		if (isImportant.HasValue)
 			item.SetImportant(isImportant.Value);
+		if (clearGoalId)
+			item.SetGoalId(null);
+		else if (goalId.HasValue)
+			item.SetGoalId(goalId.Value);
 
 		await _repository.UpdateAsync(item, ct);
 		return Map(item);
@@ -107,6 +111,12 @@ public class TaskItemService(ITaskItemRepository repository, ITaskListRepository
 		return items.Select(Map).ToList();
 	}
 
+	public async Task<IReadOnlyList<TaskItemDto>> ListByGoalAsync(Guid goalId, bool includeCompleted = true, CancellationToken ct = default)
+	{
+		var items = await _repository.ListByGoalAsync(goalId, includeCompleted, ct);
+		return items.Select(Map).ToList();
+	}
+
 	private static TaskItemDto Map(TaskItem item) => new(
 		item.Id,
 		item.Title,
@@ -118,6 +128,7 @@ public class TaskItemService(ITaskItemRepository repository, ITaskListRepository
 		item.DueAt,
 		item.CompletedAt,
 		item.TaskListId,
-		item.FocusAt // My Day feature
+		item.FocusAt, // My Day feature
+		item.GoalId
 	);
 }

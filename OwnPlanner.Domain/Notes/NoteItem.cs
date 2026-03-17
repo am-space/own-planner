@@ -6,16 +6,19 @@ public class NoteItem : EntityBase
 	public string? Content { get; private set; }
 	public bool IsPinned { get; private set; }
 	public Guid NoteListId { get; private set; }
+	/// <summary>Optional soft reference to a Goal. No FK constraint — stale references are acceptable.</summary>
+	public Guid? GoalId { get; private set; }
 
 	// EF Core constructor
 	private NoteItem() { }
 
-	public NoteItem(string title, Guid noteListId, string? content = null)
+	public NoteItem(string title, Guid noteListId, string? content = null, Guid? goalId = null)
 		: base(Guid.NewGuid())
 	{
 		SetTitle(title);
 		NoteListId = noteListId;
 		SetContent(content);
+		GoalId = goalId;
 	}
 
 	public void SetTitle(string title)
@@ -48,6 +51,12 @@ public class NoteItem : EntityBase
 			IsPinned = false;
 			Touch();
 		}
+	}
+
+	public void SetGoalId(Guid? goalId)
+	{
+		GoalId = goalId;
+		Touch();
 	}
 
 	public void AssignToList(Guid noteListId)
