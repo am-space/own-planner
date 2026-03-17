@@ -110,17 +110,33 @@ public class NoteListServiceTests
 	}
 
 	[Fact]
+	public async Task UpdateAsync_UpdatesContextId()
+	{
+		var id = Guid.NewGuid();
+		var contextId = Guid.NewGuid();
+		var noteList = new NoteList("Title");
+		_repo.GetAsync(id, Arg.Any<CancellationToken>()).Returns(noteList);
+
+		var dto = await _svc.UpdateAsync(id, contextId: contextId);
+
+		dto.ContextId.Should().Be(contextId);
+		await _repo.Received(1).UpdateAsync(noteList, Arg.Any<CancellationToken>());
+	}
+
+	[Fact]
 	public async Task UpdateAsync_UpdatesMultipleFields()
 	{
 		var id = Guid.NewGuid();
+		var contextId = Guid.NewGuid();
 		var noteList = new NoteList("Old Title", "Old Description");
 		_repo.GetAsync(id, Arg.Any<CancellationToken>()).Returns(noteList);
 
-		var dto = await _svc.UpdateAsync(id, "New Title", "New Description", "#FF0000");
+		var dto = await _svc.UpdateAsync(id, "New Title", contextId, "New Description", "#FF0000");
 
 		dto.Title.Should().Be("New Title");
 		dto.Description.Should().Be("New Description");
 		dto.Color.Should().Be("#FF0000");
+		dto.ContextId.Should().Be(contextId);
 		await _repo.Received(1).UpdateAsync(noteList, Arg.Any<CancellationToken>());
 	}
 
@@ -142,6 +158,16 @@ public class NoteListServiceTests
 	public async Task CreateAsync_EmptyContextId_ThrowsArgumentException()
 	{
 		var act = async () => await _svc.CreateAsync("My Notes", Guid.Empty);
+
+		await act.Should().ThrowAsync<ArgumentException>().WithParameterName("contextId");
+	}
+
+	[Fact]
+	public async Task UpdateAsync_EmptyContextId_ThrowsArgumentException()
+	{
+		var id = Guid.NewGuid();
+
+		var act = async () => await _svc.UpdateAsync(id, contextId: Guid.Empty);
 
 		await act.Should().ThrowAsync<ArgumentException>().WithParameterName("contextId");
 	}

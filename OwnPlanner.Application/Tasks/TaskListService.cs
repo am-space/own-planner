@@ -27,12 +27,18 @@ public class TaskListService(ITaskListRepository repository) : ITaskListService
 		return taskLists.Select(Map).ToList();
 	}
 
-	public async Task<TaskListDto> UpdateAsync(Guid id, string? title = null, string? description = null, string? color = null, CancellationToken ct = default)
+	public async Task<TaskListDto> UpdateAsync(Guid id, string? title = null, Guid? contextId = null, string? description = null, string? color = null, CancellationToken ct = default)
 	{
+		if (contextId == Guid.Empty)
+			throw new ArgumentException("A valid context ID is required to update a task list.", nameof(contextId));
+
 		var taskList = await _repository.GetAsync(id, ct) ?? throw new KeyNotFoundException($"TaskList {id} not found");
 		
 		if (title is not null)
 			taskList.SetTitle(title);
+		// Keep context updates opt-in so omitted arguments leave existing assignments unchanged.
+		if (contextId.HasValue)
+			taskList.SetContextId(contextId.Value);
 		if (description is not null)
 			taskList.SetDescription(description);
 		if (color is not null)

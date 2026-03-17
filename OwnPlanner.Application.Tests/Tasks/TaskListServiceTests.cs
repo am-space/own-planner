@@ -84,14 +84,26 @@ public class TaskListServiceTests
 	public async Task UpdateAsync_Updates_Properties()
 	{
 		var id = Guid.NewGuid();
+		var contextId = Guid.NewGuid();
 		var taskList = new TaskList("Old Title", contextId: Guid.NewGuid());
 		_repo.GetAsync(id, Arg.Any<CancellationToken>()).Returns(taskList);
 
-		var dto = await _svc.UpdateAsync(id, "New Title", "New Description", "#00FF00");
+		var dto = await _svc.UpdateAsync(id, "New Title", contextId, "New Description", "#00FF00");
 
 		dto.Title.Should().Be("New Title");
 		dto.Description.Should().Be("New Description");
 		dto.Color.Should().Be("#00FF00");
+		dto.ContextId.Should().Be(contextId);
 		await _repo.Received(1).UpdateAsync(taskList, Arg.Any<CancellationToken>());
+	}
+
+	[Fact]
+	public async Task UpdateAsync_EmptyContextId_ThrowsArgumentException()
+	{
+		var id = Guid.NewGuid();
+
+		var act = async () => await _svc.UpdateAsync(id, contextId: Guid.Empty);
+
+		await act.Should().ThrowAsync<ArgumentException>().WithParameterName("contextId");
 	}
 }

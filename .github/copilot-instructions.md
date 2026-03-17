@@ -21,6 +21,7 @@ OwnPlanner is a layered `.NET 9` solution with multiple entry points:
 - Avoid breaking public contracts unless explicitly requested.
 - Prefer existing abstractions, helpers, and services over introducing new patterns.
 - Preserve nullability annotations and existing async APIs.
+- Keep parameter ordering consistent across similar APIs.
 
 ## Testing and validation
 
