@@ -33,6 +33,18 @@ public class NoteItemRepository(AppDbContext db) : INoteItemRepository
 			.ToList();
 	}
 
+	public async Task<IReadOnlyList<NoteItem>> ListByGoalAsync(Guid goalId, CancellationToken ct = default)
+	{
+		var query = _db.NoteItems.Where(n => n.GoalId == goalId);
+
+		// SQLite cannot translate ORDER BY on DateTimeOffset; order in-memory instead
+		var items = await query.ToListAsync(ct);
+		return items
+			.OrderByDescending(n => n.IsPinned)
+			.ThenByDescending(n => n.UpdatedAt)
+			.ToList();
+	}
+
 	public async Task AddAsync(NoteItem note, CancellationToken ct = default)
 	{
 		await _db.NoteItems.AddAsync(note, ct);

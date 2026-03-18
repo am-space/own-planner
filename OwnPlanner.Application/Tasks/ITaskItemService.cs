@@ -2,11 +2,12 @@ namespace OwnPlanner.Application.Tasks;
 
 public interface ITaskItemService
 {
-	Task<TaskItemDto> CreateAsync(string title, Guid taskListId, string? description = null, DateTime? dueAt = null, bool isImportant = false, CancellationToken ct = default);
+	Task<TaskItemDto> CreateAsync(string title, Guid taskListId, string? description = null, DateTime? dueAt = null, bool isImportant = false, Guid? goalId = null, CancellationToken ct = default);
 	Task<TaskItemDto?> GetAsync(Guid id, CancellationToken ct = default);
 	Task<IReadOnlyList<TaskItemDto>> ListAsync(bool includeCompleted = true, CancellationToken ct = default);
 	Task<IReadOnlyList<TaskItemDto>> ListByTaskListAsync(Guid taskListId, bool includeCompleted = true, CancellationToken ct = default);
-	Task<TaskItemDto> UpdateAsync(Guid id, string? title = null, string? description = null, DateTime? dueAt = null, bool? isImportant = null, CancellationToken ct = default);
+	Task<IReadOnlyList<TaskItemDto>> ListByGoalAsync(Guid goalId, bool includeCompleted = true, CancellationToken ct = default);
+	Task<TaskItemDto> UpdateAsync(Guid id, string? title = null, string? description = null, DateTime? dueAt = null, bool? isImportant = null, Guid? goalId = null, bool clearGoalId = false, CancellationToken ct = default);
 	Task AssignToListAsync(Guid taskId, Guid taskListId, CancellationToken ct = default);
 	Task CompleteAsync(Guid id, CancellationToken ct = default);
 	Task ReopenAsync(Guid id, CancellationToken ct = default);

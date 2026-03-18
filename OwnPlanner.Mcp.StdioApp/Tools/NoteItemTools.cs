@@ -15,11 +15,11 @@ public class NoteItemTools
 	}
 
 	[McpServerTool(Name = "noteitem_create"), Description("Create a note. NoteListId is required. Returns note information.")]
-	public async Task<object> CreateNote(string title, Guid noteListId, string? content = null)
+	public async Task<object> CreateNote(string title, Guid noteListId, string? content = null, Guid? goalId = null)
 	{
 		try
 		{
-			var dto = await _service.CreateAsync(title, noteListId, content);
+			var dto = await _service.CreateAsync(title, noteListId, content, goalId);
 			return dto;
 		}
 		catch (KeyNotFoundException ex)
@@ -52,18 +52,25 @@ public class NoteItemTools
 		}
 	}
 
-	[McpServerTool(Name = "noteitem_update"), Description("Update a note. Provide id and the fields to update (title or content).")]
-	public async Task<object> UpdateNote(Guid id, string? title = null, string? content = null)
+	[McpServerTool(Name = "noteitem_update"), Description("Update a note. Provide id and the fields to update (title, content, or goalId). Set clearGoalId=true to remove the goal association.")]
+	public async Task<object> UpdateNote(Guid id, string? title = null, string? content = null, Guid? goalId = null, bool clearGoalId = false)
 	{
 		try
 		{
-			var dto = await _service.UpdateAsync(id, title, content);
+			var dto = await _service.UpdateAsync(id, title, content, goalId, clearGoalId);
 			return dto;
 		}
 		catch (KeyNotFoundException ex)
 		{
 			return new { error = ex.Message };
 		}
+	}
+
+	[McpServerTool(Name = "noteitem_list_by_goal", Idempotent = true, ReadOnly = true), Description("List notes linked to a specific goal, ordered by pinned status then last updated.")]
+	public async Task<object> ListNotesByGoal(Guid goalId)
+	{
+		var list = await _service.ListByGoalAsync(goalId);
+		return list;
 	}
 
 	[McpServerTool(Name = "noteitem_assign"), Description("Assign a note to a different note list.")]

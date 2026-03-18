@@ -266,4 +266,87 @@ public class NoteItemServiceTests
 		await act.Should().ThrowAsync<KeyNotFoundException>()
 			.WithMessage($"Note {id} not found");
 	}
+
+	[Fact]
+	public async Task CreateAsync_SetsGoalId_InDto()
+	{
+		NoteItem? captured = null;
+		var listId = Guid.NewGuid();
+		var goalId = Guid.NewGuid();
+		var noteList = new NoteList("Test Notes");
+		_noteListRepo.GetAsync(listId, Arg.Any<CancellationToken>()).Returns(noteList);
+		_repo.AddAsync(Arg.Do<NoteItem>(x => captured = x), Arg.Any<CancellationToken>())
+			.Returns(Task.CompletedTask);
+
+		var dto = await _svc.CreateAsync("Note", listId, goalId: goalId);
+
+		dto.GoalId.Should().Be(goalId);
+		captured!.GoalId.Should().Be(goalId);
+	}
+
+	[Fact]
+	public async Task UpdateAsync_SetsGoalId()
+	{
+		var id = Guid.NewGuid();
+		var listId = Guid.NewGuid();
+		var goalId = Guid.NewGuid();
+		var note = new NoteItem("Title", listId);
+		_repo.GetAsync(id, Arg.Any<CancellationToken>()).Returns(note);
+
+		var dto = await _svc.UpdateAsync(id, goalId: goalId);
+
+		note.GoalId.Should().Be(goalId);
+		dto.GoalId.Should().Be(goalId);
+		await _repo.Received(1).UpdateAsync(note, Arg.Any<CancellationToken>());
+	}
+
+	[Fact]
+	public async Task UpdateAsync_ClearsGoalId_WhenClearGoalIdIsTrue()
+	{
+		var id = Guid.NewGuid();
+		var listId = Guid.NewGuid();
+		var goalId = Guid.NewGuid();
+		var note = new NoteItem("Title", listId, goalId: goalId);
+		_repo.GetAsync(id, Arg.Any<CancellationToken>()).Returns(note);
+
+		var dto = await _svc.UpdateAsync(id, clearGoalId: true);
+
+		note.GoalId.Should().BeNull();
+		dto.GoalId.Should().BeNull();
+		await _repo.Received(1).UpdateAsync(note, Arg.Any<CancellationToken>());
+	}
+
+	[Fact]
+	public async Task UpdateAsync_ClearGoalId_TakesPrecedenceOver_GoalId()
+	{
+		var id = Guid.NewGuid();
+		var listId = Guid.NewGuid();
+		var newGoalId = Guid.NewGuid();
+		var note = new NoteItem("Title", listId, goalId: Guid.NewGuid());
+		_repo.GetAsync(id, Arg.Any<CancellationToken>()).Returns(note);
+
+		var dto = await _svc.UpdateAsync(id, goalId: newGoalId, clearGoalId: true);
+
+		note.GoalId.Should().BeNull();
+		dto.GoalId.Should().BeNull();
+		await _repo.Received(1).UpdateAsync(note, Arg.Any<CancellationToken>());
+	}
+
+	[Fact]
+	public async Task ListByGoalAsync_DelegatesToRepo_AndMapsResults()
+	{
+		var listId = Guid.NewGuid();
+		var goalId = Guid.NewGuid();
+		var notes = new[]
+		{
+			new NoteItem("a", listId, goalId: goalId),
+			new NoteItem("b", listId, goalId: goalId)
+		}.ToList();
+		_repo.ListByGoalAsync(goalId, Arg.Any<CancellationToken>()).Returns(notes);
+
+		var result = await _svc.ListByGoalAsync(goalId);
+
+		result.Should().HaveCount(2);
+		result.Should().OnlyContain(x => x.GoalId == goalId);
+	}
 }

@@ -44,12 +44,12 @@ public class TaskListTools
 		return lists;
 	}
 
-	[McpServerTool(Name = "tasklist_update"), Description("Update a task list's title, description, or color.")]
-	public async Task<object> UpdateTaskList(Guid id, string? title = null, string? description = null, string? color = null)
+	[McpServerTool(Name = "tasklist_update"), Description("Update a task list's title, contextId, description, or color.")]
+	public async Task<object> UpdateTaskList(Guid id, string? title = null, Guid? contextId = null, string? description = null, string? color = null)
 	{
 		try
 		{
-			var dto = await _service.UpdateAsync(id, title, description, color);
+			var dto = await _service.UpdateAsync(id, title, contextId, description, color);
 			return dto;
 		}
 		catch (KeyNotFoundException ex)

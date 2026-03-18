@@ -162,4 +162,84 @@ public class NoteItemRepositoryTests
 		var afterUnpin = await repo.ListAsync();
 		afterUnpin.First().Id.Should().Be(noteA.Id);
 	}
+
+	[Fact]
+	public async Task ListByGoalAsync_FiltersBy_GoalId()
+	{
+		using var db = CreateDb(out var conn);
+		await using var _ = conn;
+		var repo = new NoteItemRepository(db);
+		var listRepo = new NoteListRepository(db);
+
+		var list = new NoteList("Test List");
+		await listRepo.AddAsync(list);
+
+		var goalId = Guid.NewGuid();
+		var otherGoalId = Guid.NewGuid();
+		var a = new NoteItem("Note A", list.Id, goalId: goalId);
+		var b = new NoteItem("Note B", list.Id, goalId: goalId);
+		var c = new NoteItem("Note C", list.Id, goalId: otherGoalId);
+		var d = new NoteItem("Note D", list.Id);
+		await repo.AddAsync(a);
+		await repo.AddAsync(b);
+		await repo.AddAsync(c);
+		await repo.AddAsync(d);
+
+		var result = await repo.ListByGoalAsync(goalId);
+
+		result.Should().HaveCount(2);
+		result.Should().OnlyContain(n => n.GoalId == goalId);
+	}
+
+	[Fact]
+	public async Task ListByGoalAsync_Orders_ByPinnedThenUpdatedAtDesc()
+	{
+		using var db = CreateDb(out var conn);
+		await using var _ = conn;
+		var repo = new NoteItemRepository(db);
+		var listRepo = new NoteListRepository(db);
+
+		var list = new NoteList("Test List");
+		await listRepo.AddAsync(list);
+
+		var goalId = Guid.NewGuid();
+		var a = new NoteItem("Note A", list.Id, goalId: goalId);
+		var b = new NoteItem("Note B", list.Id, goalId: goalId);
+		var c = new NoteItem("Note C", list.Id, goalId: goalId);
+		await repo.AddAsync(a);
+		await repo.AddAsync(b);
+		await repo.AddAsync(c);
+
+		a.Pin();
+		await repo.UpdateAsync(a);
+
+		c.SetContent("updated");
+		await repo.UpdateAsync(c);
+
+		var result = await repo.ListByGoalAsync(goalId);
+
+		result.Should().HaveCount(3);
+		result.First().Id.Should().Be(a.Id);
+		result.Skip(1).First().Id.Should().Be(c.Id);
+		result.Last().Id.Should().Be(b.Id);
+	}
+
+	[Fact]
+	public async Task ListByGoalAsync_ReturnsEmpty_WhenNoMatchingGoal()
+	{
+		using var db = CreateDb(out var conn);
+		await using var _ = conn;
+		var repo = new NoteItemRepository(db);
+		var listRepo = new NoteListRepository(db);
+
+		var list = new NoteList("Test List");
+		await listRepo.AddAsync(list);
+
+		var a = new NoteItem("Note A", list.Id, goalId: Guid.NewGuid());
+		await repo.AddAsync(a);
+
+		var result = await repo.ListByGoalAsync(Guid.NewGuid());
+
+		result.Should().BeEmpty();
+	}
 }

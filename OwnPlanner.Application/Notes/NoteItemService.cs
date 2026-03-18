@@ -7,14 +7,14 @@ public class NoteItemService(INoteItemRepository repository, INoteListRepository
 	private readonly INoteItemRepository _repository = repository;
 	private readonly INoteListRepository _noteListRepository = noteListRepository;
 
-	public async Task<NoteItemDto> CreateAsync(string title, Guid noteListId, string? content = null, CancellationToken ct = default)
+	public async Task<NoteItemDto> CreateAsync(string title, Guid noteListId, string? content = null, Guid? goalId = null, CancellationToken ct = default)
 	{
 		// Validate that the note list exists
 		var noteList = await _noteListRepository.GetAsync(noteListId, ct);
 		if (noteList is null)
 			throw new KeyNotFoundException($"NoteList {noteListId} not found");
 
-		var item = new NoteItem(title, noteListId, content);
+		var item = new NoteItem(title, noteListId, content, goalId);
 		await _repository.AddAsync(item, ct);
 		return Map(item);
 	}
@@ -37,14 +37,18 @@ public class NoteItemService(INoteItemRepository repository, INoteListRepository
 		return items.Select(Map).ToList();
 	}
 
-	public async Task<NoteItemDto> UpdateAsync(Guid id, string? title = null, string? content = null, CancellationToken ct = default)
+	public async Task<NoteItemDto> UpdateAsync(Guid id, string? title = null, string? content = null, Guid? goalId = null, bool clearGoalId = false, CancellationToken ct = default)
 	{
 		var item = await _repository.GetAsync(id, ct) ?? throw new KeyNotFoundException($"Note {id} not found");
-		
+
 		if (title is not null)
 			item.SetTitle(title);
 		if (content is not null)
 			item.SetContent(content);
+		if (clearGoalId)
+			item.SetGoalId(null);
+		else if (goalId.HasValue)
+			item.SetGoalId(goalId.Value);
 
 		await _repository.UpdateAsync(item, ct);
 		return Map(item);
@@ -83,6 +87,12 @@ public class NoteItemService(INoteItemRepository repository, INoteListRepository
 		await _repository.DeleteAsync(item, ct);
 	}
 
+	public async Task<IReadOnlyList<NoteItemDto>> ListByGoalAsync(Guid goalId, CancellationToken ct = default)
+	{
+		var items = await _repository.ListByGoalAsync(goalId, ct);
+		return items.Select(Map).ToList();
+	}
+
 	private static NoteItemDto Map(NoteItem item) => new(
 		item.Id,
 		item.Title,
@@ -90,6 +100,7 @@ public class NoteItemService(INoteItemRepository repository, INoteListRepository
 		item.IsPinned,
 		item.CreatedAt,
 		item.UpdatedAt,
-		item.NoteListId
+		item.NoteListId,
+		item.GoalId
 	);
 }

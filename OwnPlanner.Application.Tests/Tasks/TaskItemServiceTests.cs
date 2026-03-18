@@ -273,4 +273,84 @@ public class TaskItemServiceTests
 		var dto = await _svc.GetAsync(item.Id);
 		dto!.FocusAt.Should().Be(focusDate);
 	}
+
+	[Fact]
+	public async Task CreateAsync_SetsGoalId_InDto()
+	{
+		var listId = Guid.NewGuid();
+		var goalId = Guid.NewGuid();
+		var taskList = new TaskList("Test List");
+		_taskListRepo.GetAsync(listId, Arg.Any<CancellationToken>()).Returns(taskList);
+		_repo.AddAsync(Arg.Any<TaskItem>(), Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
+
+		var dto = await _svc.CreateAsync("title", listId, goalId: goalId);
+
+		dto.GoalId.Should().Be(goalId);
+	}
+
+	[Fact]
+	public async Task UpdateAsync_SetsGoalId()
+	{
+		var id = Guid.NewGuid();
+		var listId = Guid.NewGuid();
+		var goalId = Guid.NewGuid();
+		var item = new TaskItem("Title", listId);
+		_repo.GetAsync(id, Arg.Any<CancellationToken>()).Returns(item);
+
+		var dto = await _svc.UpdateAsync(id, goalId: goalId);
+
+		item.GoalId.Should().Be(goalId);
+		dto.GoalId.Should().Be(goalId);
+		await _repo.Received(1).UpdateAsync(item, Arg.Any<CancellationToken>());
+	}
+
+	[Fact]
+	public async Task UpdateAsync_ClearsGoalId_WhenClearGoalIdIsTrue()
+	{
+		var id = Guid.NewGuid();
+		var listId = Guid.NewGuid();
+		var goalId = Guid.NewGuid();
+		var item = new TaskItem("Title", listId, goalId: goalId);
+		_repo.GetAsync(id, Arg.Any<CancellationToken>()).Returns(item);
+
+		var dto = await _svc.UpdateAsync(id, clearGoalId: true);
+
+		item.GoalId.Should().BeNull();
+		dto.GoalId.Should().BeNull();
+		await _repo.Received(1).UpdateAsync(item, Arg.Any<CancellationToken>());
+	}
+
+	[Fact]
+	public async Task UpdateAsync_ClearGoalId_TakesPrecedenceOver_GoalId()
+	{
+		var id = Guid.NewGuid();
+		var listId = Guid.NewGuid();
+		var newGoalId = Guid.NewGuid();
+		var item = new TaskItem("Title", listId, goalId: Guid.NewGuid());
+		_repo.GetAsync(id, Arg.Any<CancellationToken>()).Returns(item);
+
+		var dto = await _svc.UpdateAsync(id, goalId: newGoalId, clearGoalId: true);
+
+		item.GoalId.Should().BeNull();
+		dto.GoalId.Should().BeNull();
+		await _repo.Received(1).UpdateAsync(item, Arg.Any<CancellationToken>());
+	}
+
+	[Fact]
+	public async Task ListByGoalAsync_DelegatesToRepo_AndMapsResults()
+	{
+		var listId = Guid.NewGuid();
+		var goalId = Guid.NewGuid();
+		var items = new[]
+		{
+			new TaskItem("a", listId, goalId: goalId),
+			new TaskItem("b", listId, goalId: goalId)
+		}.ToList();
+		_repo.ListByGoalAsync(goalId, true, Arg.Any<CancellationToken>()).Returns(items);
+
+		var result = await _svc.ListByGoalAsync(goalId);
+
+		result.Should().HaveCount(2);
+		result.Should().OnlyContain(x => x.GoalId == goalId);
+	}
 }

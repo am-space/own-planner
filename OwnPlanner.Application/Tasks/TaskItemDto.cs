@@ -11,5 +11,6 @@ public record TaskItemDto(
 	DateTime? DueAt,
 	DateTime? CompletedAt,
 	Guid TaskListId,
-	DateTime? FocusAt // My Day feature
+	DateTime? FocusAt, // My Day feature
+	Guid? GoalId
 );

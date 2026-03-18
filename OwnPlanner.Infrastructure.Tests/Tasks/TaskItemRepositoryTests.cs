@@ -203,4 +203,123 @@ public class TaskItemRepositoryTests
 		var result = await repo.ListByFocusDateAsync(focusDate, false);
 		result.Should().BeEmpty();
 	}
+
+	[Fact]
+	public async Task ListByGoalAsync_FiltersBy_GoalId()
+	{
+		using var db = CreateDb(out var conn);
+		await using var _ = conn;
+		var repo = new TaskItemRepository(db);
+		var listRepo = new TaskListRepository(db);
+
+		var list = new TaskList("Test List");
+		await listRepo.AddAsync(list);
+
+		var goalId = Guid.NewGuid();
+		var otherGoalId = Guid.NewGuid();
+		var a = new TaskItem("a", list.Id, goalId: goalId);
+		var b = new TaskItem("b", list.Id, goalId: goalId);
+		var c = new TaskItem("c", list.Id, goalId: otherGoalId);
+		var d = new TaskItem("d", list.Id);
+		await repo.AddAsync(a);
+		await repo.AddAsync(b);
+		await repo.AddAsync(c);
+		await repo.AddAsync(d);
+
+		var result = await repo.ListByGoalAsync(goalId, true);
+
+		result.Should().HaveCount(2);
+		result.Should().OnlyContain(x => x.GoalId == goalId);
+	}
+
+	[Fact]
+	public async Task ListByGoalAsync_ExcludesCompleted_WhenRequested()
+	{
+		using var db = CreateDb(out var conn);
+		await using var _ = conn;
+		var repo = new TaskItemRepository(db);
+		var listRepo = new TaskListRepository(db);
+
+		var list = new TaskList("Test List");
+		await listRepo.AddAsync(list);
+
+		var goalId = Guid.NewGuid();
+		var a = new TaskItem("a", list.Id, goalId: goalId);
+		var b = new TaskItem("b", list.Id, goalId: goalId);
+		b.Complete();
+		await repo.AddAsync(a);
+		await repo.AddAsync(b);
+
+		var result = await repo.ListByGoalAsync(goalId, false);
+
+		result.Should().HaveCount(1);
+		result.First().Title.Should().Be("a");
+	}
+
+	[Fact]
+	public async Task ListByGoalAsync_IncludesCompleted_WhenRequested()
+	{
+		using var db = CreateDb(out var conn);
+		await using var _ = conn;
+		var repo = new TaskItemRepository(db);
+		var listRepo = new TaskListRepository(db);
+
+		var list = new TaskList("Test List");
+		await listRepo.AddAsync(list);
+
+		var goalId = Guid.NewGuid();
+		var a = new TaskItem("a", list.Id, goalId: goalId);
+		var b = new TaskItem("b", list.Id, goalId: goalId);
+		b.Complete();
+		await repo.AddAsync(a);
+		await repo.AddAsync(b);
+
+		var result = await repo.ListByGoalAsync(goalId, true);
+
+		result.Should().HaveCount(2);
+	}
+
+	[Fact]
+	public async Task ListByGoalAsync_OrdersByUpdatedAtDesc()
+	{
+		using var db = CreateDb(out var conn);
+		await using var _ = conn;
+		var repo = new TaskItemRepository(db);
+		var listRepo = new TaskListRepository(db);
+
+		var list = new TaskList("Test List");
+		await listRepo.AddAsync(list);
+
+		var goalId = Guid.NewGuid();
+		var a = new TaskItem("a", list.Id, goalId: goalId);
+		var b = new TaskItem("b", list.Id, goalId: goalId);
+		await repo.AddAsync(a);
+		await repo.AddAsync(b);
+
+		a.SetDescription("updated");
+		await repo.UpdateAsync(a);
+
+		var result = await repo.ListByGoalAsync(goalId, true);
+
+		result.First().Id.Should().Be(a.Id);
+	}
+
+	[Fact]
+	public async Task ListByGoalAsync_ReturnsEmpty_WhenNoMatchingGoal()
+	{
+		using var db = CreateDb(out var conn);
+		await using var _ = conn;
+		var repo = new TaskItemRepository(db);
+		var listRepo = new TaskListRepository(db);
+
+		var list = new TaskList("Test List");
+		await listRepo.AddAsync(list);
+
+		var a = new TaskItem("a", list.Id, goalId: Guid.NewGuid());
+		await repo.AddAsync(a);
+
+		var result = await repo.ListByGoalAsync(Guid.NewGuid(), true);
+
+		result.Should().BeEmpty();
+	}
 }
