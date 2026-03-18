@@ -8,7 +8,7 @@ namespace OwnPlanner.Web.Server.Services
 	/// Sessions are kept alive and renewed automatically when GetResponse is called.
 	/// Only cleaned up after 30 minutes of inactivity.
 	/// </summary>
-	public class ChatSessionManager : IDisposable
+	public class ChatSessionManager : IChatSessionManager, IDisposable
 	{
 		private readonly IChatServiceFactory _factory;
 		private readonly ILogger<ChatSessionManager> _logger;
@@ -90,7 +90,7 @@ namespace OwnPlanner.Web.Server.Services
 		/// </summary>
 		public int GetActiveSessionCount() => _sessions.Count;
 
-		private void CleanupInactiveSessions(object? state)
+		internal void CleanupInactiveSessions(object? state)
 		{
 			try
 			{
