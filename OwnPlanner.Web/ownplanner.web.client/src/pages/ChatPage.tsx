@@ -230,7 +230,7 @@ export default function ChatPage() {
             <AppBar position="static">
                 <Toolbar>
                     {/* Left group */}
-                    <Box sx={{ display: 'flex', alignItems: 'center', flex: 1 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', flex: 1, minWidth: 0 }}>
                         <Box
                             component="img"
                             src={logo}
@@ -264,7 +264,7 @@ export default function ChatPage() {
                     </Box>
 
                     {/* Center: Planning mode selector (desktop) */}
-                    <Box sx={{ display: { xs: 'none', sm: 'flex' }, justifyContent: 'center' }}>
+                    <Box sx={{ display: { xs: 'none', sm: 'flex' }, flex: 1, justifyContent: 'center' }}>
                         <PlanningModeSelector
                             currentMode={planningMode}
                             disabled={isLoading || isSwitchingMode}
@@ -281,7 +281,7 @@ export default function ChatPage() {
                     </Box>
 
                     {/* Right group */}
-                    <Box sx={{ display: 'flex', alignItems: 'center', flex: 1, justifyContent: 'flex-end' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', flex: 1, justifyContent: 'flex-end', minWidth: 0 }}>
                         {/* Theme toggle */}
                         <Tooltip title={MODE_LABEL[colorMode]}>
                             <IconButton color="inherit" onClick={handleCycleColorMode} sx={{ mr: 1 }}>
