@@ -87,7 +87,7 @@ export default function AboutDialog({ open, onClose }: AboutDialogProps) {
                   <FiberManualRecordIcon sx={{ fontSize: 8 }} />
                 </ListItemIcon>
                 <ListItemText
-                  primary="Backend: .NET 9 + ASP.NET Core"
+                  primary="Backend: .NET 10 + ASP.NET Core"
                   primaryTypographyProps={{ variant: 'body2', color: 'text.secondary' }}
                 />
               </ListItem>

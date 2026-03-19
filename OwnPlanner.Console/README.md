@@ -32,7 +32,7 @@ The application uses `appsettings.json` for configuration. For local development
 ```json
 {
   "Mcp": {
-  "Command": "C:\\Users\\YourName\\source\\repos\\OwnPlanner\\OwnPlanner.Mcp.StdioApp\\bin\\Debug\\net9.0\\OwnPlanner.Mcp.StdioApp.exe",
+    "Command": "C:\\Users\\YourName\\source\\repos\\OwnPlanner\\OwnPlanner.Mcp.StdioApp\\bin\\Debug\\net10.0\\OwnPlanner.Mcp.StdioApp.exe",
     "Arguments": []
   }
 }
@@ -61,7 +61,7 @@ The application uses `appsettings.json` for configuration. For local development
 - Use **absolute paths** for direct executable execution on Windows
 - Use **Windows backslashes** (`\\` in JSON) for paths
 - Use `dotnet run --project` for a portable solution that works without building
-- When running from `bin\Debug\net9.0`, relative paths go up 4 levels to reach sibling projects
+- When running from `bin\Debug\net10.0`, relative paths go up 4 levels to reach sibling projects
 
 To disable MCP, set `Command` to an empty string.
 
