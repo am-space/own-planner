@@ -103,7 +103,7 @@ namespace OwnPlanner.Infrastructure.Adapters
 			await EnsureClientAsync(cancellationToken).ConfigureAwait(false);
 
 			// Convert Dictionary<string, object?> to IReadOnlyDictionary<string, object> (SDK v1.x requirement)
-			var safeArguments = (IReadOnlyDictionary<string, object>?)arguments
+			var safeArguments = (IReadOnlyDictionary<string, object?>?)arguments
 				?.Where(kvp => kvp.Value is not null)
 				.ToDictionary(kvp => kvp.Key, kvp => kvp.Value!);
 
