@@ -24,12 +24,13 @@ public class NoteListRepositoryTests
 	{
 		using var db = CreateDb(out var conn);
 		await using var _ = conn;
+		var ct = TestContext.Current.CancellationToken;
 
 		var repo = new NoteListRepository(db);
 		var list = new NoteList("Personal Notes", "My personal thoughts", "#4CAF50");
-		await repo.AddAsync(list);
+		await repo.AddAsync(list, ct);
 
-		var loaded = await repo.GetAsync(list.Id);
+		var loaded = await repo.GetAsync(list.Id, ct);
 		loaded!.Title.Should().Be("Personal Notes");
 		loaded.Description.Should().Be("My personal thoughts");
 		loaded.Color.Should().Be("#4CAF50");
@@ -37,14 +38,14 @@ public class NoteListRepositoryTests
 
 		loaded.SetTitle("Updated Personal Notes");
 		loaded.Archive();
-		await repo.UpdateAsync(loaded);
+		await repo.UpdateAsync(loaded, ct);
 		
-		var updated = await repo.GetAsync(list.Id);
+		var updated = await repo.GetAsync(list.Id, ct);
 		updated!.Title.Should().Be("Updated Personal Notes");
 		updated.IsArchived.Should().BeTrue();
 
-		await repo.DeleteAsync(loaded);
-		(await repo.GetAsync(list.Id)).Should().BeNull();
+		await repo.DeleteAsync(loaded, ct);
+		(await repo.GetAsync(list.Id, ct)).Should().BeNull();
 	}
 
 	[Fact]
@@ -52,6 +53,7 @@ public class NoteListRepositoryTests
 	{
 		using var db = CreateDb(out var conn);
 		await using var _ = conn;
+		var ct = TestContext.Current.CancellationToken;
 		var repo = new NoteListRepository(db);
 
 		var personal = new NoteList("Personal");
@@ -59,21 +61,21 @@ public class NoteListRepositoryTests
 		var archived = new NoteList("Old Notes");
 		archived.Archive();
 
-		await repo.AddAsync(personal);
-		await repo.AddAsync(work);
-		await repo.AddAsync(archived);
+		await repo.AddAsync(personal, ct);
+		await repo.AddAsync(work, ct);
+		await repo.AddAsync(archived, ct);
 
-		var all = await repo.ListAsync(true);
+		var all = await repo.ListAsync(true, ct: ct);
 		all.Should().HaveCount(3);
 
-		var active = await repo.ListAsync(false);
+		var active = await repo.ListAsync(false, ct: ct);
 		active.Should().HaveCount(2);
 		active.Should().OnlyContain(x => !x.IsArchived);
 
 		// UpdatedAt ordering desc
 		personal.SetDescription("Personal notes");
-		await repo.UpdateAsync(personal);
-		var ordered = await repo.ListAsync(true);
+		await repo.UpdateAsync(personal, ct);
+		var ordered = await repo.ListAsync(true, ct: ct);
 		ordered.First().Id.Should().Be(personal.Id);
 	}
 
@@ -82,24 +84,25 @@ public class NoteListRepositoryTests
 	{
 		using var db = CreateDb(out var conn);
 		await using var _ = conn;
+		var ct = TestContext.Current.CancellationToken;
 
 		var listRepo = new NoteListRepository(db);
 		var noteRepo = new NoteItemRepository(db);
 
 		var list = new NoteList("Test List");
-		await listRepo.AddAsync(list);
+		await listRepo.AddAsync(list, ct);
 
 		var note = new NoteItem("Note in list", list.Id, "Some content");
-		await noteRepo.AddAsync(note);
+		await noteRepo.AddAsync(note, ct);
 
-		var loadedNote = await noteRepo.GetAsync(note.Id);
+		var loadedNote = await noteRepo.GetAsync(note.Id, ct);
 		loadedNote!.NoteListId.Should().Be(list.Id);
 
 		// Delete the list
-		await listRepo.DeleteAsync(list);
+		await listRepo.DeleteAsync(list, ct);
 
 		// Note should be deleted due to cascade delete
-		var deletedNote = await noteRepo.GetAsync(note.Id);
+		var deletedNote = await noteRepo.GetAsync(note.Id, ct);
 		deletedNote.Should().BeNull();
 	}
 
@@ -108,13 +111,14 @@ public class NoteListRepositoryTests
 	{
 		using var db = CreateDb(out var conn);
 		await using var _ = conn;
+		var ct = TestContext.Current.CancellationToken;
 		var repo = new NoteListRepository(db);
 
 		var contextId = Guid.NewGuid();
 		var list = new NoteList("Journal", contextId: contextId);
-		await repo.AddAsync(list);
+		await repo.AddAsync(list, ct);
 
-		var loaded = await repo.GetAsync(list.Id);
+		var loaded = await repo.GetAsync(list.Id, ct);
 
 		loaded!.ContextId.Should().Be(contextId);
 	}
@@ -124,6 +128,7 @@ public class NoteListRepositoryTests
 	{
 		using var db = CreateDb(out var conn);
 		await using var _ = conn;
+		var ct = TestContext.Current.CancellationToken;
 		var repo = new NoteListRepository(db);
 
 		var contextA = Guid.NewGuid();
@@ -131,15 +136,15 @@ public class NoteListRepositoryTests
 		var a1 = new NoteList("A1", contextId: contextA);
 		var a2 = new NoteList("A2", contextId: contextA);
 		var b1 = new NoteList("B1", contextId: contextB);
-		await repo.AddAsync(a1);
-		await repo.AddAsync(a2);
-		await repo.AddAsync(b1);
+		await repo.AddAsync(a1, ct);
+		await repo.AddAsync(a2, ct);
+		await repo.AddAsync(b1, ct);
 
-		var forA = await repo.ListAsync(false, contextId: contextA);
+		var forA = await repo.ListAsync(false, contextId: contextA, ct: ct);
 		forA.Should().HaveCount(2);
 		forA.Should().OnlyContain(x => x.ContextId == contextA);
 
-		var forB = await repo.ListAsync(false, contextId: contextB);
+		var forB = await repo.ListAsync(false, contextId: contextB, ct: ct);
 		forB.Should().HaveCount(1);
 		forB.Single().Id.Should().Be(b1.Id);
 	}
@@ -149,21 +154,22 @@ public class NoteListRepositoryTests
 	{
 		using var db = CreateDb(out var conn);
 		await using var _ = conn;
+		var ct = TestContext.Current.CancellationToken;
 		var repo = new NoteListRepository(db);
 
 		var contextId = Guid.NewGuid();
 		var assigned1 = new NoteList("Assigned 1", contextId: contextId);
 		var assigned2 = new NoteList("Assigned 2", contextId: contextId);
 		var legacy = new NoteList("Legacy");
-		await repo.AddAsync(assigned1);
-		await repo.AddAsync(assigned2);
-		await repo.AddAsync(legacy);
+		await repo.AddAsync(assigned1, ct);
+		await repo.AddAsync(assigned2, ct);
+		await repo.AddAsync(legacy, ct);
 
-		var withoutUnassigned = await repo.ListAsync(false, excludeUnassigned: true);
+		var withoutUnassigned = await repo.ListAsync(false, excludeUnassigned: true, ct: ct);
 		withoutUnassigned.Should().HaveCount(2);
 		withoutUnassigned.Should().OnlyContain(x => x.ContextId != null);
 
-		var withUnassigned = await repo.ListAsync(false, excludeUnassigned: false);
+		var withUnassigned = await repo.ListAsync(false, excludeUnassigned: false, ct: ct);
 		withUnassigned.Should().HaveCount(3);
 	}
 }

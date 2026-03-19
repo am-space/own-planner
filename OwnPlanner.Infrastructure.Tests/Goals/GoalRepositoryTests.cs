@@ -24,12 +24,13 @@ public class GoalRepositoryTests
 	{
 		using var db = CreateDb(out var conn);
 		await using var _ = conn;
+		var ct = TestContext.Current.CancellationToken;
 
 		var repo = new GoalRepository(db);
 		var goal = new Goal("Q2 Launch", GoalHorizon.Quarterly, "Ship the product", "2025-Q2", null, "Release v1.0");
-		await repo.AddAsync(goal);
+		await repo.AddAsync(goal, ct);
 
-		var loaded = await repo.GetAsync(goal.Id);
+		var loaded = await repo.GetAsync(goal.Id, ct);
 		loaded!.Title.Should().Be("Q2 Launch");
 		loaded.Description.Should().Be("Ship the product");
 		loaded.Horizon.Should().Be(GoalHorizon.Quarterly);
@@ -41,14 +42,14 @@ public class GoalRepositoryTests
 
 		loaded.SetStatus(GoalStatus.Achieved);
 		loaded.SetMetricCurrent("Done");
-		await repo.UpdateAsync(loaded);
+		await repo.UpdateAsync(loaded, ct);
 
-		var updated = await repo.GetAsync(goal.Id);
+		var updated = await repo.GetAsync(goal.Id, ct);
 		updated!.Status.Should().Be(GoalStatus.Achieved);
 		updated.MetricCurrent.Should().Be("Done");
 
-		await repo.DeleteAsync(loaded);
-		(await repo.GetAsync(goal.Id)).Should().BeNull();
+		await repo.DeleteAsync(loaded, ct);
+		(await repo.GetAsync(goal.Id, ct)).Should().BeNull();
 	}
 
 	[Fact]
@@ -56,13 +57,14 @@ public class GoalRepositoryTests
 	{
 		using var db = CreateDb(out var conn);
 		await using var _ = conn;
+		var ct = TestContext.Current.CancellationToken;
 
 		var repo = new GoalRepository(db);
 		var deadline = new DateTime(2025, 12, 31, 0, 0, 0, DateTimeKind.Utc);
 		var goal = new Goal("Finish book", GoalHorizon.TargetDate, targetDate: deadline);
-		await repo.AddAsync(goal);
+		await repo.AddAsync(goal, ct);
 
-		var loaded = await repo.GetAsync(goal.Id);
+		var loaded = await repo.GetAsync(goal.Id, ct);
 		loaded!.Horizon.Should().Be(GoalHorizon.TargetDate);
 		loaded.TargetPeriod.Should().BeNull();
 		loaded.TargetDate.Should().NotBeNull();
@@ -74,6 +76,7 @@ public class GoalRepositoryTests
 	{
 		using var db = CreateDb(out var conn);
 		await using var _ = conn;
+		var ct = TestContext.Current.CancellationToken;
 
 		var repo = new GoalRepository(db);
 
@@ -83,22 +86,22 @@ public class GoalRepositoryTests
 		achieved.SetStatus(GoalStatus.Achieved);
 		dropped.SetStatus(GoalStatus.Dropped);
 
-		await repo.AddAsync(active);
-		await repo.AddAsync(achieved);
-		await repo.AddAsync(dropped);
+		await repo.AddAsync(active, ct);
+		await repo.AddAsync(achieved, ct);
+		await repo.AddAsync(dropped, ct);
 
-		var activeOnly = await repo.ListAsync(false);
+		var activeOnly = await repo.ListAsync(false, ct);
 		activeOnly.Should().HaveCount(1);
 		activeOnly.Should().OnlyContain(g => g.Status == GoalStatus.Active);
 
-		var all = await repo.ListAsync(true);
+		var all = await repo.ListAsync(true, ct);
 		all.Should().HaveCount(3);
 		all.Select(g => g.Status).Should().Contain([GoalStatus.Active, GoalStatus.Achieved, GoalStatus.Dropped]);
 
 		// UpdatedAt ordering desc
 		active.SetDescription("Updated");
-		await repo.UpdateAsync(active);
-		var ordered = await repo.ListAsync(true);
+		await repo.UpdateAsync(active, ct);
+		var ordered = await repo.ListAsync(true, ct);
 		ordered.First().Id.Should().Be(active.Id);
 	}
 }

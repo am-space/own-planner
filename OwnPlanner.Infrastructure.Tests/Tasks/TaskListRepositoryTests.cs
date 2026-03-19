@@ -24,12 +24,13 @@ public class TaskListRepositoryTests
 	{
 		using var db = CreateDb(out var conn);
 		await using var _ = conn;
+		var ct = TestContext.Current.CancellationToken;
 
 		var repo = new TaskListRepository(db);
 		var list = new TaskList("Shopping", "Grocery items", "#FF5733");
-		await repo.AddAsync(list);
+		await repo.AddAsync(list, ct);
 
-		var loaded = await repo.GetAsync(list.Id);
+		var loaded = await repo.GetAsync(list.Id, ct);
 		loaded!.Title.Should().Be("Shopping");
 		loaded.Description.Should().Be("Grocery items");
 		loaded.Color.Should().Be("#FF5733");
@@ -37,14 +38,14 @@ public class TaskListRepositoryTests
 
 		loaded.SetTitle("Weekly Shopping");
 		loaded.Archive();
-		await repo.UpdateAsync(loaded);
+		await repo.UpdateAsync(loaded, ct);
 		
-		var updated = await repo.GetAsync(list.Id);
+		var updated = await repo.GetAsync(list.Id, ct);
 		updated!.Title.Should().Be("Weekly Shopping");
 		updated.IsArchived.Should().BeTrue();
 
-		await repo.DeleteAsync(loaded);
-		(await repo.GetAsync(list.Id)).Should().BeNull();
+		await repo.DeleteAsync(loaded, ct);
+		(await repo.GetAsync(list.Id, ct)).Should().BeNull();
 	}
 
 	[Fact]
@@ -52,6 +53,7 @@ public class TaskListRepositoryTests
 	{
 		using var db = CreateDb(out var conn);
 		await using var _ = conn;
+		var ct = TestContext.Current.CancellationToken;
 		var repo = new TaskListRepository(db);
 
 		var personal = new TaskList("Personal");
@@ -59,21 +61,21 @@ public class TaskListRepositoryTests
 		var archived = new TaskList("Old Projects");
 		archived.Archive();
 
-		await repo.AddAsync(personal);
-		await repo.AddAsync(work);
-		await repo.AddAsync(archived);
+		await repo.AddAsync(personal, ct);
+		await repo.AddAsync(work, ct);
+		await repo.AddAsync(archived, ct);
 
-		var all = await repo.ListAsync(true);
+		var all = await repo.ListAsync(true, ct: ct);
 		all.Should().HaveCount(3);
 
-		var active = await repo.ListAsync(false);
+		var active = await repo.ListAsync(false, ct: ct);
 		active.Should().HaveCount(2);
 		active.Should().OnlyContain(x => !x.IsArchived);
 
 		// UpdatedAt ordering desc
 		personal.SetDescription("Personal tasks");
-		await repo.UpdateAsync(personal);
-		var ordered = await repo.ListAsync(true);
+		await repo.UpdateAsync(personal, ct);
+		var ordered = await repo.ListAsync(true, ct: ct);
 		ordered.First().Id.Should().Be(personal.Id);
 	}
 
@@ -82,24 +84,25 @@ public class TaskListRepositoryTests
 	{
 		using var db = CreateDb(out var conn);
 		await using var _ = conn;
+		var ct = TestContext.Current.CancellationToken;
 
 		var listRepo = new TaskListRepository(db);
 		var taskRepo = new TaskItemRepository(db);
 
 		var list = new TaskList("Test List");
-		await listRepo.AddAsync(list);
+		await listRepo.AddAsync(list, ct);
 
 		var task = new TaskItem("Task in list", list.Id);
-		await taskRepo.AddAsync(task);
+		await taskRepo.AddAsync(task, ct);
 
-		var loadedTask = await taskRepo.GetAsync(task.Id);
+		var loadedTask = await taskRepo.GetAsync(task.Id, ct);
 		loadedTask!.TaskListId.Should().Be(list.Id);
 
 		// Delete the list
-		await listRepo.DeleteAsync(list);
+		await listRepo.DeleteAsync(list, ct);
 
 		// Task should be deleted due to cascade delete
-		var deletedTask = await taskRepo.GetAsync(task.Id);
+		var deletedTask = await taskRepo.GetAsync(task.Id, ct);
 		deletedTask.Should().BeNull();
 	}
 
@@ -108,13 +111,14 @@ public class TaskListRepositoryTests
 	{
 		using var db = CreateDb(out var conn);
 		await using var _ = conn;
+		var ct = TestContext.Current.CancellationToken;
 		var repo = new TaskListRepository(db);
 
 		var contextId = Guid.NewGuid();
 		var list = new TaskList("Work", contextId: contextId);
-		await repo.AddAsync(list);
+		await repo.AddAsync(list, ct);
 
-		var loaded = await repo.GetAsync(list.Id);
+		var loaded = await repo.GetAsync(list.Id, ct);
 
 		loaded!.ContextId.Should().Be(contextId);
 	}
@@ -124,6 +128,7 @@ public class TaskListRepositoryTests
 	{
 		using var db = CreateDb(out var conn);
 		await using var _ = conn;
+		var ct = TestContext.Current.CancellationToken;
 		var repo = new TaskListRepository(db);
 
 		var contextA = Guid.NewGuid();
@@ -131,15 +136,15 @@ public class TaskListRepositoryTests
 		var a1 = new TaskList("A1", contextId: contextA);
 		var a2 = new TaskList("A2", contextId: contextA);
 		var b1 = new TaskList("B1", contextId: contextB);
-		await repo.AddAsync(a1);
-		await repo.AddAsync(a2);
-		await repo.AddAsync(b1);
+		await repo.AddAsync(a1, ct);
+		await repo.AddAsync(a2, ct);
+		await repo.AddAsync(b1, ct);
 
-		var forA = await repo.ListAsync(false, contextId: contextA);
+		var forA = await repo.ListAsync(false, contextId: contextA, ct: ct);
 		forA.Should().HaveCount(2);
 		forA.Should().OnlyContain(x => x.ContextId == contextA);
 
-		var forB = await repo.ListAsync(false, contextId: contextB);
+		var forB = await repo.ListAsync(false, contextId: contextB, ct: ct);
 		forB.Should().HaveCount(1);
 		forB.Single().Id.Should().Be(b1.Id);
 	}
@@ -149,21 +154,22 @@ public class TaskListRepositoryTests
 	{
 		using var db = CreateDb(out var conn);
 		await using var _ = conn;
+		var ct = TestContext.Current.CancellationToken;
 		var repo = new TaskListRepository(db);
 
 		var contextId = Guid.NewGuid();
 		var assigned1 = new TaskList("Assigned 1", contextId: contextId);
 		var assigned2 = new TaskList("Assigned 2", contextId: contextId);
 		var legacy = new TaskList("Legacy");
-		await repo.AddAsync(assigned1);
-		await repo.AddAsync(assigned2);
-		await repo.AddAsync(legacy);
+		await repo.AddAsync(assigned1, ct);
+		await repo.AddAsync(assigned2, ct);
+		await repo.AddAsync(legacy, ct);
 
-		var withoutUnassigned = await repo.ListAsync(false, excludeUnassigned: true);
+		var withoutUnassigned = await repo.ListAsync(false, excludeUnassigned: true, ct: ct);
 		withoutUnassigned.Should().HaveCount(2);
 		withoutUnassigned.Should().OnlyContain(x => x.ContextId != null);
 
-		var withUnassigned = await repo.ListAsync(false, excludeUnassigned: false);
+		var withUnassigned = await repo.ListAsync(false, excludeUnassigned: false, ct: ct);
 		withUnassigned.Should().HaveCount(3);
 	}
 }

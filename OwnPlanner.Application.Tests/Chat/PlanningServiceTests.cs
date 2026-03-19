@@ -54,7 +54,8 @@ public class PlanningServiceTests
 	[Fact]
 	public async Task SwitchModeAsync_UpdatesCurrentMode()
 	{
-		await _svc.SwitchModeAsync(PlanningMode.GlobalPlanning);
+		var ct = TestContext.Current.CancellationToken;
+		await _svc.SwitchModeAsync(PlanningMode.GlobalPlanning, ct);
 
 		_svc.CurrentMode.Should().Be(PlanningMode.GlobalPlanning);
 	}
@@ -67,7 +68,8 @@ public class PlanningServiceTests
 	[InlineData(PlanningMode.SystemAnalysis)]
 	public async Task SwitchModeAsync_CallsResetChatSession_ForEveryMode(PlanningMode mode)
 	{
-		await _svc.SwitchModeAsync(mode);
+		var ct = TestContext.Current.CancellationToken;
+		await _svc.SwitchModeAsync(mode, ct);
 
 		_chatAdapter.Received(1).ResetChatSession(Arg.Any<string?>(), Arg.Any<IReadOnlyList<string>?>());
 	}
@@ -75,19 +77,21 @@ public class PlanningServiceTests
 	[Fact]
 	public async Task SwitchModeAsync_CallsEachPreloadTool()
 	{
-		await _svc.SwitchModeAsync(PlanningMode.GlobalPlanning);
+		var ct = TestContext.Current.CancellationToken;
+		await _svc.SwitchModeAsync(PlanningMode.GlobalPlanning, ct);
 
 		foreach (var tool in ModeConfig.All[PlanningMode.GlobalPlanning].PreloadTools)
-			await _mcpAdapter.Received(1).CallToolAsync(tool, Arg.Any<Dictionary<string, object?>?>(), Arg.Any<CancellationToken>());
+			await _mcpAdapter.Received(1).CallToolAsync(tool, Arg.Any<Dictionary<string, object?>?>(), ct);
 	}
 
 	[Fact]
 	public async Task SwitchModeAsync_InjectsPreloadResultsIntoSystemPrompt()
 	{
-		_mcpAdapter.CallToolAsync(Arg.Any<string>(), Arg.Any<Dictionary<string, object?>?>(), Arg.Any<CancellationToken>())
+		var ct = TestContext.Current.CancellationToken;
+		_mcpAdapter.CallToolAsync(Arg.Any<string>(), Arg.Any<Dictionary<string, object?>?>(), ct)
 			.Returns("goal-data");
 
-		await _svc.SwitchModeAsync(PlanningMode.GlobalPlanning);
+		await _svc.SwitchModeAsync(PlanningMode.GlobalPlanning, ct);
 
 		_chatAdapter.Received(1).ResetChatSession(
 			Arg.Is<string?>(p => p != null && p.Contains("goal-data") && p.Contains("## Current context")),
@@ -97,9 +101,10 @@ public class PlanningServiceTests
 	[Fact]
 	public async Task SwitchModeAsync_WithoutMcp_ResetsSessionWithModePromptOnly()
 	{
+		var ct = TestContext.Current.CancellationToken;
 		var svcWithoutMcp = new PlanningService(_chatAdapter, null, _logger);
 
-		await svcWithoutMcp.SwitchModeAsync(PlanningMode.WeekPlanning);
+		await svcWithoutMcp.SwitchModeAsync(PlanningMode.WeekPlanning, ct);
 
 		_chatAdapter.Received(1).ResetChatSession(
 			Arg.Is<string?>(p => p != null && p.Contains("Week Planning") && !p.Contains("## Current context")),
@@ -109,7 +114,8 @@ public class PlanningServiceTests
 	[Fact]
 	public async Task SwitchModeAsync_SystemAnalysis_PassesRestrictedAllowedTools()
 	{
-		await _svc.SwitchModeAsync(PlanningMode.SystemAnalysis);
+		var ct = TestContext.Current.CancellationToken;
+		await _svc.SwitchModeAsync(PlanningMode.SystemAnalysis, ct);
 
 		var expected = ModeConfig.All[PlanningMode.SystemAnalysis].AllowedTools;
 		_chatAdapter.Received(1).ResetChatSession(
@@ -120,10 +126,11 @@ public class PlanningServiceTests
 	[Fact]
 	public async Task SwitchModeAsync_WhenPreloadToolThrows_StillResetsSession()
 	{
-		_mcpAdapter.CallToolAsync(Arg.Any<string>(), Arg.Any<Dictionary<string, object?>?>(), Arg.Any<CancellationToken>())
+		var ct = TestContext.Current.CancellationToken;
+		_mcpAdapter.CallToolAsync(Arg.Any<string>(), Arg.Any<Dictionary<string, object?>?>(), ct)
 			.Throws(new Exception("MCP unavailable"));
 
-		await _svc.SwitchModeAsync(PlanningMode.DayWork);
+		await _svc.SwitchModeAsync(PlanningMode.DayWork, ct);
 
 		_chatAdapter.Received(1).ResetChatSession(Arg.Any<string?>(), Arg.Any<IReadOnlyList<string>?>());
 	}
@@ -133,13 +140,14 @@ public class PlanningServiceTests
 	[Fact]
 	public async Task GetResponseAsync_BeforeModeSwitch_ActivatesDefaultModeAndPrependsContext()
 	{
-		_mcpAdapter.CallToolAsync(Arg.Any<string>(), Arg.Any<Dictionary<string, object?>?>(), Arg.Any<CancellationToken>())
+		var ct = TestContext.Current.CancellationToken;
+		_mcpAdapter.CallToolAsync(Arg.Any<string>(), Arg.Any<Dictionary<string, object?>?>(), ct)
 			.Returns("today-tasks");
 
 		string? captured = null;
 		_chatAdapter.GetResponse(Arg.Do<string>(m => captured = m)).Returns("ok");
 
-		await _svc.GetResponseAsync("hello");
+		await _svc.GetResponseAsync("hello", ct);
 
 		_chatAdapter.Received(1).ResetChatSession(Arg.Any<string?>(), Arg.Any<IReadOnlyList<string>?>());
 		captured.Should().Contain("[Refreshed context]");
@@ -151,27 +159,29 @@ public class PlanningServiceTests
 	[Fact]
 	public async Task GetResponseAsync_AfterNonRefreshMode_ForwardsMessageDirectly()
 	{
-		await _svc.SwitchModeAsync(PlanningMode.GlobalPlanning);
+		var ct = TestContext.Current.CancellationToken;
+		await _svc.SwitchModeAsync(PlanningMode.GlobalPlanning, ct);
 		_mcpAdapter.ClearReceivedCalls();
 
-		await _svc.GetResponseAsync("hello");
+		await _svc.GetResponseAsync("hello", ct);
 
 		await _chatAdapter.Received(1).GetResponse("hello");
-		await _mcpAdapter.DidNotReceive().CallToolAsync(Arg.Any<string>(), Arg.Any<Dictionary<string, object?>?>(), Arg.Any<CancellationToken>());
+		await _mcpAdapter.DidNotReceive().CallToolAsync(Arg.Any<string>(), Arg.Any<Dictionary<string, object?>?>(), ct);
 	}
 
 	[Fact]
 	public async Task GetResponseAsync_AfterDayWork_PrependsRefreshedContext()
 	{
-		await _svc.SwitchModeAsync(PlanningMode.DayWork);
+		var ct = TestContext.Current.CancellationToken;
+		await _svc.SwitchModeAsync(PlanningMode.DayWork, ct);
 		_mcpAdapter.ClearReceivedCalls();
-		_mcpAdapter.CallToolAsync(Arg.Any<string>(), Arg.Any<Dictionary<string, object?>?>(), Arg.Any<CancellationToken>())
+		_mcpAdapter.CallToolAsync(Arg.Any<string>(), Arg.Any<Dictionary<string, object?>?>(), ct)
 			.Returns("today-tasks");
 
 		string? captured = null;
 		_chatAdapter.GetResponse(Arg.Do<string>(m => captured = m)).Returns("ok");
 
-		await _svc.GetResponseAsync("what should I do?");
+		await _svc.GetResponseAsync("what should I do?", ct);
 
 		captured.Should().Contain("[Refreshed context]");
 		captured.Should().Contain("today-tasks");
@@ -182,10 +192,11 @@ public class PlanningServiceTests
 	[Fact]
 	public async Task GetResponseAsync_DayWork_WithoutMcp_ForwardsMessageDirectly()
 	{
+		var ct = TestContext.Current.CancellationToken;
 		var svcWithoutMcp = new PlanningService(_chatAdapter, null, _logger);
-		await svcWithoutMcp.SwitchModeAsync(PlanningMode.DayWork);
+		await svcWithoutMcp.SwitchModeAsync(PlanningMode.DayWork, ct);
 
-		await svcWithoutMcp.GetResponseAsync("hello");
+		await svcWithoutMcp.GetResponseAsync("hello", ct);
 
 		await _chatAdapter.Received(1).GetResponse("hello");
 	}
@@ -193,14 +204,15 @@ public class PlanningServiceTests
 	[Fact]
 	public async Task GetResponseAsync_DayWork_WhenAllToolsThrow_ForwardsOriginalMessage()
 	{
-		_mcpAdapter.CallToolAsync(Arg.Any<string>(), Arg.Any<Dictionary<string, object?>?>(), Arg.Any<CancellationToken>())
+		var ct = TestContext.Current.CancellationToken;
+		_mcpAdapter.CallToolAsync(Arg.Any<string>(), Arg.Any<Dictionary<string, object?>?>(), ct)
 			.Throws(new Exception("timeout"));
-		await _svc.SwitchModeAsync(PlanningMode.DayWork);
+		await _svc.SwitchModeAsync(PlanningMode.DayWork, ct);
 
-		_mcpAdapter.CallToolAsync(Arg.Any<string>(), Arg.Any<Dictionary<string, object?>?>(), Arg.Any<CancellationToken>())
+		_mcpAdapter.CallToolAsync(Arg.Any<string>(), Arg.Any<Dictionary<string, object?>?>(), ct)
 			.Throws(new Exception("timeout"));
 
-		await _svc.GetResponseAsync("hello");
+		await _svc.GetResponseAsync("hello", ct);
 
 		await _chatAdapter.Received(1).GetResponse("hello");
 	}
@@ -208,9 +220,10 @@ public class PlanningServiceTests
 	[Fact]
 	public async Task GetResponseAsync_ReturnsResponseFromChatAdapter()
 	{
+		var ct = TestContext.Current.CancellationToken;
 		_chatAdapter.GetResponse(Arg.Any<string>()).Returns("the answer");
 
-		var result = await _svc.GetResponseAsync("question");
+		var result = await _svc.GetResponseAsync("question", ct);
 
 		result.Should().Be("the answer");
 	}
@@ -220,6 +233,8 @@ public class PlanningServiceTests
 	[Fact]
 	public async Task DisposeAsync_DisposesUnderlyingChatAdapter()
 	{
+		var ct = TestContext.Current.CancellationToken;
+		ct.ThrowIfCancellationRequested();
 		await _svc.DisposeAsync();
 
 		await _chatAdapter.Received(1).DisposeAsync();

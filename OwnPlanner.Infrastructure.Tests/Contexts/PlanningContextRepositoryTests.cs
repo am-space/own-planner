@@ -24,12 +24,13 @@ public class PlanningContextRepositoryTests
 	{
 		using var db = CreateDb(out var conn);
 		await using var _ = conn;
+		var ct = TestContext.Current.CancellationToken;
 
 		var repo = new PlanningContextRepository(db);
 		var context = new PlanningContext("Health", ContextType.Area, "Physical wellbeing", "#4CAF50");
-		await repo.AddAsync(context);
+		await repo.AddAsync(context, ct);
 
-		var loaded = await repo.GetAsync(context.Id);
+		var loaded = await repo.GetAsync(context.Id, ct);
 		loaded!.Name.Should().Be("Health");
 		loaded.Type.Should().Be(ContextType.Area);
 		loaded.Description.Should().Be("Physical wellbeing");
@@ -38,14 +39,14 @@ public class PlanningContextRepositoryTests
 
 		loaded.SetName("Health & Fitness");
 		loaded.SetStatus(ContextStatus.Paused);
-		await repo.UpdateAsync(loaded);
+		await repo.UpdateAsync(loaded, ct);
 
-		var updated = await repo.GetAsync(context.Id);
+		var updated = await repo.GetAsync(context.Id, ct);
 		updated!.Name.Should().Be("Health & Fitness");
 		updated.Status.Should().Be(ContextStatus.Paused);
 
-		await repo.DeleteAsync(loaded);
-		(await repo.GetAsync(context.Id)).Should().BeNull();
+		await repo.DeleteAsync(loaded, ct);
+		(await repo.GetAsync(context.Id, ct)).Should().BeNull();
 	}
 
 	[Fact]
@@ -53,6 +54,7 @@ public class PlanningContextRepositoryTests
 	{
 		using var db = CreateDb(out var conn);
 		await using var _ = conn;
+		var ct = TestContext.Current.CancellationToken;
 
 		var repo = new PlanningContextRepository(db);
 
@@ -64,24 +66,24 @@ public class PlanningContextRepositoryTests
 		completed.SetStatus(ContextStatus.Completed);
 		archived.SetStatus(ContextStatus.Archived);
 
-		await repo.AddAsync(active);
-		await repo.AddAsync(paused);
-		await repo.AddAsync(completed);
-		await repo.AddAsync(archived);
+		await repo.AddAsync(active, ct);
+		await repo.AddAsync(paused, ct);
+		await repo.AddAsync(completed, ct);
+		await repo.AddAsync(archived, ct);
 
 		// Only Archived is excluded by default
-		var visible = await repo.ListAsync(false);
+		var visible = await repo.ListAsync(false, ct);
 		visible.Should().HaveCount(3);
 		visible.Should().NotContain(c => c.Status == ContextStatus.Archived);
 		visible.Select(c => c.Status).Should().Contain([ContextStatus.Active, ContextStatus.Paused, ContextStatus.Completed]);
 
-		var all = await repo.ListAsync(true);
+		var all = await repo.ListAsync(true, ct);
 		all.Should().HaveCount(4);
 
 		// UpdatedAt ordering desc
 		active.SetDescription("Updated");
-		await repo.UpdateAsync(active);
-		var ordered = await repo.ListAsync(true);
+		await repo.UpdateAsync(active, ct);
+		var ordered = await repo.ListAsync(true, ct);
 		ordered.First().Id.Should().Be(active.Id);
 	}
 }
