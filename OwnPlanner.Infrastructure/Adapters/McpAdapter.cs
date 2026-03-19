@@ -97,19 +97,14 @@ namespace OwnPlanner.Infrastructure.Adapters
 			return await _client!.ListToolsAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
 		}
 
-		public async Task<string> CallToolAsync(string toolName, Dictionary<string, object?>? arguments = null, CancellationToken cancellationToken = default)
+		public async Task<string> CallToolAsync(string toolName, IReadOnlyDictionary<string, object?>? arguments = null, CancellationToken cancellationToken = default)
 		{
 			Log.Debug("Calling MCP tool: {ToolName} with arguments: {Arguments}", toolName, JsonSerializer.Serialize(arguments));
 			await EnsureClientAsync(cancellationToken).ConfigureAwait(false);
 
-			// Convert Dictionary<string, object?> to IReadOnlyDictionary<string, object> (SDK v1.x requirement)
-			var safeArguments = (IReadOnlyDictionary<string, object?>?)arguments
-				?.Where(kvp => kvp.Value is not null)
-				.ToDictionary(kvp => kvp.Key, kvp => kvp.Value!);
-
 			var result = await _client!.CallToolAsync(
 				toolName,
-				safeArguments,
+				arguments,
 				null,
 				null,
 				cancellationToken).ConfigureAwait(false);
