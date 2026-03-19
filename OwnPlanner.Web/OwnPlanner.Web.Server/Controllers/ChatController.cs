@@ -15,10 +15,10 @@ namespace OwnPlanner.Web.Server.Controllers
 	[Authorize]
 	public class ChatController : ControllerBase
 	{
-		private readonly ChatSessionManager _sessionManager;
+		private readonly IChatSessionManager _sessionManager;
 		private readonly ILogger<ChatController> _logger;
 
-		public ChatController(ChatSessionManager sessionManager, ILogger<ChatController> logger)
+		public ChatController(IChatSessionManager sessionManager, ILogger<ChatController> logger)
 		{
 			_sessionManager = sessionManager;
 			_logger = logger;

@@ -59,7 +59,7 @@ namespace OwnPlanner.Web.Server
 				
 				// Register chat services
 				builder.Services.AddSingleton<IChatServiceFactory, ChatServiceFactory>();
-				builder.Services.AddSingleton<ChatSessionManager>();
+				builder.Services.AddSingleton<IChatSessionManager, ChatSessionManager>();
 
 				// Configure cookie authentication
 				builder.Services

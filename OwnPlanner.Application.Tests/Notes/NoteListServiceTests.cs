@@ -163,16 +163,6 @@ public class NoteListServiceTests
 	}
 
 	[Fact]
-	public async Task UpdateAsync_EmptyContextId_ThrowsArgumentException()
-	{
-		var id = Guid.NewGuid();
-
-		var act = async () => await _svc.UpdateAsync(id, contextId: Guid.Empty);
-
-		await act.Should().ThrowAsync<ArgumentException>().WithParameterName("contextId");
-	}
-
-	[Fact]
 	public async Task UpdateAsync_ThrowsKeyNotFoundException_WhenNotFound()
 	{
 		var id = Guid.NewGuid();

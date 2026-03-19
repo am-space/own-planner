@@ -9,7 +9,7 @@ public class TaskItemRepository(AppDbContext db) : ITaskItemRepository
 	private readonly AppDbContext _db = db;
 
 	public async Task<TaskItem?> GetAsync(Guid id, CancellationToken ct = default)
-	=> await _db.TaskItems.FirstOrDefaultAsync(t => t.Id == id, ct);
+		=> await _db.TaskItems.FirstOrDefaultAsync(t => t.Id == id, ct);
 
 	public async Task<IReadOnlyList<TaskItem>> ListAsync(bool includeCompleted, CancellationToken ct = default)
 	{
@@ -17,7 +17,6 @@ public class TaskItemRepository(AppDbContext db) : ITaskItemRepository
 		if (!includeCompleted)
 			query = query.Where(t => !t.IsCompleted);
 
-		// SQLite cannot translate ORDER BY on DateTimeOffset; order in-memory instead
 		var items = await query.ToListAsync(ct);
 		return items
 			.OrderByDescending(t => t.UpdatedAt)
@@ -30,7 +29,6 @@ public class TaskItemRepository(AppDbContext db) : ITaskItemRepository
 		if (!includeCompleted)
 			query = query.Where(t => !t.IsCompleted);
 
-		// SQLite cannot translate ORDER BY on DateTimeOffset; order in-memory instead
 		var items = await query.ToListAsync(ct);
 		return items
 			.OrderByDescending(t => t.UpdatedAt)

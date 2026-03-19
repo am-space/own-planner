@@ -8,7 +8,7 @@ namespace OwnPlanner.Web.Server.Services
 	/// Sessions are kept alive and renewed automatically when GetResponse is called.
 	/// Only cleaned up after 30 minutes of inactivity.
 	/// </summary>
-	public class ChatSessionManager : IDisposable
+	public class ChatSessionManager : IChatSessionManager, IDisposable
 	{
 		private readonly IChatServiceFactory _factory;
 		private readonly ILogger<ChatSessionManager> _logger;
@@ -23,7 +23,7 @@ namespace OwnPlanner.Web.Server.Services
 			_logger = logger;
 			
 			// Run cleanup every 5 minutes
-			_cleanupTimer = new Timer(CleanupInactiveSessions, null, TimeSpan.FromMinutes(5), TimeSpan.FromMinutes(5));
+			_cleanupTimer = new Timer(_ => _ = CleanupInactiveSessionsAsync(), null, TimeSpan.FromMinutes(5), TimeSpan.FromMinutes(5));
 		}
 
 		/// <summary>
@@ -90,7 +90,7 @@ namespace OwnPlanner.Web.Server.Services
 		/// </summary>
 		public int GetActiveSessionCount() => _sessions.Count;
 
-		private void CleanupInactiveSessions(object? state)
+		internal async Task CleanupInactiveSessionsAsync()
 		{
 			try
 			{
@@ -101,7 +101,7 @@ namespace OwnPlanner.Web.Server.Services
 
 				if (inactiveSessions.Any())
 				{
-					_logger.LogInformation("Cleaning up {Count} inactive sessions (no activity for {Timeout} minutes)", 
+					_logger.LogInformation("Cleaning up {Count} inactive sessions (no activity for {Timeout} minutes)",
 						inactiveSessions.Count, _sessionTimeout.TotalMinutes);
 
 					foreach (var (sessionId, session) in inactiveSessions)
@@ -110,22 +110,18 @@ namespace OwnPlanner.Web.Server.Services
 						{
 							var sessionAge = DateTime.UtcNow - session.CreatedTime;
 							var inactiveDuration = DateTime.UtcNow - session.LastAccessTime;
-							
-							_logger.LogDebug("Removed inactive session: {SessionId} (age: {Age:F1}min, inactive: {Inactive:F1}min)", 
+
+							_logger.LogDebug("Removed inactive session: {SessionId} (age: {Age:F1}min, inactive: {Inactive:F1}min)",
 								sessionId, sessionAge.TotalMinutes, inactiveDuration.TotalMinutes);
-							
-							// Fire and forget disposal
-							_ = Task.Run(async () =>
+
+							try
 							{
-								try
-								{
-									await session.DisposeAsync();
-								}
-								catch (Exception ex)
-								{
-									_logger.LogError(ex, "Error disposing session: {SessionId}", sessionId);
-								}
-							});
+								await session.DisposeAsync();
+							}
+							catch (Exception ex)
+							{
+								_logger.LogError(ex, "Error disposing session: {SessionId}", sessionId);
+							}
 						}
 					}
 
