@@ -102,12 +102,17 @@ namespace OwnPlanner.Infrastructure.Adapters
 			Log.Debug("Calling MCP tool: {ToolName} with arguments: {Arguments}", toolName, JsonSerializer.Serialize(arguments));
 			await EnsureClientAsync(cancellationToken).ConfigureAwait(false);
 
+			// Convert Dictionary<string, object?> to IReadOnlyDictionary<string, object> (SDK v1.x requirement)
+			var safeArguments = (IReadOnlyDictionary<string, object>?)arguments
+				?.Where(kvp => kvp.Value is not null)
+				.ToDictionary(kvp => kvp.Key, kvp => kvp.Value!);
+
 			var result = await _client!.CallToolAsync(
 				toolName,
-				arguments ?? [],
-				progress: null,
-				serializerOptions: null,
-				cancellationToken: cancellationToken).ConfigureAwait(false);
+				safeArguments,
+				null,
+				null,
+				cancellationToken).ConfigureAwait(false);
 
 			// Aggregate any text content into a single string
 			var sbText = new StringBuilder();
