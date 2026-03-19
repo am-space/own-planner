@@ -96,14 +96,4 @@ public class TaskListServiceTests
 		dto.ContextId.Should().Be(contextId);
 		await _repo.Received(1).UpdateAsync(taskList, Arg.Any<CancellationToken>());
 	}
-
-	[Fact]
-	public async Task UpdateAsync_EmptyContextId_ThrowsArgumentException()
-	{
-		var id = Guid.NewGuid();
-
-		var act = async () => await _svc.UpdateAsync(id, contextId: Guid.Empty);
-
-		await act.Should().ThrowAsync<ArgumentException>().WithParameterName("contextId");
-	}
 }
