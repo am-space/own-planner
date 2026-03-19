@@ -13,7 +13,6 @@ public class NoteItemRepository(AppDbContext db) : INoteItemRepository
 
 	public async Task<IReadOnlyList<NoteItem>> ListAsync(CancellationToken ct = default)
 	{
-		// SQLite cannot translate ORDER BY on DateTimeOffset; order in-memory instead
 		var items = await _db.NoteItems.ToListAsync(ct);
 		return items
 			.OrderByDescending(n => n.IsPinned)
@@ -24,8 +23,6 @@ public class NoteItemRepository(AppDbContext db) : INoteItemRepository
 	public async Task<IReadOnlyList<NoteItem>> ListByNoteListAsync(Guid noteListId, CancellationToken ct = default)
 	{
 		var query = _db.NoteItems.Where(n => n.NoteListId == noteListId);
-
-		// SQLite cannot translate ORDER BY on DateTimeOffset; order in-memory instead
 		var items = await query.ToListAsync(ct);
 		return items
 			.OrderByDescending(n => n.IsPinned)
@@ -36,8 +33,6 @@ public class NoteItemRepository(AppDbContext db) : INoteItemRepository
 	public async Task<IReadOnlyList<NoteItem>> ListByGoalAsync(Guid goalId, CancellationToken ct = default)
 	{
 		var query = _db.NoteItems.Where(n => n.GoalId == goalId);
-
-		// SQLite cannot translate ORDER BY on DateTimeOffset; order in-memory instead
 		var items = await query.ToListAsync(ct);
 		return items
 			.OrderByDescending(n => n.IsPinned)

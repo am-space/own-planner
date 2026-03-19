@@ -41,7 +41,7 @@ public class ChatSessionManagerTests : IDisposable
 		var activeSession = CreateSession(DateTime.UtcNow);
 		await AddSessionAsync("active-session", activeSession);
 
-		_manager.CleanupInactiveSessions(null);
+		await _manager.CleanupInactiveSessionsAsync();
 
 		_manager.GetActiveSessionCount().Should().Be(1);
 	}
@@ -52,7 +52,7 @@ public class ChatSessionManagerTests : IDisposable
 		var inactiveSession = CreateSession(DateTime.UtcNow.AddMinutes(-31));
 		await AddSessionAsync("inactive-session", inactiveSession);
 
-		_manager.CleanupInactiveSessions(null);
+		await _manager.CleanupInactiveSessionsAsync();
 
 		_manager.GetActiveSessionCount().Should().Be(0);
 	}
@@ -65,7 +65,7 @@ public class ChatSessionManagerTests : IDisposable
 		await AddSessionAsync("active-session", activeSession);
 		await AddSessionAsync("inactive-session", inactiveSession);
 
-		_manager.CleanupInactiveSessions(null);
+		await _manager.CleanupInactiveSessionsAsync();
 
 		_manager.GetActiveSessionCount().Should().Be(1);
 	}
@@ -76,8 +76,7 @@ public class ChatSessionManagerTests : IDisposable
 		var inactiveSession = CreateSession(DateTime.UtcNow.AddMinutes(-31));
 		await AddSessionAsync("inactive-session", inactiveSession);
 
-		_manager.CleanupInactiveSessions(null);
-		await Task.Delay(200); // allow fire-and-forget disposal to complete
+		await _manager.CleanupInactiveSessionsAsync();
 
 		await inactiveSession.Received(1).DisposeAsync();
 	}
@@ -88,7 +87,7 @@ public class ChatSessionManagerTests : IDisposable
 		var activeSession = CreateSession(DateTime.UtcNow);
 		await AddSessionAsync("active-session", activeSession);
 
-		_manager.CleanupInactiveSessions(null);
+		await _manager.CleanupInactiveSessionsAsync();
 
 		await activeSession.DidNotReceive().DisposeAsync();
 	}
@@ -99,7 +98,7 @@ public class ChatSessionManagerTests : IDisposable
 		var recentSession = CreateSession(DateTime.UtcNow.AddMinutes(-29));
 		await AddSessionAsync("recent-session", recentSession);
 
-		_manager.CleanupInactiveSessions(null);
+		await _manager.CleanupInactiveSessionsAsync();
 
 		_manager.GetActiveSessionCount().Should().Be(1);
 	}

@@ -44,7 +44,7 @@ public class NoteListTools
 		return lists;
 	}
 
-	[McpServerTool(Name = "notelist_update"), Description("Update a note list's title, contextId, description, or color.")]
+	[McpServerTool(Name = "notelist_update"), Description("Update a note list's title, contextId, description, or color. All parameters are optional; omitting one leaves the existing value unchanged. contextId is opt-in: omitting it or passing null leaves the current context assignment unchanged.")]
 	public async Task<object> UpdateNoteList(Guid id, string? title = null, Guid? contextId = null, string? description = null, string? color = null)
 	{
 		try

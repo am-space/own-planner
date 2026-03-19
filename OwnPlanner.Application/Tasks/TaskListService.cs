@@ -29,9 +29,6 @@ public class TaskListService(ITaskListRepository repository) : ITaskListService
 
 	public async Task<TaskListDto> UpdateAsync(Guid id, string? title = null, Guid? contextId = null, string? description = null, string? color = null, CancellationToken ct = default)
 	{
-		if (contextId == Guid.Empty)
-			throw new ArgumentException("A valid context ID is required to update a task list.", nameof(contextId));
-
 		var taskList = await _repository.GetAsync(id, ct) ?? throw new KeyNotFoundException($"TaskList {id} not found");
 		
 		if (title is not null)

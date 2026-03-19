@@ -29,9 +29,6 @@ public class NoteListService(INoteListRepository repository) : INoteListService
 
 	public async Task<NoteListDto> UpdateAsync(Guid id, string? title = null, Guid? contextId = null, string? description = null, string? color = null, CancellationToken ct = default)
 	{
-		if (contextId == Guid.Empty)
-			throw new ArgumentException("A valid context ID is required to update a note list.", nameof(contextId));
-
 		var noteList = await _repository.GetAsync(id, ct) ?? throw new KeyNotFoundException($"NoteList {id} not found");
 		
 		if (title is not null)
