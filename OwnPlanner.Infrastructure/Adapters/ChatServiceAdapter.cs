@@ -24,6 +24,7 @@ namespace OwnPlanner.Infrastructure.Adapters
 		  "required": ["query"]
 		}
 		""";
+		private static readonly FunctionDeclaration SearchAgentFunctionDeclaration = BuildSearchAgentFunctionDeclaration();
 
 		private readonly GoogleAI _googleAI;
 		private readonly string _model;
@@ -194,7 +195,7 @@ namespace OwnPlanner.Infrastructure.Adapters
 		{
 			var declarations = new List<FunctionDeclaration>(_allFunctionDeclarations.Count + 1)
 			{
-				CreateSearchAgentFunctionDeclaration()
+				SearchAgentFunctionDeclaration
 			};
 
 			declarations.AddRange(_allFunctionDeclarations);
@@ -210,7 +211,7 @@ namespace OwnPlanner.Infrastructure.Adapters
 			return declarations;
 		}
 
-		private FunctionDeclaration CreateSearchAgentFunctionDeclaration()
+		private static FunctionDeclaration BuildSearchAgentFunctionDeclaration()
 		{
 			using var searchSchemaDocument = JsonDocument.Parse(SearchAgentToolSchema);
 			return new FunctionDeclaration
@@ -221,7 +222,7 @@ namespace OwnPlanner.Infrastructure.Adapters
 			};
 		}
 
-		private Schema? ConvertJsonSchemaToGeminiSchema(JsonElement jsonSchema)
+		private static Schema? ConvertJsonSchemaToGeminiSchema(JsonElement jsonSchema)
 		{
 			try
 			{
@@ -257,13 +258,14 @@ namespace OwnPlanner.Infrastructure.Adapters
 
 		private async Task<string> ExecuteSearchAgentCallAsync(IReadOnlyDictionary<string, object?>? arguments)
 		{
-			var query = GetStringArgument(arguments, "query");
+			var query = ToolArgumentParser.GetStringArgument(arguments, "query");
 			if (string.IsNullOrWhiteSpace(query))
 			{
 				throw new InvalidOperationException($"Tool '{SearchAgentToolName}' requires a non-empty 'query' argument.");
 			}
 
-			Log.Information("Executing local search agent call for query: {Query}", query);
+			Log.Information("Executing local search agent call");
+			Log.Debug("Query: {Query}", query);
 
 			var searchModel = _googleAI.GenerativeModel(_model);
 			searchModel.UseGoogleSearch = true;
@@ -292,22 +294,6 @@ namespace OwnPlanner.Infrastructure.Adapters
 			}
 
 			return await _mcpClient.CallToolAsync(toolName, arguments).ConfigureAwait(false);
-		}
-
-		private static string? GetStringArgument(IReadOnlyDictionary<string, object?>? arguments, string argumentName)
-		{
-			if (arguments == null || !arguments.TryGetValue(argumentName, out var rawValue) || rawValue == null)
-			{
-				return null;
-			}
-
-			return rawValue switch
-			{
-				string value => value,
-				JsonElement element when element.ValueKind == JsonValueKind.String => element.GetString(),
-				JsonElement element => element.ToString(),
-				_ => rawValue.ToString()
-			};
 		}
 
 		private string GetSafeResponseText(GenerateContentResponse response)
