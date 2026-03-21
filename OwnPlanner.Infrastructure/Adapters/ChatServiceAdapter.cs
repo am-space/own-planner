@@ -11,6 +11,20 @@ namespace OwnPlanner.Infrastructure.Adapters
 	/// </summary>
 	public class ChatServiceAdapter : IChatAdapter
 	{
+		private const string SearchAgentToolName = "search_agent_call";
+		private const string SearchAgentToolSchema = """
+		{
+		  "type": "object",
+		  "properties": {
+		    "query": {
+		      "type": "string",
+		      "description": "The exact web search query to execute."
+		    }
+		  },
+		  "required": ["query"]
+		}
+		""";
+
 		private readonly GoogleAI _googleAI;
 		private readonly string _model;
 		private readonly McpAdapter? _mcpClient;
@@ -34,14 +48,19 @@ namespace OwnPlanner.Infrastructure.Adapters
 		private void InitializeChatSession(string? systemPrompt = null, IReadOnlyList<string>? allowedTools = null)
 		{
 			// Rebuild tool set, applying allow-list filter when provided
-			if (_allFunctionDeclarations.Count > 0)
+			var declarations = GetFunctionDeclarations(allowedTools);
+			if (declarations.Count > 0)
 			{
-				var declarations = allowedTools?.Count > 0
-					? _allFunctionDeclarations.Where(f => f.Name != null && allowedTools.Contains(f.Name)).ToList()
-					: _allFunctionDeclarations;
 				_geminiTools = new Tools { new Tool { FunctionDeclarations = declarations } };
 			}
-			_generativeModel = _googleAI.GenerativeModel(_model, tools: _geminiTools);
+			else
+			{
+				_geminiTools = null;
+			}
+
+			_generativeModel = _geminiTools != null
+				? _googleAI.GenerativeModel(_model, tools: _geminiTools)
+				: _googleAI.GenerativeModel(_model);
 			InitializeChatWithInstructions(systemPrompt);
 			Log.Information("Chat session initialized successfully");
 		}
@@ -171,6 +190,37 @@ namespace OwnPlanner.Infrastructure.Adapters
 			}
 		}
 
+		private List<FunctionDeclaration> GetFunctionDeclarations(IReadOnlyList<string>? allowedTools = null)
+		{
+			var declarations = new List<FunctionDeclaration>(_allFunctionDeclarations.Count + 1)
+			{
+				CreateSearchAgentFunctionDeclaration()
+			};
+
+			declarations.AddRange(_allFunctionDeclarations);
+
+			if (allowedTools?.Count > 0)
+			{
+				declarations = declarations
+					.Where(f => f.Name != null && allowedTools.Contains(f.Name))
+					.ToList();
+			}
+
+			Log.Debug("Configured {ToolCount} Gemini tools: {Tools}", declarations.Count, string.Join(", ", declarations.Select(f => f.Name)));
+			return declarations;
+		}
+
+		private FunctionDeclaration CreateSearchAgentFunctionDeclaration()
+		{
+			using var searchSchemaDocument = JsonDocument.Parse(SearchAgentToolSchema);
+			return new FunctionDeclaration
+			{
+				Name = SearchAgentToolName,
+				Description = "Search the web for current factual information and return a concise summary.",
+				Parameters = ConvertJsonSchemaToGeminiSchema(searchSchemaDocument.RootElement.Clone())
+			};
+		}
+
 		private Schema? ConvertJsonSchemaToGeminiSchema(JsonElement jsonSchema)
 		{
 			try
@@ -205,6 +255,87 @@ namespace OwnPlanner.Infrastructure.Adapters
 				usage.ThoughtsTokenCount);
 		}
 
+		private async Task<string> ExecuteSearchAgentCallAsync(IReadOnlyDictionary<string, object?>? arguments)
+		{
+			var query = GetStringArgument(arguments, "query");
+			if (string.IsNullOrWhiteSpace(query))
+			{
+				throw new InvalidOperationException($"Tool '{SearchAgentToolName}' requires a non-empty 'query' argument.");
+			}
+
+			Log.Information("Executing local search agent call for query: {Query}", query);
+
+			var searchModel = _googleAI.GenerativeModel(_model);
+			searchModel.UseGoogleSearch = true;
+
+			var searchChat = searchModel.StartChat(history:
+			[
+				new ContentResponse("You are a focused web search assistant. Use Google Search to answer the provided query with a concise factual summary. Do not call tools. Prefer current information when available."),
+				new ContentResponse("Understood. I will search and return a concise factual summary.", "model")
+			]);
+
+			var response = await searchChat.SendMessage(query).ConfigureAwait(false);
+			LogUsageMetadata(response, "search-agent-call");
+			return GetSafeResponseText(response);
+		}
+
+		private async Task<string> ExecuteToolCallAsync(string toolName, IReadOnlyDictionary<string, object?>? arguments)
+		{
+			if (toolName == SearchAgentToolName)
+			{
+				return await ExecuteSearchAgentCallAsync(arguments).ConfigureAwait(false);
+			}
+
+			if (_mcpClient == null)
+			{
+				throw new InvalidOperationException($"Tool '{toolName}' is unavailable because MCP is not configured.");
+			}
+
+			return await _mcpClient.CallToolAsync(toolName, arguments).ConfigureAwait(false);
+		}
+
+		private static string? GetStringArgument(IReadOnlyDictionary<string, object?>? arguments, string argumentName)
+		{
+			if (arguments == null || !arguments.TryGetValue(argumentName, out var rawValue) || rawValue == null)
+			{
+				return null;
+			}
+
+			return rawValue switch
+			{
+				string value => value,
+				JsonElement element when element.ValueKind == JsonValueKind.String => element.GetString(),
+				JsonElement element => element.ToString(),
+				_ => rawValue.ToString()
+			};
+		}
+
+		private string GetSafeResponseText(GenerateContentResponse response)
+		{
+			try
+			{
+				return response.Text ?? string.Empty;
+			}
+			catch (Exception ex)
+			{
+				Log.Warning(ex, "Accessing response.Text failed; falling back to manual assembly");
+				var textParts = response.Candidates?
+					.FirstOrDefault()?
+					.Content?
+					.Parts?
+					.Where(p => p.Text != null)
+					.Select(p => p.Text)
+					.ToList();
+				if (textParts == null || textParts.Count == 0)
+				{
+					Log.Debug("No textual parts in response; returning empty string");
+					return string.Empty;
+				}
+
+				return string.Join(Environment.NewLine, textParts);
+			}
+		}
+
 		public async Task<string> GetResponse(string text)
 		{
 			LastAccessTime = DateTime.UtcNow;
@@ -234,11 +365,11 @@ namespace OwnPlanner.Infrastructure.Adapters
 					foreach (var part in functionCalls)
 					{
 						var functionCall = part.FunctionCall;
-						if (functionCall == null || _mcpClient == null)
+						if (functionCall == null)
 						{
 							continue;
 						}
-						Log.Information("[MCP] Gemini requested to call tool: {ToolName}", functionCall.Name);
+						Log.Information("Gemini requested to call tool: {ToolName}", functionCall.Name);
 						try
 						{
 							var argsDict = functionCall.Args != null
@@ -257,7 +388,7 @@ namespace OwnPlanner.Infrastructure.Adapters
 								toolName = nsSplit[1];
 								Log.Debug("Stripped namespace prefix from tool name: {Original} -> {Stripped}", functionCall.Name, toolName);
 							}
-							var result = await _mcpClient.CallToolAsync(toolName, argsDict);
+							var result = await ExecuteToolCallAsync(toolName, argsDict).ConfigureAwait(false);
 							Log.Debug("Tool {ToolName} executed successfully", toolName);
 							toolResults.Add(new Part
 							{
@@ -302,29 +433,7 @@ namespace OwnPlanner.Infrastructure.Adapters
 				{
 					Log.Warning("Reached maximum tool call rounds ({MaxRounds}). Returning current response.", _maxToolCallRounds);
 				}
-				string safeText;
-				try
-				{
-					safeText = response.Text ?? string.Empty;
-				}
-				catch (Exception ex)
-				{
-					Log.Warning(ex, "Accessing response.Text failed; falling back to manual assembly");
-					var textParts = response.Candidates?
-						.FirstOrDefault()?
-						.Content?
-						.Parts?
-						.Where(p => p.Text != null)
-						.Select(p => p.Text)
-						.ToList();
-					if (textParts == null || textParts.Count == 0)
-					{
-						Log.Debug("No textual parts in response; returning empty string");
-						return string.Empty;
-					}
-					safeText = string.Join(Environment.NewLine, textParts);
-				}
-				return safeText;
+				return GetSafeResponseText(response);
 			}
 			catch (GeminiApiException ex)
 			{
