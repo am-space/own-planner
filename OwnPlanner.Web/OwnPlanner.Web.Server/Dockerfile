@@ -4,9 +4,14 @@
 
 # Stage 1: Build MCP.StdioApp
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build-mcp
+ARG APP_VERSION=0.0.0-local
+ARG APP_FILE_VERSION=0.0.0.0
+ENV APP_VERSION=$APP_VERSION \
+    APP_FILE_VERSION=$APP_FILE_VERSION
 WORKDIR /src
 
 # Copy MCP project and dependencies
+COPY ["Directory.Build.props", "."]
 COPY ["OwnPlanner.Mcp.StdioApp/OwnPlanner.Mcp.StdioApp.csproj", "OwnPlanner.Mcp.StdioApp/"]
 COPY ["OwnPlanner.Application/OwnPlanner.Application.csproj", "OwnPlanner.Application/"]
 COPY ["OwnPlanner.Domain/OwnPlanner.Domain.csproj", "OwnPlanner.Domain/"]
@@ -35,9 +40,15 @@ RUN apt-get update && \
 # Stage 3: Build Web.Server with React frontend
 FROM with-node AS build
 ARG BUILD_CONFIGURATION=Release
+ARG APP_VERSION=0.0.0-local
+ARG APP_FILE_VERSION=0.0.0.0
+ENV APP_VERSION=$APP_VERSION \
+    APP_FILE_VERSION=$APP_FILE_VERSION \
+    VITE_APP_VERSION=$APP_VERSION
 WORKDIR /src
 
 # Copy Web.Server project and dependencies
+COPY ["Directory.Build.props", "."]
 COPY ["OwnPlanner.Web/OwnPlanner.Web.Server/OwnPlanner.Web.Server.csproj", "OwnPlanner.Web/OwnPlanner.Web.Server/"]
 COPY ["OwnPlanner.Web/ownplanner.web.client/ownplanner.web.client.esproj", "OwnPlanner.Web/ownplanner.web.client/"]
 COPY ["OwnPlanner.Application/OwnPlanner.Application.csproj", "OwnPlanner.Application/"]
@@ -60,6 +71,8 @@ RUN dotnet publish "OwnPlanner.Web.Server.csproj" -c $BUILD_CONFIGURATION -o /ap
 
 # Stage 4: Final runtime image
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
+ARG APP_VERSION=0.0.0-local
+LABEL org.opencontainers.image.version=$APP_VERSION
 WORKDIR /app
 
 # Install runtime dependencies (curl for health checks)
@@ -83,6 +96,7 @@ RUN mkdir -p /app/data/auth /app/data/databases /app/data/logs && \
 # Set environment variables
 # Core ASP.NET settings
 ENV ASPNETCORE_URLS=http://+:8080 \
+    APP_VERSION=$APP_VERSION \
     ASPNETCORE_ENVIRONMENT=Production \
     DOTNET_RUNNING_IN_CONTAINER=true \
     DOTNET_EnableDiagnostics=0

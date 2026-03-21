@@ -120,6 +120,13 @@ Key features include:
 - Backend: .NET 10 + ASP.NET Core
 - AI: Google Gemini + Mscc.GenerativeAI SDK
 
+## Release Notes
+
+- Release builds are created from Git tags in the format `v<major>.<minor>.<patch>`, for example `v1.1.0`.
+- Tagged builds publish the Docker image to `ghcr.io` with `v<version>`, `latest`, and commit SHA tags.
+- Non-tagged builds still run restore, build, test, and Docker image build, but do not push an image.
+- The same version is applied to `.NET` assembly metadata and embedded into the web app About dialog during the frontend build.
+
 ## Run with OwnPlanner.Console
 
 ### Prerequisites

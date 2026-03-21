@@ -1,0 +1,12 @@
+<Project>
+  <PropertyGroup>
+    <AppVersion Condition="'$(AppVersion)' == '' and '$(APP_VERSION)' != ''">$(APP_VERSION)</AppVersion>
+    <AppVersion Condition="'$(AppVersion)' == ''">0.0.0-local</AppVersion>
+    <AppFileVersion Condition="'$(AppFileVersion)' == '' and '$(APP_FILE_VERSION)' != ''">$(APP_FILE_VERSION)</AppFileVersion>
+    <AppFileVersion Condition="'$(AppFileVersion)' == ''">0.0.0.0</AppFileVersion>
+    <Version>$(AppVersion)</Version>
+    <AssemblyVersion>$(AppFileVersion)</AssemblyVersion>
+    <FileVersion>$(AppFileVersion)</FileVersion>
+    <InformationalVersion>$(AppVersion)</InformationalVersion>
+  </PropertyGroup>
+</Project>

@@ -24,6 +24,8 @@ interface AboutDialogProps {
   onClose: () => void;
 }
 
+const appVersion = import.meta.env.VITE_APP_VERSION || 'Local-Dev';
+
 export default function AboutDialog({ open, onClose }: AboutDialogProps) {
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
@@ -46,7 +48,7 @@ export default function AboutDialog({ open, onClose }: AboutDialogProps) {
               OwnPlanner
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Version 1.0.0
+              Version {appVersion}
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
               An AI-powered personal planning assistant that helps you manage tasks,
