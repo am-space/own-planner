@@ -3,10 +3,15 @@
 # Build context: Repository root directory
 
 # Stage 1: Build MCP.StdioApp
-FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build-mcp
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build-mcp
+ARG APP_VERSION=0.0.0-local
+ARG APP_FILE_VERSION=0.0.0.0
+ENV APP_VERSION=$APP_VERSION \
+    APP_FILE_VERSION=$APP_FILE_VERSION
 WORKDIR /src
 
 # Copy MCP project and dependencies
+COPY ["Directory.Build.props", "."]
 COPY ["OwnPlanner.Mcp.StdioApp/OwnPlanner.Mcp.StdioApp.csproj", "OwnPlanner.Mcp.StdioApp/"]
 COPY ["OwnPlanner.Application/OwnPlanner.Application.csproj", "OwnPlanner.Application/"]
 COPY ["OwnPlanner.Domain/OwnPlanner.Domain.csproj", "OwnPlanner.Domain/"]
@@ -22,7 +27,7 @@ WORKDIR "/src/OwnPlanner.Mcp.StdioApp"
 RUN dotnet publish "OwnPlanner.Mcp.StdioApp.csproj" -c Release -o /app/mcp --no-restore
 
 # Stage 2: Setup Node.js for React frontend
-FROM mcr.microsoft.com/dotnet/sdk:9.0 AS with-node
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS with-node
 WORKDIR /src
 
 # Install Node.js 20.x (optimized commands)
@@ -35,9 +40,15 @@ RUN apt-get update && \
 # Stage 3: Build Web.Server with React frontend
 FROM with-node AS build
 ARG BUILD_CONFIGURATION=Release
+ARG APP_VERSION=0.0.0-local
+ARG APP_FILE_VERSION=0.0.0.0
+ENV APP_VERSION=$APP_VERSION \
+    APP_FILE_VERSION=$APP_FILE_VERSION \
+    VITE_APP_VERSION=$APP_VERSION
 WORKDIR /src
 
 # Copy Web.Server project and dependencies
+COPY ["Directory.Build.props", "."]
 COPY ["OwnPlanner.Web/OwnPlanner.Web.Server/OwnPlanner.Web.Server.csproj", "OwnPlanner.Web/OwnPlanner.Web.Server/"]
 COPY ["OwnPlanner.Web/ownplanner.web.client/ownplanner.web.client.esproj", "OwnPlanner.Web/ownplanner.web.client/"]
 COPY ["OwnPlanner.Application/OwnPlanner.Application.csproj", "OwnPlanner.Application/"]
@@ -59,7 +70,9 @@ ARG BUILD_CONFIGURATION=Release
 RUN dotnet publish "OwnPlanner.Web.Server.csproj" -c $BUILD_CONFIGURATION -o /app/web /p:UseAppHost=false --no-restore
 
 # Stage 4: Final runtime image
-FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
+ARG APP_VERSION=0.0.0-local
+LABEL org.opencontainers.image.version=$APP_VERSION
 WORKDIR /app
 
 # Install runtime dependencies (curl for health checks)
@@ -83,6 +96,7 @@ RUN mkdir -p /app/data/auth /app/data/databases /app/data/logs && \
 # Set environment variables
 # Core ASP.NET settings
 ENV ASPNETCORE_URLS=http://+:8080 \
+    APP_VERSION=$APP_VERSION \
     ASPNETCORE_ENVIRONMENT=Production \
     DOTNET_RUNNING_IN_CONTAINER=true \
     DOTNET_EnableDiagnostics=0

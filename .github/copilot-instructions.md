@@ -2,7 +2,7 @@
 
 ## Repository overview
 
-OwnPlanner is a layered `.NET 9` solution with multiple entry points:
+OwnPlanner is a layered `.NET 10` solution with multiple entry points:
 
 - `OwnPlanner.Domain`: entities and business rules
 - `OwnPlanner.Application`: use-cases, services, DTOs, orchestration

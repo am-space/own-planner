@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Mscc.GenerativeAI;
+using Mscc.GenerativeAI.Types;
 using OwnPlanner.Application.Chat;
 using Serilog;
 
@@ -244,6 +245,12 @@ namespace OwnPlanner.Infrastructure.Adapters
 								? JsonSerializer.Deserialize<Dictionary<string, object?>>(JsonSerializer.Serialize(functionCall.Args))
 								: new Dictionary<string, object?>();
 							var toolName = functionCall.Name;
+							if (string.IsNullOrEmpty(toolName))
+							{
+								Log.Warning("Function call has null or empty name, skipping");
+								continue;
+							}
+							
 							if (toolName.Contains(':'))
 							{
 								var nsSplit = toolName.Split(':', 2);
@@ -319,7 +326,7 @@ namespace OwnPlanner.Infrastructure.Adapters
 				}
 				return safeText;
 			}
-			catch (Mscc.GenerativeAI.GeminiApiException ex)
+			catch (GeminiApiException ex)
 			{
 				if (ex.Message.Contains("required oneof field 'data' must have one initialized field"))
 				{

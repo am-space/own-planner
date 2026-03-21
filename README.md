@@ -15,7 +15,7 @@ The solution is organized as a layered .NET application with multiple entry poin
 ```mermaid
 graph LR
   user["End user"] --> ui["OwnPlanner Web App<br/>React 18 + TypeScript + MUI"]
-  ui --> web["OwnPlanner Web Server<br/>ASP.NET Core (.NET 9)<br/>Cookie Auth + API"]
+  ui --> web["OwnPlanner Web Server<br/>ASP.NET Core (.NET 10)<br/>Cookie Auth + API"]
 
   web --> llm["Google Gemini API<br/>(LLM)"]
   web --> mcp["OwnPlanner MCP Stdio App<br/>(MCP tools server)"]
@@ -34,7 +34,7 @@ graph TB
   end
 
   subgraph host["Host / Container"]
-    web["OwnPlanner.Web.Server<br/>ASP.NET Core (.NET 9)"]
+    web["OwnPlanner.Web.Server<br/>ASP.NET Core (.NET 10)"]
     mcpapp["OwnPlanner.Mcp.StdioApp<br/>MCP tools over stdio<br/>(spawned process)"]
     authdb["SQLite: ownplanner-auth.db<br/>(users/auth)"]
     userdb["SQLite: ownplanner-user-{userId}.db<br/>(tasks/notes per-user)"]
@@ -94,7 +94,7 @@ sequenceDiagram
 
 ## Solution Overview
 
-OwnPlanner is a multi-project .NET 9 solution for personal planning and task management. It features a layered architecture and multiple interfaces:
+OwnPlanner is a multi-project .NET 10 solution for personal planning and task management. It features a layered architecture and multiple interfaces:
 
 - Core
   - **OwnPlanner.Application**: Core business logic, services, and DTOs.
@@ -104,7 +104,7 @@ OwnPlanner is a multi-project .NET 9 solution for personal planning and task man
   - **OwnPlanner.Infrastructure**: Data persistence, external integrations, and infrastructure services.
   - **OwnPlanner.Infrastructure.Tests**: Integration tests for infrastructure.
 - Presentation
-  - **OwnPlanner.Web.Server**: ASP.NET Core 9 web server with React frontend for user interaction.
+  - **OwnPlanner.Web.Server**: ASP.NET Core 10 web server with React frontend for user interaction.
   - **OwnPlanner.Mcp.StdioApp**: MCP stdio adapter and developer tools for command-line or protocol-based automation.
   - **OwnPlanner.Console**: Console application for direct CLI usage.
 
@@ -117,14 +117,21 @@ Key features include:
 ## Built With
 
 - Frontend: React 18 + TypeScript + Material-UI
-- Backend: .NET 9 + ASP.NET Core
+- Backend: .NET 10 + ASP.NET Core
 - AI: Google Gemini + Mscc.GenerativeAI SDK
+
+## Release Notes
+
+- Release builds are created from Git tags in the format `v<major>.<minor>.<patch>`, for example `v1.1.0`.
+- Tagged builds publish the Docker image to `ghcr.io` with `v<version>`, `latest`, and commit SHA tags.
+- Non-tagged builds still run restore, build, test, and Docker image build, but do not push an image.
+- The same version is applied to `.NET` assembly metadata and embedded into the web app About dialog during the frontend build.
 
 ## Run with OwnPlanner.Console
 
 ### Prerequisites
 
-- .NET SDK 9
+- .NET SDK 10
 - A Google Gemini API key
 
 ### Configure

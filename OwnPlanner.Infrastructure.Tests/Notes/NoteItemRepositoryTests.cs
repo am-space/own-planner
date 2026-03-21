@@ -24,17 +24,18 @@ public class NoteItemRepositoryTests
 	{
 		using var db = CreateDb(out var conn);
 		await using var _ = conn;
+		var ct = TestContext.Current.CancellationToken;
 
 		var repo = new NoteItemRepository(db);
 		var listRepo = new NoteListRepository(db);
 		
 		var list = new NoteList("Test List");
-		await listRepo.AddAsync(list);
+		await listRepo.AddAsync(list, ct);
 		
 		var item = new NoteItem("Test Note", list.Id, "This is the note content");
-		await repo.AddAsync(item);
+		await repo.AddAsync(item, ct);
 
-		var loaded = await repo.GetAsync(item.Id);
+		var loaded = await repo.GetAsync(item.Id, ct);
 		loaded!.Title.Should().Be("Test Note");
 		loaded.Content.Should().Be("This is the note content");
 		loaded.NoteListId.Should().Be(list.Id);
@@ -42,14 +43,14 @@ public class NoteItemRepositoryTests
 
 		loaded.Pin();
 		loaded.SetContent("Updated content");
-		await repo.UpdateAsync(loaded);
+		await repo.UpdateAsync(loaded, ct);
 		
-		var updated = await repo.GetAsync(item.Id);
+		var updated = await repo.GetAsync(item.Id, ct);
 		updated!.IsPinned.Should().BeTrue();
 		updated.Content.Should().Be("Updated content");
 
-		await repo.DeleteAsync(loaded);
-		(await repo.GetAsync(item.Id)).Should().BeNull();
+		await repo.DeleteAsync(loaded, ct);
+		(await repo.GetAsync(item.Id, ct)).Should().BeNull();
 	}
 
 	[Fact]
@@ -57,29 +58,30 @@ public class NoteItemRepositoryTests
 	{
 		using var db = CreateDb(out var conn);
 		await using var _ = conn;
+		var ct = TestContext.Current.CancellationToken;
 		var repo = new NoteItemRepository(db);
 		var listRepo = new NoteListRepository(db);
 
 		var list = new NoteList("Test List");
-		await listRepo.AddAsync(list);
+		await listRepo.AddAsync(list, ct);
 
 		var noteA = new NoteItem("Note A", list.Id);
 		var noteB = new NoteItem("Note B", list.Id);
 		var noteC = new NoteItem("Note C", list.Id);
 		
-		await repo.AddAsync(noteA);
-		await repo.AddAsync(noteB);
-		await repo.AddAsync(noteC);
+		await repo.AddAsync(noteA, ct);
+		await repo.AddAsync(noteB, ct);
+		await repo.AddAsync(noteC, ct);
 
 		// Pin noteA
 		noteA.Pin();
-		await repo.UpdateAsync(noteA);
+		await repo.UpdateAsync(noteA, ct);
 
 		// Update noteC to make it most recent unpinned
 		noteC.SetContent("Updated");
-		await repo.UpdateAsync(noteC);
+		await repo.UpdateAsync(noteC, ct);
 
-		var all = await repo.ListAsync();
+		var all = await repo.ListAsync(ct);
 		all.Should().HaveCount(3);
 
 		// Pinned items should come first
@@ -94,25 +96,26 @@ public class NoteItemRepositoryTests
 	{
 		using var db = CreateDb(out var conn);
 		await using var _ = conn;
+		var ct = TestContext.Current.CancellationToken;
 		var noteRepo = new NoteItemRepository(db);
 		var listRepo = new NoteListRepository(db);
 
 		var list1 = new NoteList("List 1");
 		var list2 = new NoteList("List 2");
-		await listRepo.AddAsync(list1);
-		await listRepo.AddAsync(list2);
+		await listRepo.AddAsync(list1, ct);
+		await listRepo.AddAsync(list2, ct);
 
 		var note1 = new NoteItem("Note in List 1", list1.Id);
 		var note2 = new NoteItem("Note in List 2", list2.Id);
 		var note3 = new NoteItem("Another note in List 1", list1.Id);
 		note3.Pin();
 
-		await noteRepo.AddAsync(note1);
-		await noteRepo.AddAsync(note2);
-		await noteRepo.AddAsync(note3);
+		await noteRepo.AddAsync(note1, ct);
+		await noteRepo.AddAsync(note2, ct);
+		await noteRepo.AddAsync(note3, ct);
 
 		// Get notes for list1
-		var list1Notes = await noteRepo.ListByNoteListAsync(list1.Id);
+		var list1Notes = await noteRepo.ListByNoteListAsync(list1.Id, ct);
 		list1Notes.Should().HaveCount(2);
 		list1Notes.Should().OnlyContain(n => n.NoteListId == list1.Id);
 
@@ -120,7 +123,7 @@ public class NoteItemRepositoryTests
 		list1Notes.First().Id.Should().Be(note3.Id);
 
 		// Get notes for list2
-		var list2Notes = await noteRepo.ListByNoteListAsync(list2.Id);
+		var list2Notes = await noteRepo.ListByNoteListAsync(list2.Id, ct);
 		list2Notes.Should().HaveCount(1);
 		list2Notes.First().Id.Should().Be(note2.Id);
 	}
@@ -130,36 +133,37 @@ public class NoteItemRepositoryTests
 	{
 		using var db = CreateDb(out var conn);
 		await using var _ = conn;
+		var ct = TestContext.Current.CancellationToken;
 		var repo = new NoteItemRepository(db);
 		var listRepo = new NoteListRepository(db);
 
 		var list = new NoteList("Test List");
-		await listRepo.AddAsync(list);
+		await listRepo.AddAsync(list, ct);
 
 		var noteA = new NoteItem("Note A", list.Id);
 		var noteB = new NoteItem("Note B", list.Id);
 		
-		await repo.AddAsync(noteA);
-		await repo.AddAsync(noteB);
+		await repo.AddAsync(noteA, ct);
+		await repo.AddAsync(noteB, ct);
 
 		// Initially, noteB should be first (more recent)
-		var initial = await repo.ListAsync();
+		var initial = await repo.ListAsync(ct);
 		initial.First().Id.Should().Be(noteB.Id);
 
 		// Pin noteA
 		noteA.Pin();
-		await repo.UpdateAsync(noteA);
+		await repo.UpdateAsync(noteA, ct);
 
 		// Now noteA should be first (pinned)
-		var afterPin = await repo.ListAsync();
+		var afterPin = await repo.ListAsync(ct);
 		afterPin.First().Id.Should().Be(noteA.Id);
 
 		// Unpin noteA
 		noteA.Unpin();
-		await repo.UpdateAsync(noteA);
+		await repo.UpdateAsync(noteA, ct);
 
 		// noteA should still be first (most recently updated)
-		var afterUnpin = await repo.ListAsync();
+		var afterUnpin = await repo.ListAsync(ct);
 		afterUnpin.First().Id.Should().Be(noteA.Id);
 	}
 
@@ -168,11 +172,12 @@ public class NoteItemRepositoryTests
 	{
 		using var db = CreateDb(out var conn);
 		await using var _ = conn;
+		var ct = TestContext.Current.CancellationToken;
 		var repo = new NoteItemRepository(db);
 		var listRepo = new NoteListRepository(db);
 
 		var list = new NoteList("Test List");
-		await listRepo.AddAsync(list);
+		await listRepo.AddAsync(list, ct);
 
 		var goalId = Guid.NewGuid();
 		var otherGoalId = Guid.NewGuid();
@@ -180,12 +185,12 @@ public class NoteItemRepositoryTests
 		var b = new NoteItem("Note B", list.Id, goalId: goalId);
 		var c = new NoteItem("Note C", list.Id, goalId: otherGoalId);
 		var d = new NoteItem("Note D", list.Id);
-		await repo.AddAsync(a);
-		await repo.AddAsync(b);
-		await repo.AddAsync(c);
-		await repo.AddAsync(d);
+		await repo.AddAsync(a, ct);
+		await repo.AddAsync(b, ct);
+		await repo.AddAsync(c, ct);
+		await repo.AddAsync(d, ct);
 
-		var result = await repo.ListByGoalAsync(goalId);
+		var result = await repo.ListByGoalAsync(goalId, ct);
 
 		result.Should().HaveCount(2);
 		result.Should().OnlyContain(n => n.GoalId == goalId);
@@ -196,27 +201,28 @@ public class NoteItemRepositoryTests
 	{
 		using var db = CreateDb(out var conn);
 		await using var _ = conn;
+		var ct = TestContext.Current.CancellationToken;
 		var repo = new NoteItemRepository(db);
 		var listRepo = new NoteListRepository(db);
 
 		var list = new NoteList("Test List");
-		await listRepo.AddAsync(list);
+		await listRepo.AddAsync(list, ct);
 
 		var goalId = Guid.NewGuid();
 		var a = new NoteItem("Note A", list.Id, goalId: goalId);
 		var b = new NoteItem("Note B", list.Id, goalId: goalId);
 		var c = new NoteItem("Note C", list.Id, goalId: goalId);
-		await repo.AddAsync(a);
-		await repo.AddAsync(b);
-		await repo.AddAsync(c);
+		await repo.AddAsync(a, ct);
+		await repo.AddAsync(b, ct);
+		await repo.AddAsync(c, ct);
 
 		a.Pin();
-		await repo.UpdateAsync(a);
+		await repo.UpdateAsync(a, ct);
 
 		c.SetContent("updated");
-		await repo.UpdateAsync(c);
+		await repo.UpdateAsync(c, ct);
 
-		var result = await repo.ListByGoalAsync(goalId);
+		var result = await repo.ListByGoalAsync(goalId, ct);
 
 		result.Should().HaveCount(3);
 		result.First().Id.Should().Be(a.Id);
@@ -229,16 +235,17 @@ public class NoteItemRepositoryTests
 	{
 		using var db = CreateDb(out var conn);
 		await using var _ = conn;
+		var ct = TestContext.Current.CancellationToken;
 		var repo = new NoteItemRepository(db);
 		var listRepo = new NoteListRepository(db);
 
 		var list = new NoteList("Test List");
-		await listRepo.AddAsync(list);
+		await listRepo.AddAsync(list, ct);
 
 		var a = new NoteItem("Note A", list.Id, goalId: Guid.NewGuid());
-		await repo.AddAsync(a);
+		await repo.AddAsync(a, ct);
 
-		var result = await repo.ListByGoalAsync(Guid.NewGuid());
+		var result = await repo.ListByGoalAsync(Guid.NewGuid(), ct);
 
 		result.Should().BeEmpty();
 	}

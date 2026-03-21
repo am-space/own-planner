@@ -52,9 +52,10 @@ public class ChatControllerTests
 	[Fact]
 	public async Task SendMessage_EmptyMessage_ReturnsBadRequest()
 	{
+		var ct = TestContext.Current.CancellationToken;
 		var request = new ChatRequest { Message = "" };
 
-		var result = await _controller.SendMessage(request, CancellationToken.None);
+		var result = await _controller.SendMessage(request, ct);
 
 		result.Should().BeOfType<BadRequestObjectResult>();
 	}
@@ -62,9 +63,10 @@ public class ChatControllerTests
 	[Fact]
 	public async Task SendMessage_WhitespaceMessage_ReturnsBadRequest()
 	{
+		var ct = TestContext.Current.CancellationToken;
 		var request = new ChatRequest { Message = "   " };
 
-		var result = await _controller.SendMessage(request, CancellationToken.None);
+		var result = await _controller.SendMessage(request, ct);
 
 		result.Should().BeOfType<BadRequestObjectResult>();
 	}
@@ -72,10 +74,11 @@ public class ChatControllerTests
 	[Fact]
 	public async Task SendMessage_ValidMessage_ReturnsOkWithResponse()
 	{
-		_planningService.GetResponseAsync("hello", Arg.Any<CancellationToken>()).Returns("AI reply");
+		var ct = TestContext.Current.CancellationToken;
+		_planningService.GetResponseAsync("hello", ct).Returns("AI reply");
 		var request = new ChatRequest { Message = "hello" };
 
-		var result = await _controller.SendMessage(request, CancellationToken.None);
+		var result = await _controller.SendMessage(request, ct);
 
 		var ok = result.Should().BeOfType<OkObjectResult>().Subject;
 		var response = ok.Value.Should().BeOfType<ChatResponse>().Subject;
@@ -86,11 +89,12 @@ public class ChatControllerTests
 	[Fact]
 	public async Task SendMessage_ServiceThrows_Returns500()
 	{
-		_planningService.GetResponseAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+		var ct = TestContext.Current.CancellationToken;
+		_planningService.GetResponseAsync(Arg.Any<string>(), ct)
 			.ThrowsAsync(new Exception("boom"));
 		var request = new ChatRequest { Message = "hello" };
 
-		var result = await _controller.SendMessage(request, CancellationToken.None);
+		var result = await _controller.SendMessage(request, ct);
 
 		result.Should().BeOfType<ObjectResult>().Which.StatusCode.Should().Be(500);
 	}
@@ -100,9 +104,10 @@ public class ChatControllerTests
 	[Fact]
 	public async Task SwitchMode_InvalidMode_ReturnsBadRequest()
 	{
+		var ct = TestContext.Current.CancellationToken;
 		var request = new SwitchModeRequest { Mode = "NotAMode" };
 
-		var result = await _controller.SwitchMode(request, CancellationToken.None);
+		var result = await _controller.SwitchMode(request, ct);
 
 		result.Should().BeOfType<BadRequestObjectResult>();
 	}
@@ -110,9 +115,10 @@ public class ChatControllerTests
 	[Fact]
 	public async Task SwitchMode_ValidMode_ReturnsOkWithModeAndSessionId()
 	{
+		var ct = TestContext.Current.CancellationToken;
 		var request = new SwitchModeRequest { Mode = "DayWork" };
 
-		var result = await _controller.SwitchMode(request, CancellationToken.None);
+		var result = await _controller.SwitchMode(request, ct);
 
 		var ok = result.Should().BeOfType<OkObjectResult>().Subject;
 		ok.Value.Should().BeEquivalentTo(new { mode = "DayWork", sessionId = TestSessionId });
@@ -121,11 +127,12 @@ public class ChatControllerTests
 	[Fact]
 	public async Task SwitchMode_ServiceThrows_Returns500()
 	{
-		_planningService.SwitchModeAsync(Arg.Any<PlanningMode>(), Arg.Any<CancellationToken>())
+		var ct = TestContext.Current.CancellationToken;
+		_planningService.SwitchModeAsync(Arg.Any<PlanningMode>(), ct)
 			.ThrowsAsync(new Exception("boom"));
 		var request = new SwitchModeRequest { Mode = "GlobalPlanning" };
 
-		var result = await _controller.SwitchMode(request, CancellationToken.None);
+		var result = await _controller.SwitchMode(request, ct);
 
 		result.Should().BeOfType<ObjectResult>().Which.StatusCode.Should().Be(500);
 	}

@@ -7,7 +7,7 @@ applyTo: "OwnPlanner.Domain/**/*.cs,OwnPlanner.Application/**/*.cs,OwnPlanner.In
 ## Technology
 
 - Use `C#` for server-side changes.
-- Target `.NET 9` and align with the existing code style in the edited project.
+- Target `.NET 10` and align with the existing code style in the edited project.
 - Preserve nullability annotations and existing async APIs.
 
 ## Coding rules

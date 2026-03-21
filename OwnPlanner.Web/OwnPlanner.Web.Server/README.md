@@ -1,6 +1,6 @@
 # OwnPlanner Web Server
 
-ASP.NET Core 9 web server with React (Vite) frontend for the OwnPlanner application.
+ASP.NET Core 10 web server with React (Vite) frontend for the OwnPlanner application.
 
 ## Configuration
 

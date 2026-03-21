@@ -97,17 +97,17 @@ namespace OwnPlanner.Infrastructure.Adapters
 			return await _client!.ListToolsAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
 		}
 
-		public async Task<string> CallToolAsync(string toolName, Dictionary<string, object?>? arguments = null, CancellationToken cancellationToken = default)
+		public async Task<string> CallToolAsync(string toolName, IReadOnlyDictionary<string, object?>? arguments = null, CancellationToken cancellationToken = default)
 		{
 			Log.Debug("Calling MCP tool: {ToolName} with arguments: {Arguments}", toolName, JsonSerializer.Serialize(arguments));
 			await EnsureClientAsync(cancellationToken).ConfigureAwait(false);
 
 			var result = await _client!.CallToolAsync(
 				toolName,
-				arguments ?? [],
-				progress: null,
-				serializerOptions: null,
-				cancellationToken: cancellationToken).ConfigureAwait(false);
+				arguments,
+				null,
+				null,
+				cancellationToken).ConfigureAwait(false);
 
 			// Aggregate any text content into a single string
 			var sbText = new StringBuilder();

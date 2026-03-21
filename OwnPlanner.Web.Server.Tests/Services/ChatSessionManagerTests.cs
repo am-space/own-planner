@@ -26,11 +26,11 @@ public class ChatSessionManagerTests : IDisposable
 		return session;
 	}
 
-	private async Task AddSessionAsync(string sessionId, IPlanningService session)
+	private async Task AddSessionAsync(string sessionId, IPlanningService session, CancellationToken ct)
 	{
-		_factory.CreateAsync(sessionId, Arg.Any<string>(), Arg.Any<CancellationToken>())
+		_factory.CreateAsync(sessionId, Arg.Any<string>(), ct)
 			.Returns(session);
-		await _manager.GetOrCreateSessionAsync(sessionId, "user-1");
+		await _manager.GetOrCreateSessionAsync(sessionId, "user-1", ct);
 	}
 
 	// --- CleanupInactiveSessions ---
@@ -38,8 +38,9 @@ public class ChatSessionManagerTests : IDisposable
 	[Fact]
 	public async Task CleanupInactiveSessions_NoInactiveSessions_DoesNotRemoveAny()
 	{
+		var ct = TestContext.Current.CancellationToken;
 		var activeSession = CreateSession(DateTime.UtcNow);
-		await AddSessionAsync("active-session", activeSession);
+		await AddSessionAsync("active-session", activeSession, ct);
 
 		await _manager.CleanupInactiveSessionsAsync();
 
@@ -49,8 +50,9 @@ public class ChatSessionManagerTests : IDisposable
 	[Fact]
 	public async Task CleanupInactiveSessions_InactiveSession_IsRemoved()
 	{
+		var ct = TestContext.Current.CancellationToken;
 		var inactiveSession = CreateSession(DateTime.UtcNow.AddMinutes(-31));
-		await AddSessionAsync("inactive-session", inactiveSession);
+		await AddSessionAsync("inactive-session", inactiveSession, ct);
 
 		await _manager.CleanupInactiveSessionsAsync();
 
@@ -60,10 +62,11 @@ public class ChatSessionManagerTests : IDisposable
 	[Fact]
 	public async Task CleanupInactiveSessions_MixedSessions_OnlyInactiveIsRemoved()
 	{
+		var ct = TestContext.Current.CancellationToken;
 		var activeSession = CreateSession(DateTime.UtcNow);
 		var inactiveSession = CreateSession(DateTime.UtcNow.AddMinutes(-31));
-		await AddSessionAsync("active-session", activeSession);
-		await AddSessionAsync("inactive-session", inactiveSession);
+		await AddSessionAsync("active-session", activeSession, ct);
+		await AddSessionAsync("inactive-session", inactiveSession, ct);
 
 		await _manager.CleanupInactiveSessionsAsync();
 
@@ -73,8 +76,9 @@ public class ChatSessionManagerTests : IDisposable
 	[Fact]
 	public async Task CleanupInactiveSessions_InactiveSession_CallsDisposeAsync()
 	{
+		var ct = TestContext.Current.CancellationToken;
 		var inactiveSession = CreateSession(DateTime.UtcNow.AddMinutes(-31));
-		await AddSessionAsync("inactive-session", inactiveSession);
+		await AddSessionAsync("inactive-session", inactiveSession, ct);
 
 		await _manager.CleanupInactiveSessionsAsync();
 
@@ -84,8 +88,9 @@ public class ChatSessionManagerTests : IDisposable
 	[Fact]
 	public async Task CleanupInactiveSessions_ActiveSession_DoesNotCallDisposeAsync()
 	{
+		var ct = TestContext.Current.CancellationToken;
 		var activeSession = CreateSession(DateTime.UtcNow);
-		await AddSessionAsync("active-session", activeSession);
+		await AddSessionAsync("active-session", activeSession, ct);
 
 		await _manager.CleanupInactiveSessionsAsync();
 
@@ -95,8 +100,9 @@ public class ChatSessionManagerTests : IDisposable
 	[Fact]
 	public async Task CleanupInactiveSessions_SessionWithinTimeout_IsNotRemoved()
 	{
+		var ct = TestContext.Current.CancellationToken;
 		var recentSession = CreateSession(DateTime.UtcNow.AddMinutes(-29));
-		await AddSessionAsync("recent-session", recentSession);
+		await AddSessionAsync("recent-session", recentSession, ct);
 
 		await _manager.CleanupInactiveSessionsAsync();
 

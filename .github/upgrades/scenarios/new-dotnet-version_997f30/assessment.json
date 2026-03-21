@@ -1,0 +1,1312 @@
+{
+  "settings": {
+    "components": {
+      "code": true,
+      "binaries": false
+    },
+    "targetId": "net10.0",
+    "targetDisplayName": ".NETCoreApp,Version=v10.0"
+  },
+  "analysisStartTime": "2026-03-19T17:50:01.4908679Z",
+  "analysisEndTime": "2026-03-19T17:50:12.9478Z",
+  "privacyModeHelpUrl": "https://go.microsoft.com/fwlink/?linkid=2270980",
+  "stats": {
+    "summary": {
+      "projects": 11,
+      "issues": 6,
+      "incidents": 37,
+      "effort": 37
+    },
+    "charts": {
+      "severity": {
+        "Mandatory": 15,
+        "Optional": 0,
+        "Potential": 22,
+        "Information": 0
+      },
+      "category": {
+        "Project": 11,
+        "NuGet": 16,
+        "Api": 10
+      }
+    }
+  },
+  "projects": [
+    {
+      "path": "OwnPlanner.Application\\OwnPlanner.Application.csproj",
+      "startingProject": true,
+      "issues": 2,
+      "storyPoints": 2,
+      "properties": {
+        "appName": "OwnPlanner.Application",
+        "projectKind": "ClassLibrary",
+        "frameworks": [
+          "net9.0"
+        ],
+        "languages": [
+          "C#"
+        ],
+        "tools": [
+          "MSBuild"
+        ],
+        "isSdkStyle": true,
+        "numberOfFiles": 29,
+        "numberOfCodeFiles": 29,
+        "linesTotal": 1318,
+        "linesOfCode": 1318,
+        "totalApiScanned": 1663,
+        "minLinesOfCodeToChange": 0,
+        "maxLinesOfCodeToChange": 0
+      },
+      "ruleInstances": [
+        {
+          "incidentId": "096852ee-fa8b-41b3-a084-2d5f617f7f4b",
+          "ruleId": "NuGet.0002",
+          "projectPath": "OwnPlanner.Application\\OwnPlanner.Application.csproj",
+          "state": "Active",
+          "location": {
+            "snippetModel": {
+              "unrestricted": "Microsoft.Extensions.Logging.Abstractions, 10.0.0\n\nRecommendation:\n\nRemove Microsoft.Extensions.Logging.Abstractions, and replace with new package Microsoft.Extensions.Logging.Abstractions 10.0.5",
+              "protected": "Microsoft.Extensions.Logging.Abstractions, 10.0.0\n\nRecommendation:\n\nRemove Microsoft.Extensions.Logging.Abstractions, and replace with new package Microsoft.Extensions.Logging.Abstractions 10.0.5"
+            },
+            "kind": "File",
+            "path": "OwnPlanner.Application\\OwnPlanner.Application.csproj",
+            "snippet": "Microsoft.Extensions.Logging.Abstractions, 10.0.0\n\nRecommendation:\n\nRemove Microsoft.Extensions.Logging.Abstractions, and replace with new package Microsoft.Extensions.Logging.Abstractions 10.0.5",
+            "protectedSnippet": "Microsoft.Extensions.Logging.Abstractions, 10.0.0\n\nRecommendation:\n\nRemove Microsoft.Extensions.Logging.Abstractions, and replace with new package Microsoft.Extensions.Logging.Abstractions 10.0.5",
+            "label": "Microsoft.Extensions.Logging.Abstractions 10.0.0",
+            "properties": {
+              "PackageId": "Microsoft.Extensions.Logging.Abstractions",
+              "PackageVersion": "10.0.0",
+              "PackageNewVersion": "10.0.5",
+              "PackageReplacements": null
+            }
+          }
+        },
+        {
+          "incidentId": "dea5f95f-1da0-4349-99f1-c20e565c82bd",
+          "ruleId": "Project.0002",
+          "projectPath": "OwnPlanner.Application\\OwnPlanner.Application.csproj",
+          "state": "Active",
+          "location": {
+            "snippetModel": {
+              "unrestricted": "Current target framework: net9.0\nRecommended target framework: net10.0",
+              "protected": "Current target framework: net9.0\nRecommended target framework: net10.0"
+            },
+            "kind": "File",
+            "path": "OwnPlanner.Application\\OwnPlanner.Application.csproj",
+            "snippet": "Current target framework: net9.0\nRecommended target framework: net10.0",
+            "protectedSnippet": "Current target framework: net9.0\nRecommended target framework: net10.0",
+            "properties": {
+              "CurrentTargetFramework": "net9.0",
+              "RecommendedTargetFramework": "net10.0"
+            }
+          }
+        }
+      ],
+      "features": []
+    },
+    {
+      "path": "OwnPlanner.Application.Tests\\OwnPlanner.Application.Tests.csproj",
+      "startingProject": true,
+      "issues": 1,
+      "storyPoints": 1,
+      "properties": {
+        "appName": "OwnPlanner.Application.Tests",
+        "projectKind": "DotNetCoreApp",
+        "frameworks": [
+          "net9.0"
+        ],
+        "languages": [
+          "C#"
+        ],
+        "tools": [
+          "MSBuild"
+        ],
+        "isSdkStyle": true,
+        "numberOfFiles": 9,
+        "numberOfCodeFiles": 7,
+        "linesTotal": 3450,
+        "linesOfCode": 1667,
+        "totalApiScanned": 3556,
+        "minLinesOfCodeToChange": 0,
+        "maxLinesOfCodeToChange": 0
+      },
+      "ruleInstances": [
+        {
+          "incidentId": "97c3ebbc-6ec4-4e72-994b-5453ba967821",
+          "ruleId": "Project.0002",
+          "projectPath": "OwnPlanner.Application.Tests\\OwnPlanner.Application.Tests.csproj",
+          "state": "Active",
+          "location": {
+            "snippetModel": {
+              "unrestricted": "Current target framework: net9.0\nRecommended target framework: net10.0",
+              "protected": "Current target framework: net9.0\nRecommended target framework: net10.0"
+            },
+            "kind": "File",
+            "path": "OwnPlanner.Application.Tests\\OwnPlanner.Application.Tests.csproj",
+            "snippet": "Current target framework: net9.0\nRecommended target framework: net10.0",
+            "protectedSnippet": "Current target framework: net9.0\nRecommended target framework: net10.0",
+            "properties": {
+              "CurrentTargetFramework": "net9.0",
+              "RecommendedTargetFramework": "net10.0"
+            }
+          }
+        }
+      ],
+      "features": []
+    },
+    {
+      "path": "OwnPlanner.Console\\OwnPlanner.Console.csproj",
+      "startingProject": true,
+      "issues": 3,
+      "storyPoints": 5,
+      "properties": {
+        "appName": "OwnPlanner.Console",
+        "projectKind": "DotNetCoreApp",
+        "frameworks": [
+          "net9.0"
+        ],
+        "languages": [
+          "C#"
+        ],
+        "tools": [
+          "MSBuild"
+        ],
+        "isSdkStyle": true,
+        "numberOfFiles": 3,
+        "numberOfCodeFiles": 3,
+        "linesTotal": 578,
+        "linesOfCode": 578,
+        "totalApiScanned": 706,
+        "minLinesOfCodeToChange": 1,
+        "maxLinesOfCodeToChange": 1
+      },
+      "ruleInstances": [
+        {
+          "incidentId": "1e868c4e-fa32-4cca-af23-fdc6e1ccf433",
+          "ruleId": "NuGet.0002",
+          "projectPath": "OwnPlanner.Console\\OwnPlanner.Console.csproj",
+          "state": "Active",
+          "location": {
+            "snippetModel": {
+              "unrestricted": "Microsoft.Extensions.Configuration.Binder, 9.0.10\n\nRecommendation:\n\nRemove Microsoft.Extensions.Configuration.Binder, and replace with new package Microsoft.Extensions.Configuration.Binder 10.0.5",
+              "protected": "Microsoft.Extensions.Configuration.Binder, 9.0.10\n\nRecommendation:\n\nRemove Microsoft.Extensions.Configuration.Binder, and replace with new package Microsoft.Extensions.Configuration.Binder 10.0.5"
+            },
+            "kind": "File",
+            "path": "OwnPlanner.Console\\OwnPlanner.Console.csproj",
+            "snippet": "Microsoft.Extensions.Configuration.Binder, 9.0.10\n\nRecommendation:\n\nRemove Microsoft.Extensions.Configuration.Binder, and replace with new package Microsoft.Extensions.Configuration.Binder 10.0.5",
+            "protectedSnippet": "Microsoft.Extensions.Configuration.Binder, 9.0.10\n\nRecommendation:\n\nRemove Microsoft.Extensions.Configuration.Binder, and replace with new package Microsoft.Extensions.Configuration.Binder 10.0.5",
+            "label": "Microsoft.Extensions.Configuration.Binder 9.0.10",
+            "properties": {
+              "PackageId": "Microsoft.Extensions.Configuration.Binder",
+              "PackageVersion": "9.0.10",
+              "PackageNewVersion": "10.0.5",
+              "PackageReplacements": null
+            }
+          }
+        },
+        {
+          "incidentId": "3cb3d3ed-5c27-4852-8a42-acafa122f5dd",
+          "ruleId": "NuGet.0002",
+          "projectPath": "OwnPlanner.Console\\OwnPlanner.Console.csproj",
+          "state": "Active",
+          "location": {
+            "snippetModel": {
+              "unrestricted": "Microsoft.Extensions.Logging.Abstractions, 10.0.0\n\nRecommendation:\n\nRemove Microsoft.Extensions.Logging.Abstractions, and replace with new package Microsoft.Extensions.Logging.Abstractions 10.0.5",
+              "protected": "Microsoft.Extensions.Logging.Abstractions, 10.0.0\n\nRecommendation:\n\nRemove Microsoft.Extensions.Logging.Abstractions, and replace with new package Microsoft.Extensions.Logging.Abstractions 10.0.5"
+            },
+            "kind": "File",
+            "path": "OwnPlanner.Console\\OwnPlanner.Console.csproj",
+            "snippet": "Microsoft.Extensions.Logging.Abstractions, 10.0.0\n\nRecommendation:\n\nRemove Microsoft.Extensions.Logging.Abstractions, and replace with new package Microsoft.Extensions.Logging.Abstractions 10.0.5",
+            "protectedSnippet": "Microsoft.Extensions.Logging.Abstractions, 10.0.0\n\nRecommendation:\n\nRemove Microsoft.Extensions.Logging.Abstractions, and replace with new package Microsoft.Extensions.Logging.Abstractions 10.0.5",
+            "label": "Microsoft.Extensions.Logging.Abstractions 10.0.0",
+            "properties": {
+              "PackageId": "Microsoft.Extensions.Logging.Abstractions",
+              "PackageVersion": "10.0.0",
+              "PackageNewVersion": "10.0.5",
+              "PackageReplacements": null
+            }
+          }
+        },
+        {
+          "incidentId": "24821b3f-e83f-429a-8498-98cc0f364009",
+          "ruleId": "NuGet.0002",
+          "projectPath": "OwnPlanner.Console\\OwnPlanner.Console.csproj",
+          "state": "Active",
+          "location": {
+            "snippetModel": {
+              "unrestricted": "Microsoft.Extensions.Configuration.Json, 9.0.10\n\nRecommendation:\n\nRemove Microsoft.Extensions.Configuration.Json, and replace with new package Microsoft.Extensions.Configuration.Json 10.0.5",
+              "protected": "Microsoft.Extensions.Configuration.Json, 9.0.10\n\nRecommendation:\n\nRemove Microsoft.Extensions.Configuration.Json, and replace with new package Microsoft.Extensions.Configuration.Json 10.0.5"
+            },
+            "kind": "File",
+            "path": "OwnPlanner.Console\\OwnPlanner.Console.csproj",
+            "snippet": "Microsoft.Extensions.Configuration.Json, 9.0.10\n\nRecommendation:\n\nRemove Microsoft.Extensions.Configuration.Json, and replace with new package Microsoft.Extensions.Configuration.Json 10.0.5",
+            "protectedSnippet": "Microsoft.Extensions.Configuration.Json, 9.0.10\n\nRecommendation:\n\nRemove Microsoft.Extensions.Configuration.Json, and replace with new package Microsoft.Extensions.Configuration.Json 10.0.5",
+            "label": "Microsoft.Extensions.Configuration.Json 9.0.10",
+            "properties": {
+              "PackageId": "Microsoft.Extensions.Configuration.Json",
+              "PackageVersion": "9.0.10",
+              "PackageNewVersion": "10.0.5",
+              "PackageReplacements": null
+            }
+          }
+        },
+        {
+          "incidentId": "8a7355ed-524e-46c8-b5ad-98fb99de7c99",
+          "ruleId": "Project.0002",
+          "projectPath": "OwnPlanner.Console\\OwnPlanner.Console.csproj",
+          "state": "Active",
+          "location": {
+            "snippetModel": {
+              "unrestricted": "Current target framework: net9.0\nRecommended target framework: net10.0",
+              "protected": "Current target framework: net9.0\nRecommended target framework: net10.0"
+            },
+            "kind": "File",
+            "path": "OwnPlanner.Console\\OwnPlanner.Console.csproj",
+            "snippet": "Current target framework: net9.0\nRecommended target framework: net10.0",
+            "protectedSnippet": "Current target framework: net9.0\nRecommended target framework: net10.0",
+            "properties": {
+              "CurrentTargetFramework": "net9.0",
+              "RecommendedTargetFramework": "net10.0"
+            }
+          }
+        },
+        {
+          "incidentId": "ea71fba0-19aa-4cb2-9664-a92ad28f2d49",
+          "ruleId": "Api.0001",
+          "description": "Breaking change: DynamicallyAccessedMembers annotation removed from trim-unsafe configuration APIs ",
+          "projectPath": "OwnPlanner.Console\\OwnPlanner.Console.csproj",
+          "state": "Active",
+          "location": {
+            "snippetModel": {
+              "unrestricted": "var settings = configuration.Get\u003CAppSettings\u003E() ?? new AppSettings();",
+              "protected": "M:Microsoft.Extensions.Configuration.ConfigurationBinder.Get\u0060\u00601(Microsoft.Extensions.Configuration.IConfiguration)"
+            },
+            "kind": "File",
+            "path": "OwnPlanner.Console\\Program.cs",
+            "snippet": "var settings = configuration.Get\u003CAppSettings\u003E() ?? new AppSettings();",
+            "protectedSnippet": "M:Microsoft.Extensions.Configuration.ConfigurationBinder.Get\u0060\u00601(Microsoft.Extensions.Configuration.IConfiguration)",
+            "label": "M:Microsoft.Extensions.Configuration.ConfigurationBinder.Get\u0060\u00601(Microsoft.Extensions.Configuration.IConfiguration)",
+            "links": [
+              {
+                "title": "API documentation",
+                "url": "https://github.com/dotnet/docs/blob/main/docs/core/compatibility/extensions/10.0/dynamically-accessed-members-configuration.md",
+                "isCustom": false
+              }
+            ],
+            "line": 37,
+            "column": 4
+          }
+        }
+      ],
+      "features": []
+    },
+    {
+      "path": "OwnPlanner.Domain\\OwnPlanner.Domain.csproj",
+      "startingProject": true,
+      "issues": 1,
+      "storyPoints": 1,
+      "properties": {
+        "appName": "OwnPlanner.Domain",
+        "projectKind": "ClassLibrary",
+        "frameworks": [
+          "net9.0"
+        ],
+        "languages": [
+          "C#"
+        ],
+        "tools": [
+          "MSBuild"
+        ],
+        "isSdkStyle": true,
+        "numberOfFiles": 20,
+        "numberOfCodeFiles": 20,
+        "linesTotal": 748,
+        "linesOfCode": 748,
+        "totalApiScanned": 914,
+        "minLinesOfCodeToChange": 0,
+        "maxLinesOfCodeToChange": 0
+      },
+      "ruleInstances": [
+        {
+          "incidentId": "bd57c309-a6e5-4ed6-a50e-a80af06468fc",
+          "ruleId": "Project.0002",
+          "projectPath": "OwnPlanner.Domain\\OwnPlanner.Domain.csproj",
+          "state": "Active",
+          "location": {
+            "snippetModel": {
+              "unrestricted": "Current target framework: net9.0\nRecommended target framework: net10.0",
+              "protected": "Current target framework: net9.0\nRecommended target framework: net10.0"
+            },
+            "kind": "File",
+            "path": "OwnPlanner.Domain\\OwnPlanner.Domain.csproj",
+            "snippet": "Current target framework: net9.0\nRecommended target framework: net10.0",
+            "protectedSnippet": "Current target framework: net9.0\nRecommended target framework: net10.0",
+            "properties": {
+              "CurrentTargetFramework": "net9.0",
+              "RecommendedTargetFramework": "net10.0"
+            }
+          }
+        }
+      ],
+      "features": []
+    },
+    {
+      "path": "OwnPlanner.Domain.Tests\\OwnPlanner.Domain.Tests.csproj",
+      "startingProject": true,
+      "issues": 1,
+      "storyPoints": 1,
+      "properties": {
+        "appName": "OwnPlanner.Domain.Tests",
+        "projectKind": "DotNetCoreApp",
+        "frameworks": [
+          "net9.0"
+        ],
+        "languages": [
+          "C#"
+        ],
+        "tools": [
+          "MSBuild"
+        ],
+        "isSdkStyle": true,
+        "numberOfFiles": 5,
+        "numberOfCodeFiles": 3,
+        "linesTotal": 2212,
+        "linesOfCode": 429,
+        "totalApiScanned": 718,
+        "minLinesOfCodeToChange": 0,
+        "maxLinesOfCodeToChange": 0
+      },
+      "ruleInstances": [
+        {
+          "incidentId": "22a9d564-ed69-4d49-86a6-bb0dea0bb51e",
+          "ruleId": "Project.0002",
+          "projectPath": "OwnPlanner.Domain.Tests\\OwnPlanner.Domain.Tests.csproj",
+          "state": "Active",
+          "location": {
+            "snippetModel": {
+              "unrestricted": "Current target framework: net9.0\nRecommended target framework: net10.0",
+              "protected": "Current target framework: net9.0\nRecommended target framework: net10.0"
+            },
+            "kind": "File",
+            "path": "OwnPlanner.Domain.Tests\\OwnPlanner.Domain.Tests.csproj",
+            "snippet": "Current target framework: net9.0\nRecommended target framework: net10.0",
+            "protectedSnippet": "Current target framework: net9.0\nRecommended target framework: net10.0",
+            "properties": {
+              "CurrentTargetFramework": "net9.0",
+              "RecommendedTargetFramework": "net10.0"
+            }
+          }
+        }
+      ],
+      "features": []
+    },
+    {
+      "path": "OwnPlanner.Infrastructure\\OwnPlanner.Infrastructure.csproj",
+      "startingProject": true,
+      "issues": 2,
+      "storyPoints": 3,
+      "properties": {
+        "appName": "OwnPlanner.Infrastructure",
+        "projectKind": "ClassLibrary",
+        "frameworks": [
+          "net9.0"
+        ],
+        "languages": [
+          "C#"
+        ],
+        "tools": [
+          "MSBuild"
+        ],
+        "isSdkStyle": true,
+        "numberOfFiles": 33,
+        "numberOfCodeFiles": 33,
+        "linesTotal": 3720,
+        "linesOfCode": 3720,
+        "totalApiScanned": 5014,
+        "minLinesOfCodeToChange": 0,
+        "maxLinesOfCodeToChange": 0
+      },
+      "ruleInstances": [
+        {
+          "incidentId": "d517e897-0112-485a-a404-b8826c765de5",
+          "ruleId": "NuGet.0002",
+          "projectPath": "OwnPlanner.Infrastructure\\OwnPlanner.Infrastructure.csproj",
+          "state": "Active",
+          "location": {
+            "snippetModel": {
+              "unrestricted": "Microsoft.EntityFrameworkCore.Design, 9.0.10\n\nRecommendation:\n\nRemove Microsoft.EntityFrameworkCore.Design, and replace with new package Microsoft.EntityFrameworkCore.Design 10.0.5",
+              "protected": "Microsoft.EntityFrameworkCore.Design, 9.0.10\n\nRecommendation:\n\nRemove Microsoft.EntityFrameworkCore.Design, and replace with new package Microsoft.EntityFrameworkCore.Design 10.0.5"
+            },
+            "kind": "File",
+            "path": "OwnPlanner.Infrastructure\\OwnPlanner.Infrastructure.csproj",
+            "snippet": "Microsoft.EntityFrameworkCore.Design, 9.0.10\n\nRecommendation:\n\nRemove Microsoft.EntityFrameworkCore.Design, and replace with new package Microsoft.EntityFrameworkCore.Design 10.0.5",
+            "protectedSnippet": "Microsoft.EntityFrameworkCore.Design, 9.0.10\n\nRecommendation:\n\nRemove Microsoft.EntityFrameworkCore.Design, and replace with new package Microsoft.EntityFrameworkCore.Design 10.0.5",
+            "label": "Microsoft.EntityFrameworkCore.Design 9.0.10",
+            "properties": {
+              "PackageId": "Microsoft.EntityFrameworkCore.Design",
+              "PackageVersion": "9.0.10",
+              "PackageNewVersion": "10.0.5",
+              "PackageReplacements": null
+            }
+          }
+        },
+        {
+          "incidentId": "3e759afa-c04f-4a20-88f3-02400a441ca0",
+          "ruleId": "NuGet.0002",
+          "projectPath": "OwnPlanner.Infrastructure\\OwnPlanner.Infrastructure.csproj",
+          "state": "Active",
+          "location": {
+            "snippetModel": {
+              "unrestricted": "Microsoft.EntityFrameworkCore.Sqlite, 9.0.10\n\nRecommendation:\n\nRemove Microsoft.EntityFrameworkCore.Sqlite, and replace with new package Microsoft.EntityFrameworkCore.Sqlite 10.0.5",
+              "protected": "Microsoft.EntityFrameworkCore.Sqlite, 9.0.10\n\nRecommendation:\n\nRemove Microsoft.EntityFrameworkCore.Sqlite, and replace with new package Microsoft.EntityFrameworkCore.Sqlite 10.0.5"
+            },
+            "kind": "File",
+            "path": "OwnPlanner.Infrastructure\\OwnPlanner.Infrastructure.csproj",
+            "snippet": "Microsoft.EntityFrameworkCore.Sqlite, 9.0.10\n\nRecommendation:\n\nRemove Microsoft.EntityFrameworkCore.Sqlite, and replace with new package Microsoft.EntityFrameworkCore.Sqlite 10.0.5",
+            "protectedSnippet": "Microsoft.EntityFrameworkCore.Sqlite, 9.0.10\n\nRecommendation:\n\nRemove Microsoft.EntityFrameworkCore.Sqlite, and replace with new package Microsoft.EntityFrameworkCore.Sqlite 10.0.5",
+            "label": "Microsoft.EntityFrameworkCore.Sqlite 9.0.10",
+            "properties": {
+              "PackageId": "Microsoft.EntityFrameworkCore.Sqlite",
+              "PackageVersion": "9.0.10",
+              "PackageNewVersion": "10.0.5",
+              "PackageReplacements": null
+            }
+          }
+        },
+        {
+          "incidentId": "ae4745b8-5c9a-48e0-9fe3-992a050165f8",
+          "ruleId": "Project.0002",
+          "projectPath": "OwnPlanner.Infrastructure\\OwnPlanner.Infrastructure.csproj",
+          "state": "Active",
+          "location": {
+            "snippetModel": {
+              "unrestricted": "Current target framework: net9.0\nRecommended target framework: net10.0",
+              "protected": "Current target framework: net9.0\nRecommended target framework: net10.0"
+            },
+            "kind": "File",
+            "path": "OwnPlanner.Infrastructure\\OwnPlanner.Infrastructure.csproj",
+            "snippet": "Current target framework: net9.0\nRecommended target framework: net10.0",
+            "protectedSnippet": "Current target framework: net9.0\nRecommended target framework: net10.0",
+            "properties": {
+              "CurrentTargetFramework": "net9.0",
+              "RecommendedTargetFramework": "net10.0"
+            }
+          }
+        }
+      ],
+      "features": []
+    },
+    {
+      "path": "OwnPlanner.Infrastructure.Tests\\OwnPlanner.Infrastructure.Tests.csproj",
+      "startingProject": true,
+      "issues": 2,
+      "storyPoints": 3,
+      "properties": {
+        "appName": "OwnPlanner.Infrastructure.Tests",
+        "projectKind": "DotNetCoreApp",
+        "frameworks": [
+          "net9.0"
+        ],
+        "languages": [
+          "C#"
+        ],
+        "tools": [
+          "MSBuild"
+        ],
+        "isSdkStyle": true,
+        "numberOfFiles": 8,
+        "numberOfCodeFiles": 6,
+        "linesTotal": 2882,
+        "linesOfCode": 1099,
+        "totalApiScanned": 1421,
+        "minLinesOfCodeToChange": 0,
+        "maxLinesOfCodeToChange": 0
+      },
+      "ruleInstances": [
+        {
+          "incidentId": "94ba72b6-7fb0-49e8-9d3b-318df753a07e",
+          "ruleId": "NuGet.0002",
+          "projectPath": "OwnPlanner.Infrastructure.Tests\\OwnPlanner.Infrastructure.Tests.csproj",
+          "state": "Active",
+          "location": {
+            "snippetModel": {
+              "unrestricted": "Microsoft.Data.Sqlite, 9.0.0\n\nRecommendation:\n\nRemove Microsoft.Data.Sqlite, and replace with new package Microsoft.Data.Sqlite 10.0.5",
+              "protected": "Microsoft.Data.Sqlite, 9.0.0\n\nRecommendation:\n\nRemove Microsoft.Data.Sqlite, and replace with new package Microsoft.Data.Sqlite 10.0.5"
+            },
+            "kind": "File",
+            "path": "OwnPlanner.Infrastructure.Tests\\OwnPlanner.Infrastructure.Tests.csproj",
+            "snippet": "Microsoft.Data.Sqlite, 9.0.0\n\nRecommendation:\n\nRemove Microsoft.Data.Sqlite, and replace with new package Microsoft.Data.Sqlite 10.0.5",
+            "protectedSnippet": "Microsoft.Data.Sqlite, 9.0.0\n\nRecommendation:\n\nRemove Microsoft.Data.Sqlite, and replace with new package Microsoft.Data.Sqlite 10.0.5",
+            "label": "Microsoft.Data.Sqlite 9.0.0",
+            "properties": {
+              "PackageId": "Microsoft.Data.Sqlite",
+              "PackageVersion": "9.0.0",
+              "PackageNewVersion": "10.0.5",
+              "PackageReplacements": null
+            }
+          }
+        },
+        {
+          "incidentId": "c6fa3613-e185-4b14-9b75-8801e5d93e1b",
+          "ruleId": "NuGet.0002",
+          "projectPath": "OwnPlanner.Infrastructure.Tests\\OwnPlanner.Infrastructure.Tests.csproj",
+          "state": "Active",
+          "location": {
+            "snippetModel": {
+              "unrestricted": "Microsoft.EntityFrameworkCore.Sqlite, 9.0.10\n\nRecommendation:\n\nRemove Microsoft.EntityFrameworkCore.Sqlite, and replace with new package Microsoft.EntityFrameworkCore.Sqlite 10.0.5",
+              "protected": "Microsoft.EntityFrameworkCore.Sqlite, 9.0.10\n\nRecommendation:\n\nRemove Microsoft.EntityFrameworkCore.Sqlite, and replace with new package Microsoft.EntityFrameworkCore.Sqlite 10.0.5"
+            },
+            "kind": "File",
+            "path": "OwnPlanner.Infrastructure.Tests\\OwnPlanner.Infrastructure.Tests.csproj",
+            "snippet": "Microsoft.EntityFrameworkCore.Sqlite, 9.0.10\n\nRecommendation:\n\nRemove Microsoft.EntityFrameworkCore.Sqlite, and replace with new package Microsoft.EntityFrameworkCore.Sqlite 10.0.5",
+            "protectedSnippet": "Microsoft.EntityFrameworkCore.Sqlite, 9.0.10\n\nRecommendation:\n\nRemove Microsoft.EntityFrameworkCore.Sqlite, and replace with new package Microsoft.EntityFrameworkCore.Sqlite 10.0.5",
+            "label": "Microsoft.EntityFrameworkCore.Sqlite 9.0.10",
+            "properties": {
+              "PackageId": "Microsoft.EntityFrameworkCore.Sqlite",
+              "PackageVersion": "9.0.10",
+              "PackageNewVersion": "10.0.5",
+              "PackageReplacements": null
+            }
+          }
+        },
+        {
+          "incidentId": "3bab4859-4191-4483-8f31-2b73f7de843d",
+          "ruleId": "Project.0002",
+          "projectPath": "OwnPlanner.Infrastructure.Tests\\OwnPlanner.Infrastructure.Tests.csproj",
+          "state": "Active",
+          "location": {
+            "snippetModel": {
+              "unrestricted": "Current target framework: net9.0\nRecommended target framework: net10.0",
+              "protected": "Current target framework: net9.0\nRecommended target framework: net10.0"
+            },
+            "kind": "File",
+            "path": "OwnPlanner.Infrastructure.Tests\\OwnPlanner.Infrastructure.Tests.csproj",
+            "snippet": "Current target framework: net9.0\nRecommended target framework: net10.0",
+            "protectedSnippet": "Current target framework: net9.0\nRecommended target framework: net10.0",
+            "properties": {
+              "CurrentTargetFramework": "net9.0",
+              "RecommendedTargetFramework": "net10.0"
+            }
+          }
+        }
+      ],
+      "features": []
+    },
+    {
+      "path": "OwnPlanner.Mcp.StdioApp\\OwnPlanner.Mcp.StdioApp.csproj",
+      "startingProject": true,
+      "issues": 3,
+      "storyPoints": 5,
+      "properties": {
+        "appName": "OwnPlanner.Mcp.StdioApp",
+        "projectKind": "DotNetCoreApp",
+        "frameworks": [
+          "net9.0"
+        ],
+        "languages": [
+          "C#"
+        ],
+        "tools": [
+          "MSBuild"
+        ],
+        "isSdkStyle": true,
+        "numberOfFiles": 8,
+        "numberOfCodeFiles": 8,
+        "linesTotal": 1025,
+        "linesOfCode": 1025,
+        "totalApiScanned": 1020,
+        "minLinesOfCodeToChange": 0,
+        "maxLinesOfCodeToChange": 0
+      },
+      "ruleInstances": [
+        {
+          "incidentId": "6bd458d6-679a-4eba-9f72-39c9aa6ae841",
+          "ruleId": "NuGet.0002",
+          "projectPath": "OwnPlanner.Mcp.StdioApp\\OwnPlanner.Mcp.StdioApp.csproj",
+          "state": "Active",
+          "location": {
+            "snippetModel": {
+              "unrestricted": "Microsoft.Extensions.DependencyInjection, 9.0.10\n\nRecommendation:\n\nRemove Microsoft.Extensions.DependencyInjection, and replace with new package Microsoft.Extensions.DependencyInjection 10.0.5",
+              "protected": "Microsoft.Extensions.DependencyInjection, 9.0.10\n\nRecommendation:\n\nRemove Microsoft.Extensions.DependencyInjection, and replace with new package Microsoft.Extensions.DependencyInjection 10.0.5"
+            },
+            "kind": "File",
+            "path": "OwnPlanner.Mcp.StdioApp\\OwnPlanner.Mcp.StdioApp.csproj",
+            "snippet": "Microsoft.Extensions.DependencyInjection, 9.0.10\n\nRecommendation:\n\nRemove Microsoft.Extensions.DependencyInjection, and replace with new package Microsoft.Extensions.DependencyInjection 10.0.5",
+            "protectedSnippet": "Microsoft.Extensions.DependencyInjection, 9.0.10\n\nRecommendation:\n\nRemove Microsoft.Extensions.DependencyInjection, and replace with new package Microsoft.Extensions.DependencyInjection 10.0.5",
+            "label": "Microsoft.Extensions.DependencyInjection 9.0.10",
+            "properties": {
+              "PackageId": "Microsoft.Extensions.DependencyInjection",
+              "PackageVersion": "9.0.10",
+              "PackageNewVersion": "10.0.5",
+              "PackageReplacements": null
+            }
+          }
+        },
+        {
+          "incidentId": "1115a043-8a37-4bda-b682-69a36e36ddb9",
+          "ruleId": "NuGet.0002",
+          "projectPath": "OwnPlanner.Mcp.StdioApp\\OwnPlanner.Mcp.StdioApp.csproj",
+          "state": "Active",
+          "location": {
+            "snippetModel": {
+              "unrestricted": "Microsoft.Extensions.Hosting, 9.0.10\n\nRecommendation:\n\nRemove Microsoft.Extensions.Hosting, and replace with new package Microsoft.Extensions.Hosting 10.0.5",
+              "protected": "Microsoft.Extensions.Hosting, 9.0.10\n\nRecommendation:\n\nRemove Microsoft.Extensions.Hosting, and replace with new package Microsoft.Extensions.Hosting 10.0.5"
+            },
+            "kind": "File",
+            "path": "OwnPlanner.Mcp.StdioApp\\OwnPlanner.Mcp.StdioApp.csproj",
+            "snippet": "Microsoft.Extensions.Hosting, 9.0.10\n\nRecommendation:\n\nRemove Microsoft.Extensions.Hosting, and replace with new package Microsoft.Extensions.Hosting 10.0.5",
+            "protectedSnippet": "Microsoft.Extensions.Hosting, 9.0.10\n\nRecommendation:\n\nRemove Microsoft.Extensions.Hosting, and replace with new package Microsoft.Extensions.Hosting 10.0.5",
+            "label": "Microsoft.Extensions.Hosting 9.0.10",
+            "properties": {
+              "PackageId": "Microsoft.Extensions.Hosting",
+              "PackageVersion": "9.0.10",
+              "PackageNewVersion": "10.0.5",
+              "PackageReplacements": null
+            }
+          }
+        },
+        {
+          "incidentId": "c50fd3ac-1464-4bac-a28a-67e095ddd37b",
+          "ruleId": "NuGet.0002",
+          "projectPath": "OwnPlanner.Mcp.StdioApp\\OwnPlanner.Mcp.StdioApp.csproj",
+          "state": "Active",
+          "location": {
+            "snippetModel": {
+              "unrestricted": "Microsoft.Extensions.Logging.Console, 9.0.10\n\nRecommendation:\n\nRemove Microsoft.Extensions.Logging.Console, and replace with new package Microsoft.Extensions.Logging.Console 10.0.5",
+              "protected": "Microsoft.Extensions.Logging.Console, 9.0.10\n\nRecommendation:\n\nRemove Microsoft.Extensions.Logging.Console, and replace with new package Microsoft.Extensions.Logging.Console 10.0.5"
+            },
+            "kind": "File",
+            "path": "OwnPlanner.Mcp.StdioApp\\OwnPlanner.Mcp.StdioApp.csproj",
+            "snippet": "Microsoft.Extensions.Logging.Console, 9.0.10\n\nRecommendation:\n\nRemove Microsoft.Extensions.Logging.Console, and replace with new package Microsoft.Extensions.Logging.Console 10.0.5",
+            "protectedSnippet": "Microsoft.Extensions.Logging.Console, 9.0.10\n\nRecommendation:\n\nRemove Microsoft.Extensions.Logging.Console, and replace with new package Microsoft.Extensions.Logging.Console 10.0.5",
+            "label": "Microsoft.Extensions.Logging.Console 9.0.10",
+            "properties": {
+              "PackageId": "Microsoft.Extensions.Logging.Console",
+              "PackageVersion": "9.0.10",
+              "PackageNewVersion": "10.0.5",
+              "PackageReplacements": null
+            }
+          }
+        },
+        {
+          "incidentId": "77f9a5b0-4f20-49e6-a206-e410b41d9915",
+          "ruleId": "NuGet.0001",
+          "projectPath": "OwnPlanner.Mcp.StdioApp\\OwnPlanner.Mcp.StdioApp.csproj",
+          "state": "Active",
+          "location": {
+            "snippetModel": {
+              "unrestricted": "Microsoft.VisualStudio.Azure.Containers.Tools.Targets, 1.22.1\n\nRecommendation:\n\nNo supported version found",
+              "protected": "Microsoft.VisualStudio.Azure.Containers.Tools.Targets, 1.22.1\n\nRecommendation:\n\nNo supported version found"
+            },
+            "kind": "File",
+            "path": "OwnPlanner.Mcp.StdioApp\\OwnPlanner.Mcp.StdioApp.csproj",
+            "snippet": "Microsoft.VisualStudio.Azure.Containers.Tools.Targets, 1.22.1\n\nRecommendation:\n\nNo supported version found",
+            "protectedSnippet": "Microsoft.VisualStudio.Azure.Containers.Tools.Targets, 1.22.1\n\nRecommendation:\n\nNo supported version found",
+            "label": "Microsoft.VisualStudio.Azure.Containers.Tools.Targets 1.22.1",
+            "properties": {
+              "PackageId": "Microsoft.VisualStudio.Azure.Containers.Tools.Targets",
+              "PackageVersion": "1.22.1",
+              "PackageNewVersion": null,
+              "PackageReplacements": null
+            }
+          }
+        },
+        {
+          "incidentId": "9c41ba68-2694-4001-b316-3e1757a532f5",
+          "ruleId": "Project.0002",
+          "projectPath": "OwnPlanner.Mcp.StdioApp\\OwnPlanner.Mcp.StdioApp.csproj",
+          "state": "Active",
+          "location": {
+            "snippetModel": {
+              "unrestricted": "Current target framework: net9.0\nRecommended target framework: net10.0",
+              "protected": "Current target framework: net9.0\nRecommended target framework: net10.0"
+            },
+            "kind": "File",
+            "path": "OwnPlanner.Mcp.StdioApp\\OwnPlanner.Mcp.StdioApp.csproj",
+            "snippet": "Current target framework: net9.0\nRecommended target framework: net10.0",
+            "protectedSnippet": "Current target framework: net9.0\nRecommended target framework: net10.0",
+            "properties": {
+              "CurrentTargetFramework": "net9.0",
+              "RecommendedTargetFramework": "net10.0"
+            }
+          }
+        }
+      ],
+      "features": []
+    },
+    {
+      "path": "OwnPlanner.Web\\ownplanner.web.client\\ownplanner.web.client.esproj",
+      "startingProject": true,
+      "issues": 1,
+      "storyPoints": 1,
+      "properties": {
+        "appName": "ownplanner.web.client",
+        "projectKind": "DotNetCoreApp",
+        "frameworks": [
+          "net6.0"
+        ],
+        "languages": [
+          ""
+        ],
+        "tools": [
+          "MSBuild"
+        ],
+        "isSdkStyle": true,
+        "numberOfFiles": 0,
+        "numberOfCodeFiles": 0,
+        "linesTotal": 0,
+        "linesOfCode": 0,
+        "totalApiScanned": 0,
+        "minLinesOfCodeToChange": 0,
+        "maxLinesOfCodeToChange": 0
+      },
+      "ruleInstances": [
+        {
+          "incidentId": "507f4d5c-4c1c-429a-bd2f-2ce6d5846ce8",
+          "ruleId": "Project.0002",
+          "projectPath": "OwnPlanner.Web\\ownplanner.web.client\\ownplanner.web.client.esproj",
+          "state": "Active",
+          "location": {
+            "snippetModel": {
+              "unrestricted": "Current target framework: net6.0\nRecommended target framework: net10.0",
+              "protected": "Current target framework: net6.0\nRecommended target framework: net10.0"
+            },
+            "kind": "File",
+            "path": "OwnPlanner.Web\\ownplanner.web.client\\ownplanner.web.client.esproj",
+            "snippet": "Current target framework: net6.0\nRecommended target framework: net10.0",
+            "protectedSnippet": "Current target framework: net6.0\nRecommended target framework: net10.0",
+            "properties": {
+              "CurrentTargetFramework": "net6.0",
+              "RecommendedTargetFramework": "net10.0"
+            }
+          }
+        }
+      ],
+      "features": []
+    },
+    {
+      "path": "OwnPlanner.Web\\OwnPlanner.Web.Server\\OwnPlanner.Web.Server.csproj",
+      "startingProject": true,
+      "issues": 6,
+      "storyPoints": 14,
+      "properties": {
+        "appName": "OwnPlanner.Web.Server",
+        "projectKind": "AspNetCore",
+        "frameworks": [
+          "net9.0"
+        ],
+        "languages": [
+          "C#"
+        ],
+        "tools": [
+          "MSBuild"
+        ],
+        "isSdkStyle": true,
+        "numberOfFiles": 14,
+        "numberOfCodeFiles": 11,
+        "linesTotal": 1110,
+        "linesOfCode": 1031,
+        "totalApiScanned": 1292,
+        "minLinesOfCodeToChange": 9,
+        "maxLinesOfCodeToChange": 9
+      },
+      "ruleInstances": [
+        {
+          "incidentId": "c6baf133-daa8-47a1-bbfe-494d5d2638f7",
+          "ruleId": "NuGet.0002",
+          "projectPath": "OwnPlanner.Web\\OwnPlanner.Web.Server\\OwnPlanner.Web.Server.csproj",
+          "state": "Active",
+          "location": {
+            "snippetModel": {
+              "unrestricted": "Microsoft.AspNetCore.OpenApi, 9.0.11\n\nRecommendation:\n\nRemove Microsoft.AspNetCore.OpenApi, and replace with new package Microsoft.AspNetCore.OpenApi 10.0.5",
+              "protected": "Microsoft.AspNetCore.OpenApi, 9.0.11\n\nRecommendation:\n\nRemove Microsoft.AspNetCore.OpenApi, and replace with new package Microsoft.AspNetCore.OpenApi 10.0.5"
+            },
+            "kind": "File",
+            "path": "OwnPlanner.Web\\OwnPlanner.Web.Server\\OwnPlanner.Web.Server.csproj",
+            "snippet": "Microsoft.AspNetCore.OpenApi, 9.0.11\n\nRecommendation:\n\nRemove Microsoft.AspNetCore.OpenApi, and replace with new package Microsoft.AspNetCore.OpenApi 10.0.5",
+            "protectedSnippet": "Microsoft.AspNetCore.OpenApi, 9.0.11\n\nRecommendation:\n\nRemove Microsoft.AspNetCore.OpenApi, and replace with new package Microsoft.AspNetCore.OpenApi 10.0.5",
+            "label": "Microsoft.AspNetCore.OpenApi 9.0.11",
+            "properties": {
+              "PackageId": "Microsoft.AspNetCore.OpenApi",
+              "PackageVersion": "9.0.11",
+              "PackageNewVersion": "10.0.5",
+              "PackageReplacements": null
+            }
+          }
+        },
+        {
+          "incidentId": "ab5493d8-5492-4639-b109-8d0809254b5d",
+          "ruleId": "NuGet.0002",
+          "projectPath": "OwnPlanner.Web\\OwnPlanner.Web.Server\\OwnPlanner.Web.Server.csproj",
+          "state": "Active",
+          "location": {
+            "snippetModel": {
+              "unrestricted": "Microsoft.AspNetCore.SpaProxy, 9.*-*\n\nRecommendation:\n\nRemove Microsoft.AspNetCore.SpaProxy, and replace with new package Microsoft.AspNetCore.SpaProxy 10.0.5",
+              "protected": "Microsoft.AspNetCore.SpaProxy, 9.*-*\n\nRecommendation:\n\nRemove Microsoft.AspNetCore.SpaProxy, and replace with new package Microsoft.AspNetCore.SpaProxy 10.0.5"
+            },
+            "kind": "File",
+            "path": "OwnPlanner.Web\\OwnPlanner.Web.Server\\OwnPlanner.Web.Server.csproj",
+            "snippet": "Microsoft.AspNetCore.SpaProxy, 9.*-*\n\nRecommendation:\n\nRemove Microsoft.AspNetCore.SpaProxy, and replace with new package Microsoft.AspNetCore.SpaProxy 10.0.5",
+            "protectedSnippet": "Microsoft.AspNetCore.SpaProxy, 9.*-*\n\nRecommendation:\n\nRemove Microsoft.AspNetCore.SpaProxy, and replace with new package Microsoft.AspNetCore.SpaProxy 10.0.5",
+            "label": "Microsoft.AspNetCore.SpaProxy 9.*-*",
+            "properties": {
+              "PackageId": "Microsoft.AspNetCore.SpaProxy",
+              "PackageVersion": "9.*-*",
+              "PackageNewVersion": "10.0.5",
+              "PackageReplacements": null
+            }
+          }
+        },
+        {
+          "incidentId": "3efa0090-ac6a-4d78-91e9-75418e5e0954",
+          "ruleId": "NuGet.0002",
+          "projectPath": "OwnPlanner.Web\\OwnPlanner.Web.Server\\OwnPlanner.Web.Server.csproj",
+          "state": "Active",
+          "location": {
+            "snippetModel": {
+              "unrestricted": "Microsoft.EntityFrameworkCore.Sqlite, 9.0.*\n\nRecommendation:\n\nRemove Microsoft.EntityFrameworkCore.Sqlite, and replace with new package Microsoft.EntityFrameworkCore.Sqlite 10.0.5",
+              "protected": "Microsoft.EntityFrameworkCore.Sqlite, 9.0.*\n\nRecommendation:\n\nRemove Microsoft.EntityFrameworkCore.Sqlite, and replace with new package Microsoft.EntityFrameworkCore.Sqlite 10.0.5"
+            },
+            "kind": "File",
+            "path": "OwnPlanner.Web\\OwnPlanner.Web.Server\\OwnPlanner.Web.Server.csproj",
+            "snippet": "Microsoft.EntityFrameworkCore.Sqlite, 9.0.*\n\nRecommendation:\n\nRemove Microsoft.EntityFrameworkCore.Sqlite, and replace with new package Microsoft.EntityFrameworkCore.Sqlite 10.0.5",
+            "protectedSnippet": "Microsoft.EntityFrameworkCore.Sqlite, 9.0.*\n\nRecommendation:\n\nRemove Microsoft.EntityFrameworkCore.Sqlite, and replace with new package Microsoft.EntityFrameworkCore.Sqlite 10.0.5",
+            "label": "Microsoft.EntityFrameworkCore.Sqlite 9.0.*",
+            "properties": {
+              "PackageId": "Microsoft.EntityFrameworkCore.Sqlite",
+              "PackageVersion": "9.0.*",
+              "PackageNewVersion": "10.0.5",
+              "PackageReplacements": null
+            }
+          }
+        },
+        {
+          "incidentId": "67335f5e-e5c6-45b9-9ff4-ac36ed1fecb2",
+          "ruleId": "NuGet.0001",
+          "projectPath": "OwnPlanner.Web\\OwnPlanner.Web.Server\\OwnPlanner.Web.Server.csproj",
+          "state": "Active",
+          "location": {
+            "snippetModel": {
+              "unrestricted": "Microsoft.VisualStudio.Azure.Containers.Tools.Targets, 1.23.0\n\nRecommendation:\n\nNo supported version found",
+              "protected": "Microsoft.VisualStudio.Azure.Containers.Tools.Targets, 1.23.0\n\nRecommendation:\n\nNo supported version found"
+            },
+            "kind": "File",
+            "path": "OwnPlanner.Web\\OwnPlanner.Web.Server\\OwnPlanner.Web.Server.csproj",
+            "snippet": "Microsoft.VisualStudio.Azure.Containers.Tools.Targets, 1.23.0\n\nRecommendation:\n\nNo supported version found",
+            "protectedSnippet": "Microsoft.VisualStudio.Azure.Containers.Tools.Targets, 1.23.0\n\nRecommendation:\n\nNo supported version found",
+            "label": "Microsoft.VisualStudio.Azure.Containers.Tools.Targets 1.23.0",
+            "properties": {
+              "PackageId": "Microsoft.VisualStudio.Azure.Containers.Tools.Targets",
+              "PackageVersion": "1.23.0",
+              "PackageNewVersion": null,
+              "PackageReplacements": null
+            }
+          }
+        },
+        {
+          "incidentId": "72112d18-5069-49a6-a105-66fb89d45b98",
+          "ruleId": "Project.0002",
+          "projectPath": "OwnPlanner.Web\\OwnPlanner.Web.Server\\OwnPlanner.Web.Server.csproj",
+          "state": "Active",
+          "location": {
+            "snippetModel": {
+              "unrestricted": "Current target framework: net9.0\nRecommended target framework: net10.0",
+              "protected": "Current target framework: net9.0\nRecommended target framework: net10.0"
+            },
+            "kind": "File",
+            "path": "OwnPlanner.Web\\OwnPlanner.Web.Server\\OwnPlanner.Web.Server.csproj",
+            "snippet": "Current target framework: net9.0\nRecommended target framework: net10.0",
+            "protectedSnippet": "Current target framework: net9.0\nRecommended target framework: net10.0",
+            "properties": {
+              "CurrentTargetFramework": "net9.0",
+              "RecommendedTargetFramework": "net10.0"
+            }
+          }
+        },
+        {
+          "incidentId": "22f906a3-d9c7-4245-9cdf-16713fdacf4a",
+          "ruleId": "Api.0003",
+          "description": "Breaking change: Exception diagnostics are suppressed when IExceptionHandler.TryHandleAsync returns true ",
+          "projectPath": "OwnPlanner.Web\\OwnPlanner.Web.Server\\OwnPlanner.Web.Server.csproj",
+          "state": "Active",
+          "location": {
+            "snippetModel": {
+              "unrestricted": "IExceptionHandler",
+              "protected": "T:Microsoft.AspNetCore.Diagnostics.IExceptionHandler"
+            },
+            "kind": "File",
+            "path": "OwnPlanner.Web\\OwnPlanner.Web.Server\\Middleware\\GlobalExceptionHandler.cs",
+            "snippet": "IExceptionHandler",
+            "protectedSnippet": "T:Microsoft.AspNetCore.Diagnostics.IExceptionHandler",
+            "label": "T:Microsoft.AspNetCore.Diagnostics.IExceptionHandler",
+            "links": [
+              {
+                "title": "API documentation",
+                "url": "https://github.com/dotnet/docs/blob/main/docs/core/compatibility/aspnet-core/10/exception-handler-diagnostics-suppressed.md",
+                "isCustom": false
+              }
+            ],
+            "line": 10,
+            "column": 39
+          }
+        },
+        {
+          "incidentId": "eb7a7fb3-5f05-4ff1-88b1-be45d1300a87",
+          "ruleId": "Api.0002",
+          "description": "Breaking change: New TimeSpan.From*() overloads that take integers ",
+          "projectPath": "OwnPlanner.Web\\OwnPlanner.Web.Server\\OwnPlanner.Web.Server.csproj",
+          "state": "Active",
+          "location": {
+            "snippetModel": {
+              "unrestricted": "session.DisposeAsync().AsTask().Wait(TimeSpan.FromSeconds(5));",
+              "protected": "M:System.TimeSpan.FromSeconds(System.Int64)"
+            },
+            "kind": "File",
+            "path": "OwnPlanner.Web\\OwnPlanner.Web.Server\\Services\\ChatSessionManager.cs",
+            "snippet": "session.DisposeAsync().AsTask().Wait(TimeSpan.FromSeconds(5));",
+            "protectedSnippet": "M:System.TimeSpan.FromSeconds(System.Int64)",
+            "label": "M:System.TimeSpan.FromSeconds(System.Int64)",
+            "links": [
+              {
+                "title": "API documentation",
+                "url": "https://github.com/dotnet/docs/blob/main/docs/core/compatibility/core-libraries/9.0/timespan-from-overloads.md",
+                "isCustom": false
+              }
+            ],
+            "line": 148,
+            "column": 5
+          }
+        },
+        {
+          "incidentId": "4dfa8da6-239f-4824-88bd-b76ef5c5d066",
+          "ruleId": "Api.0002",
+          "description": "Breaking change: New TimeSpan.From*() overloads that take integers ",
+          "projectPath": "OwnPlanner.Web\\OwnPlanner.Web.Server\\OwnPlanner.Web.Server.csproj",
+          "state": "Active",
+          "location": {
+            "snippetModel": {
+              "unrestricted": "_cleanupTimer = new Timer(_ =\u003E _ = CleanupInactiveSessionsAsync(), null, TimeSpan.FromMinutes(5), TimeSpan.FromMinutes(5));",
+              "protected": "M:System.TimeSpan.FromMinutes(System.Int64)"
+            },
+            "kind": "File",
+            "path": "OwnPlanner.Web\\OwnPlanner.Web.Server\\Services\\ChatSessionManager.cs",
+            "snippet": "_cleanupTimer = new Timer(_ =\u003E _ = CleanupInactiveSessionsAsync(), null, TimeSpan.FromMinutes(5), TimeSpan.FromMinutes(5));",
+            "protectedSnippet": "M:System.TimeSpan.FromMinutes(System.Int64)",
+            "label": "M:System.TimeSpan.FromMinutes(System.Int64)",
+            "links": [
+              {
+                "title": "API documentation",
+                "url": "https://github.com/dotnet/docs/blob/main/docs/core/compatibility/core-libraries/9.0/timespan-from-overloads.md",
+                "isCustom": false
+              }
+            ],
+            "line": 25,
+            "column": 3
+          }
+        },
+        {
+          "incidentId": "fa6dbf38-11e0-433b-95fb-b7431f3da904",
+          "ruleId": "Api.0002",
+          "description": "Breaking change: New TimeSpan.From*() overloads that take integers ",
+          "projectPath": "OwnPlanner.Web\\OwnPlanner.Web.Server\\OwnPlanner.Web.Server.csproj",
+          "state": "Active",
+          "location": {
+            "snippetModel": {
+              "unrestricted": "_cleanupTimer = new Timer(_ =\u003E _ = CleanupInactiveSessionsAsync(), null, TimeSpan.FromMinutes(5), TimeSpan.FromMinutes(5));",
+              "protected": "M:System.TimeSpan.FromMinutes(System.Int64)"
+            },
+            "kind": "File",
+            "path": "OwnPlanner.Web\\OwnPlanner.Web.Server\\Services\\ChatSessionManager.cs",
+            "snippet": "_cleanupTimer = new Timer(_ =\u003E _ = CleanupInactiveSessionsAsync(), null, TimeSpan.FromMinutes(5), TimeSpan.FromMinutes(5));",
+            "protectedSnippet": "M:System.TimeSpan.FromMinutes(System.Int64)",
+            "label": "M:System.TimeSpan.FromMinutes(System.Int64)",
+            "links": [
+              {
+                "title": "API documentation",
+                "url": "https://github.com/dotnet/docs/blob/main/docs/core/compatibility/core-libraries/9.0/timespan-from-overloads.md",
+                "isCustom": false
+              }
+            ],
+            "line": 25,
+            "column": 3
+          }
+        },
+        {
+          "incidentId": "18e44384-b527-477c-8701-e3679e48ed09",
+          "ruleId": "Api.0002",
+          "description": "Breaking change: New TimeSpan.From*() overloads that take integers ",
+          "projectPath": "OwnPlanner.Web\\OwnPlanner.Web.Server\\OwnPlanner.Web.Server.csproj",
+          "state": "Active",
+          "location": {
+            "snippetModel": {
+              "unrestricted": "_cleanupTimer = new Timer(_ =\u003E _ = CleanupInactiveSessionsAsync(), null, TimeSpan.FromMinutes(5), TimeSpan.FromMinutes(5));",
+              "protected": "M:System.TimeSpan.FromMinutes(System.Int64)"
+            },
+            "kind": "File",
+            "path": "OwnPlanner.Web\\OwnPlanner.Web.Server\\Services\\ChatSessionManager.cs",
+            "snippet": "_cleanupTimer = new Timer(_ =\u003E _ = CleanupInactiveSessionsAsync(), null, TimeSpan.FromMinutes(5), TimeSpan.FromMinutes(5));",
+            "protectedSnippet": "M:System.TimeSpan.FromMinutes(System.Int64)",
+            "label": "M:System.TimeSpan.FromMinutes(System.Int64)",
+            "links": [
+              {
+                "title": "API documentation",
+                "url": "https://github.com/dotnet/docs/blob/main/docs/core/compatibility/core-libraries/9.0/timespan-from-overloads.md",
+                "isCustom": false
+              }
+            ],
+            "line": 25,
+            "column": 3
+          }
+        },
+        {
+          "incidentId": "554a1b2d-d00e-4027-b8ee-88027768d41a",
+          "ruleId": "Api.0002",
+          "description": "Breaking change: New TimeSpan.From*() overloads that take integers ",
+          "projectPath": "OwnPlanner.Web\\OwnPlanner.Web.Server\\OwnPlanner.Web.Server.csproj",
+          "state": "Active",
+          "location": {
+            "snippetModel": {
+              "unrestricted": "_cleanupTimer = new Timer(_ =\u003E _ = CleanupInactiveSessionsAsync(), null, TimeSpan.FromMinutes(5), TimeSpan.FromMinutes(5));",
+              "protected": "M:System.TimeSpan.FromMinutes(System.Int64)"
+            },
+            "kind": "File",
+            "path": "OwnPlanner.Web\\OwnPlanner.Web.Server\\Services\\ChatSessionManager.cs",
+            "snippet": "_cleanupTimer = new Timer(_ =\u003E _ = CleanupInactiveSessionsAsync(), null, TimeSpan.FromMinutes(5), TimeSpan.FromMinutes(5));",
+            "protectedSnippet": "M:System.TimeSpan.FromMinutes(System.Int64)",
+            "label": "M:System.TimeSpan.FromMinutes(System.Int64)",
+            "links": [
+              {
+                "title": "API documentation",
+                "url": "https://github.com/dotnet/docs/blob/main/docs/core/compatibility/core-libraries/9.0/timespan-from-overloads.md",
+                "isCustom": false
+              }
+            ],
+            "line": 25,
+            "column": 3
+          }
+        },
+        {
+          "incidentId": "65ba4b44-ecda-425e-956b-49e2a8b9ee9d",
+          "ruleId": "Api.0003",
+          "description": "Breaking change: Exception diagnostics are suppressed when IExceptionHandler.TryHandleAsync returns true ",
+          "projectPath": "OwnPlanner.Web\\OwnPlanner.Web.Server\\OwnPlanner.Web.Server.csproj",
+          "state": "Active",
+          "location": {
+            "snippetModel": {
+              "unrestricted": "app.UseExceptionHandler();",
+              "protected": "M:Microsoft.AspNetCore.Builder.ExceptionHandlerExtensions.UseExceptionHandler(Microsoft.AspNetCore.Builder.IApplicationBuilder)"
+            },
+            "kind": "File",
+            "path": "OwnPlanner.Web\\OwnPlanner.Web.Server\\Program.cs",
+            "snippet": "app.UseExceptionHandler();",
+            "protectedSnippet": "M:Microsoft.AspNetCore.Builder.ExceptionHandlerExtensions.UseExceptionHandler(Microsoft.AspNetCore.Builder.IApplicationBuilder)",
+            "label": "M:Microsoft.AspNetCore.Builder.ExceptionHandlerExtensions.UseExceptionHandler(Microsoft.AspNetCore.Builder.IApplicationBuilder)",
+            "links": [
+              {
+                "title": "API documentation",
+                "url": "https://github.com/dotnet/docs/blob/main/docs/core/compatibility/aspnet-core/10/exception-handler-diagnostics-suppressed.md",
+                "isCustom": false
+              }
+            ],
+            "line": 123,
+            "column": 4
+          }
+        },
+        {
+          "incidentId": "864a6c23-783d-4183-8318-e85e1b437e38",
+          "ruleId": "Api.0002",
+          "description": "Breaking change: New TimeSpan.From*() overloads that take integers ",
+          "projectPath": "OwnPlanner.Web\\OwnPlanner.Web.Server\\OwnPlanner.Web.Server.csproj",
+          "state": "Active",
+          "location": {
+            "snippetModel": {
+              "unrestricted": "options.ExpireTimeSpan = TimeSpan.FromDays(7);",
+              "protected": "M:System.TimeSpan.FromDays(System.Int32)"
+            },
+            "kind": "File",
+            "path": "OwnPlanner.Web\\OwnPlanner.Web.Server\\Program.cs",
+            "snippet": "options.ExpireTimeSpan = TimeSpan.FromDays(7);",
+            "protectedSnippet": "M:System.TimeSpan.FromDays(System.Int32)",
+            "label": "M:System.TimeSpan.FromDays(System.Int32)",
+            "links": [
+              {
+                "title": "API documentation",
+                "url": "https://github.com/dotnet/docs/blob/main/docs/core/compatibility/core-libraries/9.0/timespan-from-overloads.md",
+                "isCustom": false
+              }
+            ],
+            "line": 72,
+            "column": 6
+          }
+        },
+        {
+          "incidentId": "5ad34c19-4cf5-4daf-89e5-83d61108131d",
+          "ruleId": "Api.0001",
+          "description": "Breaking change: DynamicallyAccessedMembers annotation removed from trim-unsafe configuration APIs ",
+          "projectPath": "OwnPlanner.Web\\OwnPlanner.Web.Server\\OwnPlanner.Web.Server.csproj",
+          "state": "Active",
+          "location": {
+            "snippetModel": {
+              "unrestricted": "builder.Services.Configure\u003CChatSettings\u003E(builder.Configuration.GetSection(\u0022Chat\u0022));",
+              "protected": "M:Microsoft.Extensions.DependencyInjection.OptionsConfigurationServiceCollectionExtensions.Configure\u0060\u00601(Microsoft.Extensions.DependencyInjection.IServiceCollection,Microsoft.Extensions.Configuration.IConfiguration)"
+            },
+            "kind": "File",
+            "path": "OwnPlanner.Web\\OwnPlanner.Web.Server\\Program.cs",
+            "snippet": "builder.Services.Configure\u003CChatSettings\u003E(builder.Configuration.GetSection(\u0022Chat\u0022));",
+            "protectedSnippet": "M:Microsoft.Extensions.DependencyInjection.OptionsConfigurationServiceCollectionExtensions.Configure\u0060\u00601(Microsoft.Extensions.DependencyInjection.IServiceCollection,Microsoft.Extensions.Configuration.IConfiguration)",
+            "label": "M:Microsoft.Extensions.DependencyInjection.OptionsConfigurationServiceCollectionExtensions.Configure\u0060\u00601(Microsoft.Extensions.DependencyInjection.IServiceCollection,Microsoft.Extensions.Configuration.IConfiguration)",
+            "links": [
+              {
+                "title": "API documentation",
+                "url": "https://github.com/dotnet/docs/blob/main/docs/core/compatibility/extensions/10.0/dynamically-accessed-members-configuration.md",
+                "isCustom": false
+              }
+            ],
+            "line": 57,
+            "column": 4
+          }
+        }
+      ],
+      "features": []
+    },
+    {
+      "path": "OwnPlanner.Web.Server.Tests\\OwnPlanner.Web.Server.Tests.csproj",
+      "startingProject": true,
+      "issues": 1,
+      "storyPoints": 1,
+      "properties": {
+        "appName": "OwnPlanner.Web.Server.Tests",
+        "projectKind": "DotNetCoreApp",
+        "frameworks": [
+          "net9.0"
+        ],
+        "languages": [
+          "C#"
+        ],
+        "tools": [
+          "MSBuild"
+        ],
+        "isSdkStyle": true,
+        "numberOfFiles": 4,
+        "numberOfCodeFiles": 2,
+        "linesTotal": 2093,
+        "linesOfCode": 310,
+        "totalApiScanned": 529,
+        "minLinesOfCodeToChange": 0,
+        "maxLinesOfCodeToChange": 0
+      },
+      "ruleInstances": [
+        {
+          "incidentId": "d389d5f5-351a-4d08-b439-38746ea8072d",
+          "ruleId": "Project.0002",
+          "projectPath": "OwnPlanner.Web.Server.Tests\\OwnPlanner.Web.Server.Tests.csproj",
+          "state": "Active",
+          "location": {
+            "snippetModel": {
+              "unrestricted": "Current target framework: net9.0\nRecommended target framework: net10.0",
+              "protected": "Current target framework: net9.0\nRecommended target framework: net10.0"
+            },
+            "kind": "File",
+            "path": "OwnPlanner.Web.Server.Tests\\OwnPlanner.Web.Server.Tests.csproj",
+            "snippet": "Current target framework: net9.0\nRecommended target framework: net10.0",
+            "protectedSnippet": "Current target framework: net9.0\nRecommended target framework: net10.0",
+            "properties": {
+              "CurrentTargetFramework": "net9.0",
+              "RecommendedTargetFramework": "net10.0"
+            }
+          }
+        }
+      ],
+      "features": []
+    }
+  ],
+  "rules": {
+    "Project.0002": {
+      "id": "Project.0002",
+      "isFeature": false,
+      "description": "Project\u0027s target framework(s) needs to be changed to the new target framework that you selected for this upgrade.\n\nDuring upgrade target framework will be adjusted to corresponding platform when applicable. In some cases project would result in multiple target frameworks after the upgrade if it was using features that now have their own platforms in modern .NET frameworks (windows, iOS, Android etc).",
+      "label": "Project\u0027s target framework(s) needs to be changed",
+      "severity": "Mandatory",
+      "effort": 1,
+      "links": [
+        {
+          "title": "Overview of porting from .NET Framework to .NET",
+          "url": "https://go.microsoft.com/fwlink/?linkid=2265227",
+          "isCustom": false
+        },
+        {
+          "title": ".NET project SDKs",
+          "url": "https://go.microsoft.com/fwlink/?linkid=2265226",
+          "isCustom": false
+        }
+      ]
+    },
+    "NuGet.0002": {
+      "id": "NuGet.0002",
+      "isFeature": false,
+      "description": "NuGet package upgrade is recommended for selected target framework.\n\nStandard .NET packages are recommended to have versions matching version of .NET that project targets.\n\nSome other packages also are known to work better for selected target frameworks.",
+      "label": "NuGet package upgrade is recommended",
+      "severity": "Potential",
+      "effort": 1,
+      "links": [
+        {
+          "url": "https://go.microsoft.com/fwlink/?linkid=2262530",
+          "isCustom": false
+        }
+      ]
+    },
+    "NuGet.0001": {
+      "id": "NuGet.0001",
+      "isFeature": false,
+      "description": "NuGet package is incompatible with selected target framework.\n\nPackage needs to be upgraded to a version supporting selected project target framework. If there no new package versions supporting new target framework, different package needs to be used and all code needs to be upgraded to new API.",
+      "label": "NuGet package is incompatible",
+      "severity": "Mandatory",
+      "effort": 1,
+      "links": [
+        {
+          "url": "https://go.microsoft.com/fwlink/?linkid=2262529",
+          "isCustom": false
+        }
+      ]
+    },
+    "Api.0001": {
+      "id": "Api.0001",
+      "isFeature": false,
+      "description": "API is binary incompatible for selected .NET version: affects existing binaries, often requiring recompilation, because the API has changed in a way that prevents older binaries from loading or executing.",
+      "label": "Binary incompatible for selected .NET version",
+      "severity": "Mandatory",
+      "effort": 1,
+      "links": [
+        {
+          "title": "Breaking changes in .NET",
+          "url": "https://go.microsoft.com/fwlink/?linkid=2262679",
+          "isCustom": false
+        }
+      ]
+    },
+    "Api.0003": {
+      "id": "Api.0003",
+      "isFeature": false,
+      "description": "API has a behavioral change in selected .NET version: code and binaries may behave differently at runtime without needing recompilation, but the new behavior might be undesirable and require updates.",
+      "label": "Behavioral change in selected .NET version",
+      "severity": "Potential",
+      "effort": 1
+    },
+    "Api.0002": {
+      "id": "Api.0002",
+      "isFeature": false,
+      "description": "API is source incompatible for selected .NET version: requires code changes to compile successfully when targeting a new version, such as removing obsolete APIs or changing method signatures.",
+      "label": "Source incompatible for selected .NET version",
+      "severity": "Potential",
+      "effort": 1,
+      "links": [
+        {
+          "title": "Breaking changes in .NET",
+          "url": "https://go.microsoft.com/fwlink/?linkid=2262679",
+          "isCustom": false
+        }
+      ]
+    }
+  }
+}
