@@ -139,6 +139,17 @@ public class AuthController : ControllerBase
 		return Ok(new { isAuthenticated = false });
 	}
 
+	/// <summary>
+	/// Gets public authentication-related application statistics.
+	/// </summary>
+	[HttpGet("stats")]
+	[AllowAnonymous]
+	public async Task<IActionResult> GetStats(CancellationToken cancellationToken)
+	{
+		var registeredUserCount = await _authService.GetRegisteredUserCountAsync(cancellationToken);
+		return Ok(new { registeredUserCount });
+	}
+
 	private async Task SignInUserAsync(UserResponse user)
 	{
 		// Generate a unique session ID for this login

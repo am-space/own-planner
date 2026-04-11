@@ -15,9 +15,11 @@ import {
   Alert,
   AlertTitle,
 } from '@mui/material';
+import { useEffect, useState } from 'react';
 import CloseIcon from '@mui/icons-material/Close';
 import GitHubIcon from '@mui/icons-material/GitHub';
 import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';
+import { apiService } from '../services/api';
 
 interface AboutDialogProps {
   open: boolean;
@@ -27,6 +29,46 @@ interface AboutDialogProps {
 const appVersion = import.meta.env.VITE_APP_VERSION || 'Local-Dev';
 
 export default function AboutDialog({ open, onClose }: AboutDialogProps) {
+  const [registeredUserCount, setRegisteredUserCount] = useState<number | null>(null);
+  const [isLoadingStats, setIsLoadingStats] = useState(false);
+
+  useEffect(() => {
+    if (!open || registeredUserCount !== null) {
+      return;
+    }
+
+    let isCancelled = false;
+
+    const loadStats = async () => {
+      setIsLoadingStats(true);
+
+      try {
+        const stats = await apiService.getAuthStats();
+        if (!isCancelled) {
+          setRegisteredUserCount(stats.registeredUserCount);
+        }
+      } catch {
+        if (!isCancelled) {
+          setRegisteredUserCount(null);
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsLoadingStats(false);
+        }
+      }
+    };
+
+    loadStats();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [open, registeredUserCount]);
+
+  const registeredUsersText = isLoadingStats
+    ? 'Loading…'
+    : registeredUserCount?.toLocaleString() ?? '—';
+
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -48,7 +90,7 @@ export default function AboutDialog({ open, onClose }: AboutDialogProps) {
               OwnPlanner
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Version {appVersion}
+              Version {appVersion} · Registered users: {registeredUsersText}
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
               An AI-powered personal planning assistant that helps you manage tasks,

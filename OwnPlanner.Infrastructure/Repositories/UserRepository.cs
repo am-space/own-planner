@@ -36,6 +36,11 @@ public class UserRepository : IUserRepository
 			.AnyAsync(u => u.Email == normalizedEmail, cancellationToken);
 	}
 
+	public async Task<int> GetRegisteredUserCountAsync(CancellationToken cancellationToken = default)
+	{
+		return await _context.Users.CountAsync(cancellationToken);
+	}
+
 	public async Task<User> AddAsync(User user, CancellationToken cancellationToken = default)
 	{
 		_context.Users.Add(user);

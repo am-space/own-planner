@@ -120,6 +120,11 @@ public class AuthService : IAuthService
 		return user != null ? MapToUserResponse(user) : null;
 	}
 
+	public async Task<int> GetRegisteredUserCountAsync(CancellationToken cancellationToken = default)
+	{
+		return await _userRepository.GetRegisteredUserCountAsync(cancellationToken);
+	}
+
 	public string HashPassword(string password)
 	{
 		// Using BCrypt with work factor of 12 (good balance between security and performance)

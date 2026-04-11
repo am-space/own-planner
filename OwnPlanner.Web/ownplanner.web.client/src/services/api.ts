@@ -5,6 +5,7 @@ import type {
   UserResponse,
   AuthResult,
   AuthCheckResponse,
+  AuthStatsResponse,
   ChatRequest,
   ChatResponse,
   SessionStatusResponse,
@@ -81,6 +82,18 @@ class ApiService {
 
     if (!response.ok) {
       return { isAuthenticated: false };
+    }
+
+    return await response.json();
+  }
+
+  async getAuthStats(): Promise<AuthStatsResponse> {
+    const response = await fetch(`${this.baseUrl}/auth/stats`, {
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to get auth statistics');
     }
 
     return await response.json();
