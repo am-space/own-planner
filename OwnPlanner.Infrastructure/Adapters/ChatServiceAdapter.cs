@@ -50,7 +50,7 @@ namespace OwnPlanner.Infrastructure.Adapters
 
 		private void InitializeChatSession(string? systemPrompt = null, IReadOnlyList<string>? allowedTools = null)
 		{
-           CurrentContextLengthTokens = null;
+			CurrentContextLengthTokens = null;
 			// Rebuild tool set, applying allow-list filter when provided
 			var declarations = GetFunctionDeclarations(allowedTools);
 			if (declarations.Count > 0)
@@ -194,7 +194,7 @@ namespace OwnPlanner.Infrastructure.Adapters
 			}
 		}
 
-     private List<FunctionDeclaration> GetFunctionDeclarations(IReadOnlyList<string>? allowedTools = null)
+		private List<FunctionDeclaration> GetFunctionDeclarations(IReadOnlyList<string>? allowedTools = null)
 		{
 			var declarations = new List<FunctionDeclaration>(_allFunctionDeclarations.Count + 1)
 			{
