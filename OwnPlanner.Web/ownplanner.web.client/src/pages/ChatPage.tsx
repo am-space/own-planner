@@ -85,6 +85,10 @@ export default function ChatPage() {
     const [isSwitchingMode, setIsSwitchingMode] = useState(false);
     const [starterPrompts, setStarterPrompts] = useState<string[]>([]);
     const [showStarterPrompts, setShowStarterPrompts] = useState(false);
+    const [contextLengthTokens, setContextLengthTokens] = useState<number | null>(null);
+    const [contextResetLabel, setContextResetLabel] = useState<string | null>(null);
+
+    const formatContextLength = (value: number | null) => value === null ? '—' : `${value.toLocaleString()} tokens`;
 
     const fetchAndSetStarterPrompts = useCallback(async (mode: PlanningMode) => {
         try {
@@ -100,11 +104,32 @@ export default function ChatPage() {
     useEffect(() => {
         const init = async () => {
             try {
-                await apiService.switchPlanningMode('DayWork');
+                const status = await apiService.getChatSessionStatus();
+                const initialMode = status.currentMode ?? 'DayWork';
+
+                setPlanningMode(initialMode);
+                setContextLengthTokens(status.contextLengthTokens);
+                setContextResetLabel(null);
+
+                if (!status.isActive) {
+                    try {
+                        await apiService.switchPlanningMode('DayWork');
+                    } catch {
+                        // non-critical: server activates DayWork lazily on first message
+                    }
+                }
+
+                await fetchAndSetStarterPrompts(initialMode);
             } catch {
-                // non-critical: server activates DayWork lazily on first message
+                setContextLengthTokens(null);
+                setContextResetLabel(null);
+                try {
+                    await apiService.switchPlanningMode('DayWork');
+                } catch {
+                    // non-critical: server activates DayWork lazily on first message
+                }
+                await fetchAndSetStarterPrompts('DayWork');
             }
-            await fetchAndSetStarterPrompts('DayWork');
         };
         init();
     }, [fetchAndSetStarterPrompts]);
@@ -129,6 +154,8 @@ export default function ChatPage() {
             await apiService.clearChatSession();
             setMessages([]);
             setPlanningMode('DayWork');
+            setContextLengthTokens(null);
+            setContextResetLabel('Context cleared');
             setError(null);
             try {
                 await apiService.switchPlanningMode('DayWork');
@@ -150,6 +177,8 @@ export default function ChatPage() {
         try {
             await apiService.switchPlanningMode(mode);
             setPlanningMode(mode);
+            setContextLengthTokens(null);
+            setContextResetLabel('Context reset');
             await fetchAndSetStarterPrompts(mode);
             setMessages((prev) => [
                 ...prev,
@@ -195,6 +224,8 @@ export default function ChatPage() {
             };
 
             setMessages((prev) => [...prev, assistantMessage]);
+            setContextLengthTokens(response.contextLengthTokens);
+            setContextResetLabel(null);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to send message');
             console.error('Error sending message:', err);
@@ -208,7 +239,7 @@ export default function ChatPage() {
         }
     };
 
-    const handleKeyPress = (e: React.KeyboardEvent) => {
+    const handleKeyDown = (e: React.KeyboardEvent) => {
         // Prevent sending while loading
         if (isLoading) return;
 
@@ -282,6 +313,16 @@ export default function ChatPage() {
 
                     {/* Right group */}
                     <Box sx={{ display: 'flex', alignItems: 'center', flex: 1, justifyContent: 'flex-end', minWidth: 0 }}>
+                        <Chip
+                            label={contextResetLabel ?? (isMobile ? `Ctx ${formatContextLength(contextLengthTokens)}` : `Context ${formatContextLength(contextLengthTokens)}`)}
+                            size="small"
+                            sx={{
+                                mr: isMobile ? 1 : 2,
+                                bgcolor: contextResetLabel ? 'rgba(255,193,7,0.25)' : 'rgba(255,255,255,0.2)',
+                                color: 'white',
+                            }}
+                        />
+
                         {/* Theme toggle */}
                         <Tooltip title={MODE_LABEL[colorMode]}>
                             <IconButton color="inherit" onClick={handleCycleColorMode} sx={{ mr: 1 }}>
@@ -453,7 +494,7 @@ export default function ChatPage() {
                                         <ReactMarkdown
                                             remarkPlugins={[remarkGfm]}
                                             components={{
-                                                table: ({ node: _node, ...props }) => (
+                                         table: (props) => (
                                                     <Box sx={{ overflowX: 'auto', display: 'block', maxWidth: '100%' }}>
                                                         <table {...props} />
                                                     </Box>
@@ -602,7 +643,7 @@ export default function ChatPage() {
                             placeholder={isLoading ? "Waiting for response..." : "Type your message... (Enter to send, Shift+Enter for new line)"}
                             value={inputText}
                             onChange={(e) => setInputText(e.target.value)}
-                            onKeyPress={handleKeyPress}
+                            onKeyDown={handleKeyDown}
                             variant="outlined"
                             sx={{
                                 '& .MuiInputBase-input': {

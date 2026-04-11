@@ -14,6 +14,7 @@ public sealed class PlanningService(IChatAdapter chatAdapter, IMcpAdapter? mcpAd
 
 	public DateTime CreatedTime => _chatAdapter.CreatedTime;
 	public DateTime LastAccessTime => _chatAdapter.LastAccessTime;
+    public int? CurrentContextLengthTokens => _chatAdapter.CurrentContextLengthTokens;
 	public PlanningMode CurrentMode => _currentMode;
 
 	public async Task SwitchModeAsync(PlanningMode mode, CancellationToken cancellationToken = default)
@@ -33,7 +34,7 @@ public sealed class PlanningService(IChatAdapter chatAdapter, IMcpAdapter? mcpAd
 		_logger.LogInformation("Planning mode switched to {Mode}", mode);
 	}
 
-	public async Task<string> GetResponseAsync(string userMessage, CancellationToken cancellationToken = default)
+   public async Task<ChatTurnResult> GetResponseAsync(string userMessage, CancellationToken cancellationToken = default)
 	{
 		if (!_modeActivated)
 		{

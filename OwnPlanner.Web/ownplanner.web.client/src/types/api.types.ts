@@ -42,12 +42,15 @@ export interface ChatResponse {
   message: string;
   sessionId: string;
   timestamp: string;
+  contextLengthTokens: number | null;
 }
 
 export interface SessionStatusResponse {
   sessionId: string;
   isActive: boolean;
   activeSessionsCount: number;
+  currentMode: PlanningMode | null;
+  contextLengthTokens: number | null;
 }
 
 export interface ChatHealthResponse {

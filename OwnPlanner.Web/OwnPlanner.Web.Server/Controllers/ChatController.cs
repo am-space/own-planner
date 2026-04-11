@@ -48,9 +48,10 @@ namespace OwnPlanner.Web.Server.Controllers
 
 				return Ok(new ChatResponse
 				{
-					Message = response,
+                 Message = response.Message,
 					SessionId = sessionId,
-					Timestamp = DateTime.UtcNow
+                 Timestamp = DateTime.UtcNow,
+					ContextLengthTokens = response.ContextLengthTokens
 				});
 			}
 			catch (Exception ex)
@@ -136,12 +137,15 @@ namespace OwnPlanner.Web.Server.Controllers
 		{
 			var sessionId = GetSessionId();
 			var activeSessionsCount = _sessionManager.GetActiveSessionCount();
+			var session = _sessionManager.GetSession(sessionId);
 
 			return Ok(new SessionStatusResponse
 			{
 				SessionId = sessionId,
-				IsActive = true,
-				ActiveSessionsCount = activeSessionsCount
+                IsActive = session != null,
+				ActiveSessionsCount = activeSessionsCount,
+				CurrentMode = session?.CurrentMode.ToString(),
+				ContextLengthTokens = session?.CurrentContextLengthTokens
 			});
 		}
 
