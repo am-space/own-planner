@@ -21,6 +21,11 @@ public interface IAuthService
 	Task<UserResponse?> GetUserByIdAsync(Guid userId, CancellationToken cancellationToken = default);
 
 	/// <summary>
+	/// Gets the total number of registered users.
+	/// </summary>
+	Task<int> GetRegisteredUserCountAsync(CancellationToken cancellationToken = default);
+
+	/// <summary>
 	/// Verifies a password against a hash.
 	/// </summary>
 	bool VerifyPassword(string password, string passwordHash);

@@ -33,6 +33,10 @@ export interface AuthCheckResponse {
   sessionId?: string;
 }
 
+export interface AuthStatsResponse {
+  registeredUserCount: number;
+}
+
 // Chat API types
 export interface ChatRequest {
   message: string;
