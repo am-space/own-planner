@@ -46,8 +46,11 @@ namespace OwnPlanner.Infrastructure.Adapters
 		/// </summary>
 		public DateTime LastAccessTime { get; private set; }
 
+		public int? CurrentContextLengthTokens { get; private set; }
+
 		private void InitializeChatSession(string? systemPrompt = null, IReadOnlyList<string>? allowedTools = null)
 		{
+			CurrentContextLengthTokens = null;
 			// Rebuild tool set, applying allow-list filter when provided
 			var declarations = GetFunctionDeclarations(allowedTools);
 			if (declarations.Count > 0)
@@ -226,7 +229,6 @@ namespace OwnPlanner.Infrastructure.Adapters
 		{
 			try
 			{
-				// Use the built-in FromJsonElement method from the Schema class
 				return Schema.FromJsonElement(jsonSchema);
 			}
 			catch (Exception ex)
@@ -254,6 +256,11 @@ namespace OwnPlanner.Infrastructure.Adapters
 				usage.CachedContentTokenCount,
 				usage.ToolUsePromptTokenCount,
 				usage.ThoughtsTokenCount);
+		}
+
+		private void UpdateCurrentContextLength(GenerateContentResponse? response)
+		{
+			CurrentContextLengthTokens = response?.UsageMetadata?.PromptTokenCount;
 		}
 
 		private async Task<string> ExecuteSearchAgentCallAsync(IReadOnlyDictionary<string, object?>? arguments)
@@ -322,7 +329,7 @@ namespace OwnPlanner.Infrastructure.Adapters
 			}
 		}
 
-		public async Task<string> GetResponse(string text)
+		public async Task<ChatTurnResult> GetResponse(string text)
 		{
 			LastAccessTime = DateTime.UtcNow;
 
@@ -367,7 +374,7 @@ namespace OwnPlanner.Infrastructure.Adapters
 								Log.Warning("Function call has null or empty name, skipping");
 								continue;
 							}
-							
+
 							if (toolName.Contains(':'))
 							{
 								var nsSplit = toolName.Split(':', 2);
@@ -419,7 +426,9 @@ namespace OwnPlanner.Infrastructure.Adapters
 				{
 					Log.Warning("Reached maximum tool call rounds ({MaxRounds}). Returning current response.", _maxToolCallRounds);
 				}
-				return GetSafeResponseText(response);
+
+				UpdateCurrentContextLength(response);
+				return new ChatTurnResult(GetSafeResponseText(response), CurrentContextLengthTokens);
 			}
 			catch (GeminiApiException ex)
 			{
@@ -427,7 +436,7 @@ namespace OwnPlanner.Infrastructure.Adapters
 				{
 					Log.Warning(ex, "GeminiApiException: Detected session corruption, resetting chat session and retrying...");
 					ResetChatSession();
-					return "I'm sorry, there was an issue processing your request. I've reset our conversation context. Could you please repeat your last message?";
+					return new ChatTurnResult("I'm sorry, there was an issue processing your request. I've reset our conversation context. Could you please repeat your last message?", null);
 				}
 				throw;
 			}

@@ -65,6 +65,16 @@ namespace OwnPlanner.Web.Server.Services
 			return chatService;
 		}
 
+		public IPlanningService? GetSession(string sessionId)
+		{
+			if (string.IsNullOrWhiteSpace(sessionId))
+			{
+				throw new ArgumentException("Session ID cannot be null or empty", nameof(sessionId));
+			}
+
+			return _sessions.TryGetValue(sessionId, out var session) ? session : null;
+		}
+
 		/// <summary>
 		/// Removes a specific session
 		/// </summary>

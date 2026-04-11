@@ -145,7 +145,7 @@ namespace OwnPlanner.Console
 							// Display response with markdown formatting
 							AnsiConsole.MarkupLine("[bold blue]Gemini:[/]");
 							AnsiConsole.WriteLine();
-							MarkdownRenderer.Render(response);
+                          MarkdownRenderer.Render(response.Message);
 							AnsiConsole.WriteLine();
 						}
 						catch (Exception ex)

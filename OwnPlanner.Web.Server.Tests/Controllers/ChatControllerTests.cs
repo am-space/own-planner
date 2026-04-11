@@ -27,6 +27,7 @@ public class ChatControllerTests
 		_sessionManager
 			.GetOrCreateSessionAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
 			.Returns(_planningService);
+		_sessionManager.GetSession(Arg.Any<string>()).Returns(_planningService);
 
 		_controller = CreateController();
 	}
@@ -75,7 +76,7 @@ public class ChatControllerTests
 	public async Task SendMessage_ValidMessage_ReturnsOkWithResponse()
 	{
 		var ct = TestContext.Current.CancellationToken;
-		_planningService.GetResponseAsync("hello", ct).Returns("AI reply");
+     _planningService.GetResponseAsync("hello", ct).Returns(new ChatTurnResult("AI reply", 321));
 		var request = new ChatRequest { Message = "hello" };
 
 		var result = await _controller.SendMessage(request, ct);
@@ -84,6 +85,7 @@ public class ChatControllerTests
 		var response = ok.Value.Should().BeOfType<ChatResponse>().Subject;
 		response.Message.Should().Be("AI reply");
 		response.SessionId.Should().Be(TestSessionId);
+       response.ContextLengthTokens.Should().Be(321);
 	}
 
 	[Fact]
@@ -186,6 +188,8 @@ public class ChatControllerTests
 	public void GetSessionStatus_ReturnsOkWithSessionInfo()
 	{
 		_sessionManager.GetActiveSessionCount().Returns(3);
+		_planningService.CurrentMode.Returns(PlanningMode.Reflection);
+		_planningService.CurrentContextLengthTokens.Returns(654);
 
 		var result = _controller.GetSessionStatus();
 
@@ -194,6 +198,23 @@ public class ChatControllerTests
 		response.SessionId.Should().Be(TestSessionId);
 		response.IsActive.Should().BeTrue();
 		response.ActiveSessionsCount.Should().Be(3);
+       response.CurrentMode.Should().Be("Reflection");
+		response.ContextLengthTokens.Should().Be(654);
+	}
+
+	[Fact]
+	public void GetSessionStatus_WhenSessionMissing_ReturnsInactiveStatus()
+	{
+		_sessionManager.GetSession(TestSessionId).Returns((IPlanningService?)null);
+		_sessionManager.GetActiveSessionCount().Returns(0);
+
+		var result = _controller.GetSessionStatus();
+
+		var ok = result.Should().BeOfType<OkObjectResult>().Subject;
+		var response = ok.Value.Should().BeOfType<SessionStatusResponse>().Subject;
+		response.IsActive.Should().BeFalse();
+		response.CurrentMode.Should().BeNull();
+		response.ContextLengthTokens.Should().BeNull();
 	}
 
 	// --- HealthCheck ---

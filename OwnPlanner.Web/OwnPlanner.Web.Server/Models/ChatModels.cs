@@ -30,6 +30,11 @@ namespace OwnPlanner.Web.Server.Models
 		/// Session ID for tracking conversation
 		/// </summary>
 		public required string SessionId { get; set; }
+
+		/// <summary>
+		/// Current model prompt-token context length for this chat turn.
+		/// </summary>
+		public int? ContextLengthTokens { get; set; }
 	}
 
 	/// <summary>
@@ -60,5 +65,7 @@ namespace OwnPlanner.Web.Server.Models
 		public required string SessionId { get; set; }
 		public bool IsActive { get; set; }
 		public int ActiveSessionsCount { get; set; }
+       public string? CurrentMode { get; set; }
+		public int? ContextLengthTokens { get; set; }
 	}
 }

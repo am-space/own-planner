@@ -369,3 +369,5 @@ logs/
 
 # Temp database files
 ownplanner-auth.db
+*.db-shm
+*.db-wal

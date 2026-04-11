@@ -15,7 +15,7 @@ public class PlanningServiceTests
 
 	public PlanningServiceTests()
 	{
-		_chatAdapter.GetResponse(Arg.Any<string>()).Returns("response");
+        _chatAdapter.GetResponse(Arg.Any<string>()).Returns(new ChatTurnResult("response", 123));
 		_chatAdapter.DisposeAsync().Returns(ValueTask.CompletedTask);
 		_mcpAdapter.CallToolAsync(Arg.Any<string>(), Arg.Any<Dictionary<string, object?>?>(), Arg.Any<CancellationToken>())
 			.Returns("tool-result");
@@ -47,6 +47,14 @@ public class PlanningServiceTests
 		_chatAdapter.LastAccessTime.Returns(expected);
 
 		_svc.LastAccessTime.Should().Be(expected);
+	}
+
+	[Fact]
+	public void CurrentContextLengthTokens_DelegatesTo_ChatAdapter()
+	{
+		_chatAdapter.CurrentContextLengthTokens.Returns(456);
+
+		_svc.CurrentContextLengthTokens.Should().Be(456);
 	}
 
 	// --- SwitchModeAsync ---
@@ -145,7 +153,7 @@ public class PlanningServiceTests
 			.Returns("today-tasks");
 
 		string? captured = null;
-		_chatAdapter.GetResponse(Arg.Do<string>(m => captured = m)).Returns("ok");
+      _chatAdapter.GetResponse(Arg.Do<string>(m => captured = m)).Returns(new ChatTurnResult("ok", 111));
 
 		await _svc.GetResponseAsync("hello", ct);
 
@@ -179,7 +187,7 @@ public class PlanningServiceTests
 			.Returns("today-tasks");
 
 		string? captured = null;
-		_chatAdapter.GetResponse(Arg.Do<string>(m => captured = m)).Returns("ok");
+      _chatAdapter.GetResponse(Arg.Do<string>(m => captured = m)).Returns(new ChatTurnResult("ok", 111));
 
 		await _svc.GetResponseAsync("what should I do?", ct);
 
@@ -221,11 +229,12 @@ public class PlanningServiceTests
 	public async Task GetResponseAsync_ReturnsResponseFromChatAdapter()
 	{
 		var ct = TestContext.Current.CancellationToken;
-		_chatAdapter.GetResponse(Arg.Any<string>()).Returns("the answer");
+      _chatAdapter.GetResponse(Arg.Any<string>()).Returns(new ChatTurnResult("the answer", 789));
 
 		var result = await _svc.GetResponseAsync("question", ct);
 
-		result.Should().Be("the answer");
+       result.Message.Should().Be("the answer");
+		result.ContextLengthTokens.Should().Be(789);
 	}
 
 	// --- DisposeAsync ---

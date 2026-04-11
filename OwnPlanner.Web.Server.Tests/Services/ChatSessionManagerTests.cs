@@ -48,6 +48,26 @@ public class ChatSessionManagerTests : IDisposable
 	}
 
 	[Fact]
+	public async Task GetSession_WhenSessionExists_ReturnsSession()
+	{
+		var ct = TestContext.Current.CancellationToken;
+		var session = CreateSession(DateTime.UtcNow);
+		await AddSessionAsync("existing-session", session, ct);
+
+		var result = _manager.GetSession("existing-session");
+
+		result.Should().BeSameAs(session);
+	}
+
+	[Fact]
+	public void GetSession_WhenSessionMissing_ReturnsNull()
+	{
+		var result = _manager.GetSession("missing-session");
+
+		result.Should().BeNull();
+	}
+
+	[Fact]
 	public async Task CleanupInactiveSessions_InactiveSession_IsRemoved()
 	{
 		var ct = TestContext.Current.CancellationToken;
