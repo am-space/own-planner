@@ -14,7 +14,7 @@ public class TaskItemTools
 		_service = service;
 	}
 
-	[McpServerTool(Name = "taskitem_create"), Description("Create a task. TaskListId is required. Returns task information.")]
+	[McpServerTool(Name = "taskitem_create"), Description("Create a task. TaskListId is required. dueAt is optional and should be used only for real deadlines (external or fixed commitments). Returns task information.")]
 	public async Task<object> CreateTask(string title, Guid taskListId, string? description = null, string? dueAt = null, Guid? goalId = null)
 	{
 		try
@@ -61,7 +61,7 @@ public class TaskItemTools
 		return list.ToList();
 	}
 
-	[McpServerTool(Name = "taskitem_update"), Description("Update a task. Provide id and the fields to update (title, description, dueAt, or goalId). Set clearGoalId=true to remove the goal association.")]
+	[McpServerTool(Name = "taskitem_update"), Description("Update a task. Provide id and the fields to update (title, description, dueAt, or goalId). dueAt is for real deadlines only. Set clearGoalId=true to remove the goal association.")]
 	public async Task<object> UpdateTask(Guid id, string? title = null, string? description = null, string? dueAt = null, Guid? goalId = null, bool clearGoalId = false)
 	{
 		try
@@ -161,7 +161,7 @@ public class TaskItemTools
 		}
 	}
 
-	[McpServerTool(Name = "taskitem_list_by_focus_date", Idempotent = true, ReadOnly = true), Description("List tasks by focus date (My Day). If focusDate is empty, uses current UTC date. Set includeCompleted=true to get also completed tasks.")]
+	[McpServerTool(Name = "taskitem_list_by_focus_date", Idempotent = true, ReadOnly = true), Description("List tasks by focus date (My Day / planned work date). focusDate represents when you plan to work on the task, not the task deadline. If focusDate is empty, uses current UTC date. Set includeCompleted=true to get also completed tasks.")]
 	public async Task<object> ListTasksByFocusDate(string? focusDate = null, bool includeCompleted = false)
 	{
 		DateTime date;
@@ -177,7 +177,7 @@ public class TaskItemTools
 		return list.ToList();
 	}
 
-	[McpServerTool(Name = "taskitem_set_focus_date"), Description("Set or clear the focus date (My Day) for a task. Provide id and focusDate. If focusDate is empty, clears the focus date.")]
+	[McpServerTool(Name = "taskitem_set_focus_date"), Description("Set or clear the focus date (My Day / planned work date) for a task. Use this for weekly planning to decide when to work on a task. This is separate from dueAt, which is for real deadlines. Provide id and focusDate. If focusDate is empty, clears the focus date.")]
 	public async Task<object> SetTaskFocusDate(Guid id, string? focusDate = null)
 	{
 		if (string.IsNullOrWhiteSpace(focusDate))

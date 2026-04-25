@@ -4,16 +4,12 @@ using OwnPlanner.Infrastructure.Persistence;
 
 namespace OwnPlanner.Infrastructure.Repositories;
 
-public class NoteListRepository(AppDbContext db) : INoteListRepository
+public class NoteListRepository(AppDbContext db)
+	: RepositoryBase<NoteList, AppDbContext>(db), INoteListRepository
 {
-	private readonly AppDbContext _db = db;
-
-	public async Task<NoteList?> GetAsync(Guid id, CancellationToken ct = default)
-		=> await _db.NoteLists.FirstOrDefaultAsync(nl => nl.Id == id, ct);
-
 	public async Task<IReadOnlyList<NoteList>> ListAsync(bool includeArchived, Guid? contextId = null, bool excludeUnassigned = false, CancellationToken ct = default)
 	{
-		var query = _db.NoteLists.AsQueryable();
+		var query = Set.AsQueryable();
 		if (!includeArchived)
 			query = query.Where(nl => !nl.IsArchived);
 		if (contextId.HasValue)
@@ -28,32 +24,20 @@ public class NoteListRepository(AppDbContext db) : INoteListRepository
 			.ToList();
 	}
 
-	public async Task AddAsync(NoteList noteList, CancellationToken ct = default)
+	public override async Task AddAsync(NoteList noteList, CancellationToken ct = default)
 	{
-		await _db.NoteLists.AddAsync(noteList, ct);
+		await Set.AddAsync(noteList, ct);
 		try
 		{
-			await _db.SaveChangesAsync(ct);
+			await Db.SaveChangesAsync(ct);
 		}
 		catch (DbUpdateException)
 		{
-			var exists = await _db.NoteLists.AsNoTracking().AnyAsync(nl => nl.Id == noteList.Id, ct);
+			var exists = await Set.AsNoTracking().AnyAsync(nl => nl.Id == noteList.Id, ct);
 			if (!exists)
 				throw;
 			// Concurrent insert: another instance already created the same row; safe to ignore.
-			_db.Entry(noteList).State = EntityState.Detached;
+			Db.Entry(noteList).State = EntityState.Detached;
 		}
-	}
-
-	public async Task UpdateAsync(NoteList noteList, CancellationToken ct = default)
-	{
-		_db.NoteLists.Update(noteList);
-		await _db.SaveChangesAsync(ct);
-	}
-
-	public async Task DeleteAsync(NoteList noteList, CancellationToken ct = default)
-	{
-		_db.NoteLists.Remove(noteList);
-		await _db.SaveChangesAsync(ct);
 	}
 }

@@ -4,16 +4,12 @@ using OwnPlanner.Infrastructure.Persistence;
 
 namespace OwnPlanner.Infrastructure.Repositories;
 
-public class NoteItemRepository(AppDbContext db) : INoteItemRepository
+public class NoteItemRepository(AppDbContext db)
+	: RepositoryBase<NoteItem, AppDbContext>(db), INoteItemRepository
 {
-	private readonly AppDbContext _db = db;
-
-	public async Task<NoteItem?> GetAsync(Guid id, CancellationToken ct = default)
-		=> await _db.NoteItems.FirstOrDefaultAsync(n => n.Id == id, ct);
-
 	public async Task<IReadOnlyList<NoteItem>> ListAsync(CancellationToken ct = default)
 	{
-		var items = await _db.NoteItems.ToListAsync(ct);
+		var items = await Set.ToListAsync(ct);
 		return items
 			.OrderByDescending(n => n.IsPinned)
 			.ThenByDescending(n => n.UpdatedAt)
@@ -22,8 +18,7 @@ public class NoteItemRepository(AppDbContext db) : INoteItemRepository
 
 	public async Task<IReadOnlyList<NoteItem>> ListByNoteListAsync(Guid noteListId, CancellationToken ct = default)
 	{
-		var query = _db.NoteItems.Where(n => n.NoteListId == noteListId);
-		var items = await query.ToListAsync(ct);
+		var items = await Set.Where(n => n.NoteListId == noteListId).ToListAsync(ct);
 		return items
 			.OrderByDescending(n => n.IsPinned)
 			.ThenByDescending(n => n.UpdatedAt)
@@ -32,29 +27,10 @@ public class NoteItemRepository(AppDbContext db) : INoteItemRepository
 
 	public async Task<IReadOnlyList<NoteItem>> ListByGoalAsync(Guid goalId, CancellationToken ct = default)
 	{
-		var query = _db.NoteItems.Where(n => n.GoalId == goalId);
-		var items = await query.ToListAsync(ct);
+		var items = await Set.Where(n => n.GoalId == goalId).ToListAsync(ct);
 		return items
 			.OrderByDescending(n => n.IsPinned)
 			.ThenByDescending(n => n.UpdatedAt)
 			.ToList();
-	}
-
-	public async Task AddAsync(NoteItem note, CancellationToken ct = default)
-	{
-		await _db.NoteItems.AddAsync(note, ct);
-		await _db.SaveChangesAsync(ct);
-	}
-
-	public async Task UpdateAsync(NoteItem note, CancellationToken ct = default)
-	{
-		_db.NoteItems.Update(note);
-		await _db.SaveChangesAsync(ct);
-	}
-
-	public async Task DeleteAsync(NoteItem note, CancellationToken ct = default)
-	{
-		_db.NoteItems.Remove(note);
-		await _db.SaveChangesAsync(ct);
 	}
 }
