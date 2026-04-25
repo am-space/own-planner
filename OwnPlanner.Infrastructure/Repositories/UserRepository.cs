@@ -28,24 +28,24 @@ public class UserRepository(AuthDbContext context)
 	public async Task<int> GetRegisteredUserCountAsync(CancellationToken cancellationToken = default)
 		=> await Set.CountAsync(cancellationToken);
 
-	public new async Task<User> AddAsync(User user, CancellationToken cancellationToken = default)
+	public async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
+	{
+		var user = await GetByIdAsync(id, cancellationToken);
+		if (user != null)
+			await base.DeleteAsync(user, cancellationToken);
+	}
+
+	async Task<User> IUserRepository.AddAsync(User user, CancellationToken cancellationToken)
 	{
 		Set.Add(user);
 		await Db.SaveChangesAsync(cancellationToken);
 		return user;
 	}
 
-	public new async Task<User> UpdateAsync(User user, CancellationToken cancellationToken = default)
+	async Task<User> IUserRepository.UpdateAsync(User user, CancellationToken cancellationToken)
 	{
 		Set.Update(user);
 		await Db.SaveChangesAsync(cancellationToken);
 		return user;
-	}
-
-	public async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
-	{
-		var user = await GetByIdAsync(id, cancellationToken);
-		if (user != null)
-			await base.DeleteAsync(user, cancellationToken);
 	}
 }
