@@ -93,7 +93,10 @@ class ApiService {
     });
 
     if (!response.ok) {
-      throw new Error('Failed to get auth statistics');
+      const text = await response.text();
+      let message = 'Failed to get statistics';
+      try { message = (JSON.parse(text) as { message?: string }).message || message; } catch { if (text) message = text; }
+      throw new Error(message);
     }
 
     return await response.json();

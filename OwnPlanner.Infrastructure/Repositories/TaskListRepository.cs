@@ -4,16 +4,12 @@ using OwnPlanner.Infrastructure.Persistence;
 
 namespace OwnPlanner.Infrastructure.Repositories;
 
-public class TaskListRepository(AppDbContext db) : ITaskListRepository
+public class TaskListRepository(AppDbContext db)
+	: RepositoryBase<TaskList, AppDbContext>(db), ITaskListRepository
 {
-	private readonly AppDbContext _db = db;
-
-	public async Task<TaskList?> GetAsync(Guid id, CancellationToken ct = default)
-		=> await _db.TaskLists.FirstOrDefaultAsync(tl => tl.Id == id, ct);
-
 	public async Task<IReadOnlyList<TaskList>> ListAsync(bool includeArchived, Guid? contextId = null, bool excludeUnassigned = false, CancellationToken ct = default)
 	{
-		var query = _db.TaskLists.AsQueryable();
+		var query = Set.AsQueryable();
 		if (!includeArchived)
 			query = query.Where(tl => !tl.IsArchived);
 		if (contextId.HasValue)
@@ -28,32 +24,20 @@ public class TaskListRepository(AppDbContext db) : ITaskListRepository
 			.ToList();
 	}
 
-	public async Task AddAsync(TaskList taskList, CancellationToken ct = default)
+	public override async Task AddAsync(TaskList taskList, CancellationToken ct = default)
 	{
-		await _db.TaskLists.AddAsync(taskList, ct);
+		await Set.AddAsync(taskList, ct);
 		try
 		{
-			await _db.SaveChangesAsync(ct);
+			await Db.SaveChangesAsync(ct);
 		}
 		catch (DbUpdateException)
 		{
-			var exists = await _db.TaskLists.AsNoTracking().AnyAsync(tl => tl.Id == taskList.Id, ct);
+			var exists = await Set.AsNoTracking().AnyAsync(tl => tl.Id == taskList.Id, ct);
 			if (!exists)
 				throw;
 			// Concurrent insert: another instance already created the same row; safe to ignore.
-			_db.Entry(taskList).State = EntityState.Detached;
+			Db.Entry(taskList).State = EntityState.Detached;
 		}
-	}
-
-	public async Task UpdateAsync(TaskList taskList, CancellationToken ct = default)
-	{
-		_db.TaskLists.Update(taskList);
-		await _db.SaveChangesAsync(ct);
-	}
-
-	public async Task DeleteAsync(TaskList taskList, CancellationToken ct = default)
-	{
-		_db.TaskLists.Remove(taskList);
-		await _db.SaveChangesAsync(ct);
 	}
 }
