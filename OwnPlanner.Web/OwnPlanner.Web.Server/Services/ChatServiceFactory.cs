@@ -60,7 +60,7 @@ namespace OwnPlanner.Web.Server.Services
 			);
 
 			_logger.LogDebug("ChatServiceAdapter instance created successfully for session: {SessionId}, user: {UserId}", sessionId, userId);
-			return new PlanningService(chatService, mcpAdapter, _planningServiceLogger);
+            return new PlanningService(chatService, mcpAdapter, _planningServiceLogger, _settings.Gemini.MaxContextLengthTokens);
 		}
 	}
 }

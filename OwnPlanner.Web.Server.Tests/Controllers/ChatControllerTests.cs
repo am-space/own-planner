@@ -28,6 +28,7 @@ public class ChatControllerTests
 			.GetOrCreateSessionAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
 			.Returns(_planningService);
 		_sessionManager.GetSession(Arg.Any<string>()).Returns(_planningService);
+     _planningService.MaxContextLengthTokens.Returns(64 * 1024);
 
 		_controller = CreateController();
 	}
@@ -86,6 +87,20 @@ public class ChatControllerTests
 		response.Message.Should().Be("AI reply");
 		response.SessionId.Should().Be(TestSessionId);
        response.ContextLengthTokens.Should().Be(321);
+      response.MaxContextLengthTokens.Should().Be(64 * 1024);
+	}
+
+	[Fact]
+	public async Task SendMessage_ContextLimitReached_ReturnsBadRequest()
+	{
+		var ct = TestContext.Current.CancellationToken;
+		_planningService.GetResponseAsync("hello", ct)
+          .ThrowsAsync(new ChatContextLimitExceededException(64 * 1024, 64 * 1024));
+		var request = new ChatRequest { Message = "hello" };
+
+		var result = await _controller.SendMessage(request, ct);
+
+		result.Should().BeOfType<BadRequestObjectResult>();
 	}
 
 	[Fact]
@@ -200,6 +215,7 @@ public class ChatControllerTests
 		response.ActiveSessionsCount.Should().Be(3);
        response.CurrentMode.Should().Be("Reflection");
 		response.ContextLengthTokens.Should().Be(654);
+      response.MaxContextLengthTokens.Should().Be(64 * 1024);
 	}
 
 	[Fact]

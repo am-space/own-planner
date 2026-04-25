@@ -35,6 +35,11 @@ namespace OwnPlanner.Web.Server.Models
 		/// Current model prompt-token context length for this chat turn.
 		/// </summary>
 		public int? ContextLengthTokens { get; set; }
+
+		/// <summary>
+		/// Maximum allowed model prompt-token context length.
+		/// </summary>
+		public int MaxContextLengthTokens { get; set; }
 	}
 
 	/// <summary>
@@ -67,5 +72,6 @@ namespace OwnPlanner.Web.Server.Models
 		public int ActiveSessionsCount { get; set; }
        public string? CurrentMode { get; set; }
 		public int? ContextLengthTokens { get; set; }
+       public int MaxContextLengthTokens { get; set; }
 	}
 }

@@ -47,6 +47,7 @@ export interface ChatResponse {
   sessionId: string;
   timestamp: string;
   contextLengthTokens: number | null;
+  maxContextLengthTokens: number;
 }
 
 export interface SessionStatusResponse {
@@ -55,6 +56,7 @@ export interface SessionStatusResponse {
   activeSessionsCount: number;
   currentMode: PlanningMode | null;
   contextLengthTokens: number | null;
+  maxContextLengthTokens: number;
 }
 
 export interface ChatHealthResponse {

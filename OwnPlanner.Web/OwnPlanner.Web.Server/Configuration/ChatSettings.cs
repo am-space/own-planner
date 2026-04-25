@@ -14,6 +14,7 @@ namespace OwnPlanner.Web.Server.Configuration
 		public string ApiKey { get; set; } = string.Empty;
 		public string Model { get; set; } = "gemini-2.0-flash-exp";
 		public int MaxToolCallRounds { get; set; } = 10;
+     public int MaxContextLengthTokens { get; set; } = 64 * 1024;
 	}
 
 	public class McpSettings

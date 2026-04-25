@@ -3,11 +3,12 @@ using Microsoft.Extensions.Logging;
 
 namespace OwnPlanner.Application.Chat;
 
-public sealed class PlanningService(IChatAdapter chatAdapter, IMcpAdapter? mcpAdapter, ILogger<PlanningService> logger) : IPlanningService
+public sealed class PlanningService(IChatAdapter chatAdapter, IMcpAdapter? mcpAdapter, ILogger<PlanningService> logger, int maxContextLengthTokens = 64 * 1024) : IPlanningService
 {
 	private readonly IChatAdapter _chatAdapter = chatAdapter;
 	private readonly IMcpAdapter? _mcpAdapter = mcpAdapter;
 	private readonly ILogger<PlanningService> _logger = logger;
+   private readonly int _maxContextLengthTokens = maxContextLengthTokens;
 	private PlanningMode _currentMode = PlanningMode.DayWork;
 	private ModeConfig _currentConfig = ModeConfig.All[PlanningMode.DayWork];
 	private bool _modeActivated;
@@ -15,6 +16,7 @@ public sealed class PlanningService(IChatAdapter chatAdapter, IMcpAdapter? mcpAd
 	public DateTime CreatedTime => _chatAdapter.CreatedTime;
 	public DateTime LastAccessTime => _chatAdapter.LastAccessTime;
     public int? CurrentContextLengthTokens => _chatAdapter.CurrentContextLengthTokens;
+    public int MaxContextLengthTokens => _maxContextLengthTokens;
 	public PlanningMode CurrentMode => _currentMode;
 
 	public async Task SwitchModeAsync(PlanningMode mode, CancellationToken cancellationToken = default)
@@ -50,7 +52,37 @@ public sealed class PlanningService(IChatAdapter chatAdapter, IMcpAdapter? mcpAd
 				message = $"[Refreshed context]\n{context}\n\n[User message]\n{userMessage}";
 		}
 
+		EnsureContextWithinLimit(message);
+
 		return await _chatAdapter.GetResponse(message);
+	}
+
+	private void EnsureContextWithinLimit(string message)
+	{
+		var currentContextLengthTokens = _chatAdapter.CurrentContextLengthTokens;
+		var estimatedMessageTokens = EstimateTokenCount(message);
+		var projectedContextLengthTokens = (currentContextLengthTokens ?? 0) + estimatedMessageTokens;
+
+		if (currentContextLengthTokens >= _maxContextLengthTokens || projectedContextLengthTokens > _maxContextLengthTokens)
+		{
+			_logger.LogWarning(
+				"Chat context limit exceeded. CurrentContextLengthTokens={CurrentContextLengthTokens}, EstimatedMessageTokens={EstimatedMessageTokens}, MaxContextLengthTokens={MaxContextLengthTokens}",
+				currentContextLengthTokens,
+				estimatedMessageTokens,
+				_maxContextLengthTokens);
+
+			throw new ChatContextLimitExceededException(currentContextLengthTokens, _maxContextLengthTokens);
+		}
+	}
+
+	private static int EstimateTokenCount(string text)
+	{
+		if (string.IsNullOrWhiteSpace(text))
+		{
+			return 0;
+		}
+
+		return Math.Max(1, (int)Math.Ceiling(text.Length / 4d));
 	}
 
 	private async Task<string> LoadContextAsync(ModeConfig config, CancellationToken cancellationToken)

@@ -51,7 +51,18 @@ namespace OwnPlanner.Web.Server.Controllers
                  Message = response.Message,
 					SessionId = sessionId,
                  Timestamp = DateTime.UtcNow,
-					ContextLengthTokens = response.ContextLengthTokens
+                  ContextLengthTokens = response.ContextLengthTokens,
+					MaxContextLengthTokens = chatService.MaxContextLengthTokens,
+				});
+			}
+            catch (ChatContextLimitExceededException ex)
+			{
+				_logger.LogInformation(ex, "Chat context limit reached for sessionId: {SessionId}", sessionId);
+				return BadRequest(new
+				{
+					message = ex.Message,
+					contextLengthTokens = ex.CurrentContextLengthTokens,
+					maxContextLengthTokens = ex.MaxContextLengthTokens,
 				});
 			}
 			catch (Exception ex)
@@ -145,7 +156,8 @@ namespace OwnPlanner.Web.Server.Controllers
                 IsActive = session != null,
 				ActiveSessionsCount = activeSessionsCount,
 				CurrentMode = session?.CurrentMode.ToString(),
-				ContextLengthTokens = session?.CurrentContextLengthTokens
+               ContextLengthTokens = session?.CurrentContextLengthTokens,
+				MaxContextLengthTokens = session?.MaxContextLengthTokens ?? 64 * 1024
 			});
 		}
 

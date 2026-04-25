@@ -57,6 +57,12 @@ public class PlanningServiceTests
 		_svc.CurrentContextLengthTokens.Should().Be(456);
 	}
 
+	[Fact]
+  public void MaxContextLengthTokens_DefaultsTo64K()
+	{
+     _svc.MaxContextLengthTokens.Should().Be(64 * 1024);
+	}
+
 	// --- SwitchModeAsync ---
 
 	[Fact]
@@ -235,6 +241,18 @@ public class PlanningServiceTests
 
        result.Message.Should().Be("the answer");
 		result.ContextLengthTokens.Should().Be(789);
+	}
+
+	[Fact]
+	public async Task GetResponseAsync_WhenProjectedContextExceedsLimit_Throws()
+	{
+		var ct = TestContext.Current.CancellationToken;
+     _chatAdapter.CurrentContextLengthTokens.Returns(64 * 1024);
+
+		var action = () => _svc.GetResponseAsync("hello", ct);
+
+		await action.Should().ThrowAsync<ChatContextLimitExceededException>();
+		await _chatAdapter.DidNotReceive().GetResponse(Arg.Any<string>());
 	}
 
 	// --- DisposeAsync ---
