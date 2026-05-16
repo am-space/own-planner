@@ -65,6 +65,21 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: OwnPlanner.Web/ownplanner.web.client/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: OwnPlanner.Web/ownplanner.web.client
+        run: npm ci
+
+      - name: Lint frontend
+        working-directory: OwnPlanner.Web/ownplanner.web.client
+        run: npm run lint
+
       - name: Restore
         env:
           APP_VERSION: ${{ steps.version.outputs.app_version }}

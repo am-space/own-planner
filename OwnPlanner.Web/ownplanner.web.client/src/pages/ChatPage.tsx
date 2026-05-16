@@ -28,7 +28,7 @@ import LightbulbOutlinedIcon from '@mui/icons-material/LightbulbOutlined';
 import LightModeIcon from '@mui/icons-material/LightMode';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
 import ContrastIcon from '@mui/icons-material/Contrast';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../contexts/useAuth';
 import { useThemeContext } from '../contexts/ThemeContext';
 import type { ColorModePreference } from '../contexts/ThemeContext';
 import { apiService } from '../services/api';
@@ -89,8 +89,8 @@ export default function ChatPage() {
     const [maxContextLengthTokens, setMaxContextLengthTokens] = useState(64 * 1024);
     const [contextResetLabel, setContextResetLabel] = useState<string | null>(null);
 
-    const formatContextLength = (value: number | null) =>
-        value === null ? '—' : `${value.toLocaleString()} tokens`;
+    const formatTokenCount = (value: number | null) =>
+        value === null ? '—' : value.toLocaleString();
     const contextUsageValue = contextLengthTokens ?? 0;
     const contextUsagePercent = Math.min((contextUsageValue / Math.max(maxContextLengthTokens, 1)) * 100, 100);
     const contextIndicatorColor = contextUsagePercent >= 100
@@ -327,7 +327,7 @@ export default function ChatPage() {
 
                     {/* Right group */}
                     <Box sx={{ display: 'flex', alignItems: 'center', flex: 1, justifyContent: 'flex-end', minWidth: 0 }}>
-                        <Tooltip title={contextResetLabel ?? `Context ${formatContextLength(contextLengthTokens)}`}>
+                        <Tooltip title={contextResetLabel ?? `Context ${formatTokenCount(contextLengthTokens)} / ${formatTokenCount(maxContextLengthTokens)} tokens`}>
                             <Box
                                 sx={{
                                     display: 'flex',
@@ -341,7 +341,7 @@ export default function ChatPage() {
                                 }}
                             >
                                 <Typography variant="caption" sx={{ color: 'white', whiteSpace: 'nowrap' }}>
-                                    {contextResetLabel ?? (isMobile ? `Ctx ${formatContextLength(contextLengthTokens)}` : `Context ${formatContextLength(contextLengthTokens)}`)}
+                                    {contextResetLabel ?? formatTokenCount(contextLengthTokens)}
                                 </Typography>
                                 <Box sx={{ position: 'relative', display: 'inline-flex', flexShrink: 0 }}>
                                     <CircularProgress

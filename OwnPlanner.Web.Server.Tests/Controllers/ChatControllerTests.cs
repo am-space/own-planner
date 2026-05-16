@@ -3,9 +3,11 @@ using FluentAssertions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 using OwnPlanner.Application.Chat;
+using OwnPlanner.Web.Server.Configuration;
 using OwnPlanner.Web.Server.Controllers;
 using OwnPlanner.Web.Server.Models;
 using OwnPlanner.Web.Server.Services;
@@ -20,6 +22,10 @@ public class ChatControllerTests
 	private readonly IChatSessionManager _sessionManager = Substitute.For<IChatSessionManager>();
 	private readonly ILogger<ChatController> _logger = Substitute.For<ILogger<ChatController>>();
 	private readonly IPlanningService _planningService = Substitute.For<IPlanningService>();
+	private readonly IOptions<ChatSettings> _chatSettings = Options.Create(new ChatSettings
+	{
+		Gemini = new GeminiSettings { MaxContextLengthTokens = 64 * 1024 }
+	});
 	private readonly ChatController _controller;
 
 	public ChatControllerTests()
@@ -35,7 +41,7 @@ public class ChatControllerTests
 
 	private ChatController CreateController()
 	{
-		var controller = new ChatController(_sessionManager, _logger);
+		var controller = new ChatController(_sessionManager, _logger, _chatSettings);
 		var claims = new[]
 		{
 			new Claim("SessionId", TestSessionId),
@@ -231,6 +237,7 @@ public class ChatControllerTests
 		response.IsActive.Should().BeFalse();
 		response.CurrentMode.Should().BeNull();
 		response.ContextLengthTokens.Should().BeNull();
+		response.MaxContextLengthTokens.Should().Be(64 * 1024);
 	}
 
 	// --- HealthCheck ---

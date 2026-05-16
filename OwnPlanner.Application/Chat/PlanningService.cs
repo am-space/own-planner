@@ -63,7 +63,7 @@ public sealed class PlanningService(IChatAdapter chatAdapter, IMcpAdapter? mcpAd
 		var estimatedMessageTokens = EstimateTokenCount(message);
 		var projectedContextLengthTokens = (currentContextLengthTokens ?? 0) + estimatedMessageTokens;
 
-		if (currentContextLengthTokens >= _maxContextLengthTokens || projectedContextLengthTokens > _maxContextLengthTokens)
+		if (currentContextLengthTokens.GetValueOrDefault() >= _maxContextLengthTokens || projectedContextLengthTokens > _maxContextLengthTokens)
 		{
 			_logger.LogWarning(
 				"Chat context limit exceeded. CurrentContextLengthTokens={CurrentContextLengthTokens}, EstimatedMessageTokens={EstimatedMessageTokens}, MaxContextLengthTokens={MaxContextLengthTokens}",
