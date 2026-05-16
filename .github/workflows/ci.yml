@@ -80,6 +80,10 @@ jobs:
         working-directory: OwnPlanner.Web/ownplanner.web.client
         run: npm run lint
 
+      - name: Build frontend
+        working-directory: OwnPlanner.Web/ownplanner.web.client
+        run: npm run build
+
       - name: Restore
         env:
           APP_VERSION: ${{ steps.version.outputs.app_version }}
