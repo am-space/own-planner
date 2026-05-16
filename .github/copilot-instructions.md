@@ -13,6 +13,13 @@ OwnPlanner is a layered `.NET 10` solution with multiple entry points:
 - `OwnPlanner.Mcp.StdioApp`: MCP stdio host for tool execution
 - `ownplanner.web.client`: React + TypeScript + Vite frontend
 
+## Architecture documentation
+
+For more details on the system's design, please refer to the following documents:
+- `docs/architecture-layers.md`: Details the 4-layer clean architecture.
+- `docs/ai-integration.md`: Explains the chat workflow and MCP tool execution.
+- `docs/database-schema.md`: Details the SQLite separation scheme.
+
 ## General rules
 
 - Follow existing repository style, naming, and folder conventions.
