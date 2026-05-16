@@ -8,15 +8,19 @@ public sealed class PlanningService(IChatAdapter chatAdapter, IMcpAdapter? mcpAd
 	private readonly IChatAdapter _chatAdapter = chatAdapter;
 	private readonly IMcpAdapter? _mcpAdapter = mcpAdapter;
 	private readonly ILogger<PlanningService> _logger = logger;
-   private readonly int _maxContextLengthTokens = maxContextLengthTokens;
+	private readonly int _maxContextLengthTokens = maxContextLengthTokens > 0
+		? maxContextLengthTokens
+		: throw new ArgumentOutOfRangeException(nameof(maxContextLengthTokens), "maxContextLengthTokens must be greater than 0.");
 	private PlanningMode _currentMode = PlanningMode.DayWork;
 	private ModeConfig _currentConfig = ModeConfig.All[PlanningMode.DayWork];
 	private bool _modeActivated;
+	// PromptTokenCount reflects prompt-side usage only; keep a local next-turn projection that also includes assistant output.
+	private int? _projectedContextLengthTokens;
 
 	public DateTime CreatedTime => _chatAdapter.CreatedTime;
 	public DateTime LastAccessTime => _chatAdapter.LastAccessTime;
-    public int? CurrentContextLengthTokens => _chatAdapter.CurrentContextLengthTokens;
-    public int MaxContextLengthTokens => _maxContextLengthTokens;
+	public int? CurrentContextLengthTokens => _chatAdapter.CurrentContextLengthTokens;
+	public int MaxContextLengthTokens => _maxContextLengthTokens;
 	public PlanningMode CurrentMode => _currentMode;
 
 	public async Task SwitchModeAsync(PlanningMode mode, CancellationToken cancellationToken = default)
@@ -32,6 +36,7 @@ public sealed class PlanningService(IChatAdapter chatAdapter, IMcpAdapter? mcpAd
 		_currentMode = mode;
 		_currentConfig = config;
 		_modeActivated = true;
+		_projectedContextLengthTokens = null;
 
 		_logger.LogInformation("Planning mode switched to {Mode}", mode);
 	}
@@ -54,24 +59,32 @@ public sealed class PlanningService(IChatAdapter chatAdapter, IMcpAdapter? mcpAd
 
 		EnsureContextWithinLimit(message);
 
-		return await _chatAdapter.GetResponse(message);
+		var result = await _chatAdapter.GetResponse(message);
+		var assistantResponseTokens = EstimateTokenCount(result.Message);
+		_projectedContextLengthTokens = result.ContextLengthTokens is int promptTokens
+			? promptTokens + assistantResponseTokens
+			: null;
+
+		return result;
 	}
 
 	private void EnsureContextWithinLimit(string message)
 	{
 		var currentContextLengthTokens = _chatAdapter.CurrentContextLengthTokens;
+		var effectiveContextLengthTokens = Math.Max(currentContextLengthTokens ?? 0, _projectedContextLengthTokens ?? 0);
 		var estimatedMessageTokens = EstimateTokenCount(message);
-		var projectedContextLengthTokens = (currentContextLengthTokens ?? 0) + estimatedMessageTokens;
+		var projectedContextLengthTokens = effectiveContextLengthTokens + estimatedMessageTokens;
 
-		if (currentContextLengthTokens.GetValueOrDefault() >= _maxContextLengthTokens || projectedContextLengthTokens > _maxContextLengthTokens)
+		if (effectiveContextLengthTokens >= _maxContextLengthTokens || projectedContextLengthTokens > _maxContextLengthTokens)
 		{
 			_logger.LogWarning(
-				"Chat context limit exceeded. CurrentContextLengthTokens={CurrentContextLengthTokens}, EstimatedMessageTokens={EstimatedMessageTokens}, MaxContextLengthTokens={MaxContextLengthTokens}",
+				"Chat context limit exceeded. CurrentContextLengthTokens={CurrentContextLengthTokens}, ProjectedContextLengthTokens={ProjectedContextLengthTokens}, EstimatedMessageTokens={EstimatedMessageTokens}, MaxContextLengthTokens={MaxContextLengthTokens}",
 				currentContextLengthTokens,
+				_projectedContextLengthTokens,
 				estimatedMessageTokens,
 				_maxContextLengthTokens);
 
-			throw new ChatContextLimitExceededException(currentContextLengthTokens, _maxContextLengthTokens);
+			throw new ChatContextLimitExceededException(effectiveContextLengthTokens, _maxContextLengthTokens);
 		}
 	}
 

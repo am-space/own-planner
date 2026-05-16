@@ -118,7 +118,8 @@ export default function ChatPage() {
 
                 setPlanningMode(initialMode);
                 setContextLengthTokens(status.contextLengthTokens);
-                setMaxContextLengthTokens(status.maxContextLengthTokens);
+                // Instead of hard-coding, preserve the current configured value
+                setMaxContextLengthTokens(prev => status.maxContextLengthTokens ?? prev);
                 setContextResetLabel(null);
 
                 if (!status.isActive) {
@@ -166,13 +167,19 @@ export default function ChatPage() {
             setMessages([]);
             setPlanningMode('DayWork');
             setContextLengthTokens(null);
-            setMaxContextLengthTokens(64 * 1024);
             setContextResetLabel('Context cleared');
             setError(null);
             try {
                 await apiService.switchPlanningMode('DayWork');
             } catch {
                 // non-critical: server activates DayWork lazily on first message
+            }
+            // Fetch status to get the current configured maxContextLengthTokens
+            try {
+                const status = await apiService.getChatSessionStatus();
+                setMaxContextLengthTokens(status.maxContextLengthTokens ?? maxContextLengthTokens);
+            } catch {
+                // Keep existing maxContextLengthTokens if status fetch fails
             }
             await fetchAndSetStarterPrompts('DayWork');
             // Refocus input after clearing
@@ -190,8 +197,14 @@ export default function ChatPage() {
             await apiService.switchPlanningMode(mode);
             setPlanningMode(mode);
             setContextLengthTokens(null);
-            setMaxContextLengthTokens(64 * 1024);
             setContextResetLabel('Context reset');
+            // Fetch status to get the current configured maxContextLengthTokens
+            try {
+                const status = await apiService.getChatSessionStatus();
+                setMaxContextLengthTokens(prev => status.maxContextLengthTokens ?? prev);
+            } catch {
+                // Keep existing maxContextLengthTokens if status fetch fails
+            }
             await fetchAndSetStarterPrompts(mode);
             setMessages((prev) => [
                 ...prev,
@@ -577,8 +590,6 @@ export default function ChatPage() {
                             </Paper>
                         </Box>
                     )}
-
-                    <div ref={messagesEndRef} />
                 </Box>
             </Container>
 

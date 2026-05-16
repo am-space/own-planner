@@ -15,7 +15,7 @@ public class PlanningServiceTests
 
 	public PlanningServiceTests()
 	{
-        _chatAdapter.GetResponse(Arg.Any<string>()).Returns(new ChatTurnResult("response", 123));
+		_chatAdapter.GetResponse(Arg.Any<string>()).Returns(new ChatTurnResult("response", 123));
 		_chatAdapter.DisposeAsync().Returns(ValueTask.CompletedTask);
 		_mcpAdapter.CallToolAsync(Arg.Any<string>(), Arg.Any<Dictionary<string, object?>?>(), Arg.Any<CancellationToken>())
 			.Returns("tool-result");
@@ -60,7 +60,7 @@ public class PlanningServiceTests
 	[Fact]
   public void MaxContextLengthTokens_DefaultsTo64K()
 	{
-     _svc.MaxContextLengthTokens.Should().Be(64 * 1024);
+	 _svc.MaxContextLengthTokens.Should().Be(64 * 1024);
 	}
 
 	// --- SwitchModeAsync ---
@@ -159,7 +159,7 @@ public class PlanningServiceTests
 			.Returns("today-tasks");
 
 		string? captured = null;
-      _chatAdapter.GetResponse(Arg.Do<string>(m => captured = m)).Returns(new ChatTurnResult("ok", 111));
+	  _chatAdapter.GetResponse(Arg.Do<string>(m => captured = m)).Returns(new ChatTurnResult("ok", 111));
 
 		await _svc.GetResponseAsync("hello", ct);
 
@@ -193,7 +193,7 @@ public class PlanningServiceTests
 			.Returns("today-tasks");
 
 		string? captured = null;
-      _chatAdapter.GetResponse(Arg.Do<string>(m => captured = m)).Returns(new ChatTurnResult("ok", 111));
+	  _chatAdapter.GetResponse(Arg.Do<string>(m => captured = m)).Returns(new ChatTurnResult("ok", 111));
 
 		await _svc.GetResponseAsync("what should I do?", ct);
 
@@ -235,24 +235,56 @@ public class PlanningServiceTests
 	public async Task GetResponseAsync_ReturnsResponseFromChatAdapter()
 	{
 		var ct = TestContext.Current.CancellationToken;
-      _chatAdapter.GetResponse(Arg.Any<string>()).Returns(new ChatTurnResult("the answer", 789));
+		_chatAdapter.GetResponse(Arg.Any<string>()).Returns(new ChatTurnResult("the answer", 789));
 
 		var result = await _svc.GetResponseAsync("question", ct);
 
-       result.Message.Should().Be("the answer");
+		result.Message.Should().Be("the answer");
 		result.ContextLengthTokens.Should().Be(789);
+	}
+
+	[Fact]
+	public async Task GetResponseAsync_WhenCurrentContextIsAtLimit_Throws()
+	{
+		var ct = TestContext.Current.CancellationToken;
+		_chatAdapter.CurrentContextLengthTokens.Returns(64 * 1024);
+
+		var action = () => _svc.GetResponseAsync("hello", ct);
+
+		await action.Should().ThrowAsync<ChatContextLimitExceededException>();
+		await _chatAdapter.DidNotReceive().GetResponse(Arg.Any<string>());
 	}
 
 	[Fact]
 	public async Task GetResponseAsync_WhenProjectedContextExceedsLimit_Throws()
 	{
 		var ct = TestContext.Current.CancellationToken;
-     _chatAdapter.CurrentContextLengthTokens.Returns(64 * 1024);
+		var svcWithSmallLimit = new PlanningService(_chatAdapter, null, _logger, maxContextLengthTokens: 10);
+		_chatAdapter.CurrentContextLengthTokens.Returns(9);
 
-		var action = () => _svc.GetResponseAsync("hello", ct);
+		await svcWithSmallLimit.SwitchModeAsync(PlanningMode.GlobalPlanning, ct);
+
+		var action = () => svcWithSmallLimit.GetResponseAsync("12345678", ct);
 
 		await action.Should().ThrowAsync<ChatContextLimitExceededException>();
 		await _chatAdapter.DidNotReceive().GetResponse(Arg.Any<string>());
+	}
+
+	[Fact]
+	public async Task GetResponseAsync_UsesProjectedAssistantTokensForNextTurnLimitCheck()
+	{
+		var ct = TestContext.Current.CancellationToken;
+		var svcWithSmallLimit = new PlanningService(_chatAdapter, null, _logger, maxContextLengthTokens: 10);
+		_chatAdapter.CurrentContextLengthTokens.Returns(8);
+		_chatAdapter.GetResponse(Arg.Any<string>()).Returns(new ChatTurnResult("12345678", 8));
+
+		await svcWithSmallLimit.SwitchModeAsync(PlanningMode.GlobalPlanning, ct);
+		await svcWithSmallLimit.GetResponseAsync("hi", ct);
+
+		var action = () => svcWithSmallLimit.GetResponseAsync("ok", ct);
+
+		await action.Should().ThrowAsync<ChatContextLimitExceededException>();
+		await _chatAdapter.Received(1).GetResponse(Arg.Any<string>());
 	}
 
 	// --- DisposeAsync ---
