@@ -28,7 +28,7 @@ import LightbulbOutlinedIcon from '@mui/icons-material/LightbulbOutlined';
 import LightModeIcon from '@mui/icons-material/LightMode';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
 import ContrastIcon from '@mui/icons-material/Contrast';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../contexts/useAuth';
 import { useThemeContext } from '../contexts/ThemeContext';
 import type { ColorModePreference } from '../contexts/ThemeContext';
 import { apiService } from '../services/api';
@@ -86,9 +86,18 @@ export default function ChatPage() {
     const [starterPrompts, setStarterPrompts] = useState<string[]>([]);
     const [showStarterPrompts, setShowStarterPrompts] = useState(false);
     const [contextLengthTokens, setContextLengthTokens] = useState<number | null>(null);
+    const [maxContextLengthTokens, setMaxContextLengthTokens] = useState(64 * 1024);
     const [contextResetLabel, setContextResetLabel] = useState<string | null>(null);
 
-    const formatContextLength = (value: number | null) => value === null ? '—' : `${value.toLocaleString()} tokens`;
+    const formatTokenCount = (value: number | null) =>
+        value === null ? '—' : value.toLocaleString();
+    const contextUsageValue = contextLengthTokens ?? 0;
+    const contextUsagePercent = Math.min((contextUsageValue / Math.max(maxContextLengthTokens, 1)) * 100, 100);
+    const contextIndicatorColor = contextUsagePercent >= 100
+        ? 'error.main'
+        : contextUsagePercent >= 80
+            ? 'warning.main'
+            : 'success.main';
 
     const fetchAndSetStarterPrompts = useCallback(async (mode: PlanningMode) => {
         try {
@@ -109,6 +118,8 @@ export default function ChatPage() {
 
                 setPlanningMode(initialMode);
                 setContextLengthTokens(status.contextLengthTokens);
+                // Instead of hard-coding, preserve the current configured value
+                setMaxContextLengthTokens(prev => status.maxContextLengthTokens ?? prev);
                 setContextResetLabel(null);
 
                 if (!status.isActive) {
@@ -122,6 +133,7 @@ export default function ChatPage() {
                 await fetchAndSetStarterPrompts(initialMode);
             } catch {
                 setContextLengthTokens(null);
+                setMaxContextLengthTokens(64 * 1024);
                 setContextResetLabel(null);
                 try {
                     await apiService.switchPlanningMode('DayWork');
@@ -162,6 +174,13 @@ export default function ChatPage() {
             } catch {
                 // non-critical: server activates DayWork lazily on first message
             }
+            // Fetch status to get the current configured maxContextLengthTokens
+            try {
+                const status = await apiService.getChatSessionStatus();
+                setMaxContextLengthTokens(status.maxContextLengthTokens ?? maxContextLengthTokens);
+            } catch {
+                // Keep existing maxContextLengthTokens if status fetch fails
+            }
             await fetchAndSetStarterPrompts('DayWork');
             // Refocus input after clearing
             inputRef.current?.focus();
@@ -179,6 +198,13 @@ export default function ChatPage() {
             setPlanningMode(mode);
             setContextLengthTokens(null);
             setContextResetLabel('Context reset');
+            // Fetch status to get the current configured maxContextLengthTokens
+            try {
+                const status = await apiService.getChatSessionStatus();
+                setMaxContextLengthTokens(prev => status.maxContextLengthTokens ?? prev);
+            } catch {
+                // Keep existing maxContextLengthTokens if status fetch fails
+            }
             await fetchAndSetStarterPrompts(mode);
             setMessages((prev) => [
                 ...prev,
@@ -225,6 +251,7 @@ export default function ChatPage() {
 
             setMessages((prev) => [...prev, assistantMessage]);
             setContextLengthTokens(response.contextLengthTokens);
+            setMaxContextLengthTokens(response.maxContextLengthTokens);
             setContextResetLabel(null);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to send message');
@@ -313,15 +340,40 @@ export default function ChatPage() {
 
                     {/* Right group */}
                     <Box sx={{ display: 'flex', alignItems: 'center', flex: 1, justifyContent: 'flex-end', minWidth: 0 }}>
-                        <Chip
-                            label={contextResetLabel ?? (isMobile ? `Ctx ${formatContextLength(contextLengthTokens)}` : `Context ${formatContextLength(contextLengthTokens)}`)}
-                            size="small"
-                            sx={{
-                                mr: isMobile ? 1 : 2,
-                                bgcolor: contextResetLabel ? 'rgba(255,193,7,0.25)' : 'rgba(255,255,255,0.2)',
-                                color: 'white',
-                            }}
-                        />
+                        <Tooltip title={contextResetLabel ?? `Context ${formatTokenCount(contextLengthTokens)} / ${formatTokenCount(maxContextLengthTokens)} tokens`}>
+                            <Box
+                                sx={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 1,
+                                    mr: isMobile ? 1 : 2,
+                                    px: 1,
+                                    py: 0.5,
+                                    borderRadius: 5,
+                                    bgcolor: contextResetLabel ? 'rgba(255,193,7,0.25)' : 'rgba(255,255,255,0.12)',
+                                }}
+                            >
+                                <Typography variant="caption" sx={{ color: 'white', whiteSpace: 'nowrap' }}>
+                                    {contextResetLabel ?? formatTokenCount(contextLengthTokens)}
+                                </Typography>
+                                <Box sx={{ position: 'relative', display: 'inline-flex', flexShrink: 0 }}>
+                                    <CircularProgress
+                                        variant="determinate"
+                                        value={100}
+                                        size={18}
+                                        thickness={6}
+                                        sx={{ color: 'rgba(255,255,255,0.25)' }}
+                                    />
+                                    <CircularProgress
+                                        variant="determinate"
+                                        value={contextUsagePercent}
+                                        size={18}
+                                        thickness={6}
+                                        sx={{ color: contextIndicatorColor, position: 'absolute', left: 0 }}
+                                    />
+                                </Box>
+                            </Box>
+                        </Tooltip>
 
                         {/* Theme toggle */}
                         <Tooltip title={MODE_LABEL[colorMode]}>
@@ -538,8 +590,6 @@ export default function ChatPage() {
                             </Paper>
                         </Box>
                     )}
-
-                    <div ref={messagesEndRef} />
                 </Box>
             </Container>
 

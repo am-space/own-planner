@@ -1,7 +1,9 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using OwnPlanner.Application.Chat;
+using OwnPlanner.Web.Server.Configuration;
 using OwnPlanner.Web.Server.Models;
 using OwnPlanner.Web.Server.Services;
 
@@ -17,11 +19,16 @@ namespace OwnPlanner.Web.Server.Controllers
 	{
 		private readonly IChatSessionManager _sessionManager;
 		private readonly ILogger<ChatController> _logger;
+		private readonly int _defaultMaxContextLengthTokens;
 
-		public ChatController(IChatSessionManager sessionManager, ILogger<ChatController> logger)
+		public ChatController(
+			IChatSessionManager sessionManager,
+			ILogger<ChatController> logger,
+			IOptions<ChatSettings> chatSettings)
 		{
 			_sessionManager = sessionManager;
 			_logger = logger;
+			_defaultMaxContextLengthTokens = chatSettings.Value.Gemini.MaxContextLengthTokens;
 		}
 
 		/// <summary>
@@ -51,7 +58,18 @@ namespace OwnPlanner.Web.Server.Controllers
                  Message = response.Message,
 					SessionId = sessionId,
                  Timestamp = DateTime.UtcNow,
-					ContextLengthTokens = response.ContextLengthTokens
+                  ContextLengthTokens = response.ContextLengthTokens,
+					MaxContextLengthTokens = chatService.MaxContextLengthTokens,
+				});
+			}
+            catch (ChatContextLimitExceededException ex)
+			{
+				_logger.LogInformation(ex, "Chat context limit reached for sessionId: {SessionId}", sessionId);
+				return BadRequest(new
+				{
+					message = ex.Message,
+					contextLengthTokens = ex.CurrentContextLengthTokens,
+					maxContextLengthTokens = ex.MaxContextLengthTokens,
 				});
 			}
 			catch (Exception ex)
@@ -145,8 +163,9 @@ namespace OwnPlanner.Web.Server.Controllers
                 IsActive = session != null,
 				ActiveSessionsCount = activeSessionsCount,
 				CurrentMode = session?.CurrentMode.ToString(),
-				ContextLengthTokens = session?.CurrentContextLengthTokens
-			});
+				   ContextLengthTokens = session?.CurrentContextLengthTokens,
+				   MaxContextLengthTokens = session?.MaxContextLengthTokens ?? _defaultMaxContextLengthTokens
+			   });
 		}
 
 		/// <summary>

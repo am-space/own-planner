@@ -17,7 +17,7 @@ import {
 import LightModeIcon from '@mui/icons-material/LightMode';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
 import ContrastIcon from '@mui/icons-material/Contrast';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../contexts/useAuth';
 import { useThemeContext } from '../contexts/ThemeContext';
 import type { ColorModePreference } from '../contexts/ThemeContext';
 import AboutDialog from '../components/AboutDialog';
@@ -97,7 +97,7 @@ export default function RegisterPage() {
       } else {
         setError(result.error || 'Registration failed');
       }
-    } catch (err) {
+    } catch {
       setError('An unexpected error occurred');
     } finally {
       setIsLoading(false);

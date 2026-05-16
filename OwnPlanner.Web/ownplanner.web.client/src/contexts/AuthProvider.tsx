@@ -1,19 +1,8 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { apiService } from '../services/api';
 import type { UserResponse } from '../types/api.types';
-
-interface AuthContextType {
-  user: UserResponse | null;
-  isLoading: boolean;
-  isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  register: (email: string, username: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  logout: () => Promise<void>;
-  refreshUser: () => Promise<void>;
-}
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+import { AuthContext } from './AuthContext';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserResponse | null>(null);
@@ -45,7 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { success: true };
       }
       return { success: false, error: result.errorMessage || 'Login failed' };
-    } catch (error) {
+    } catch {
       return { success: false, error: 'An error occurred during login' };
     }
   };
@@ -58,7 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { success: true };
       }
       return { success: false, error: result.errorMessage || 'Registration failed' };
-    } catch (error) {
+    } catch {
       return { success: false, error: 'An error occurred during registration' };
     }
   };
@@ -96,12 +85,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       {children}
     </AuthContext.Provider>
   );
-}
-
-export function useAuth() {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
 }
