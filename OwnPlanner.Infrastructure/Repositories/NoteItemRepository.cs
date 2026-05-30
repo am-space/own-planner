@@ -4,12 +4,13 @@ using OwnPlanner.Infrastructure.Persistence;
 
 namespace OwnPlanner.Infrastructure.Repositories;
 
-public class NoteItemRepository(AppDbContext db)
-	: RepositoryBase<NoteItem, AppDbContext>(db), INoteItemRepository
+public class NoteItemRepository(IPlannerDbContextFactory dbContextFactory)
+	: PlannerRepositoryBase<NoteItem>(dbContextFactory), INoteItemRepository
 {
 	public async Task<IReadOnlyList<NoteItem>> ListAsync(CancellationToken ct = default)
 	{
-		var items = await Set.ToListAsync(ct);
+		await using var db = await CreateDbContextAsync(ct).ConfigureAwait(false);
+		var items = await db.NoteItems.ToListAsync(ct).ConfigureAwait(false);
 		return items
 			.OrderByDescending(n => n.IsPinned)
 			.ThenByDescending(n => n.UpdatedAt)
@@ -18,7 +19,8 @@ public class NoteItemRepository(AppDbContext db)
 
 	public async Task<IReadOnlyList<NoteItem>> ListByNoteListAsync(Guid noteListId, CancellationToken ct = default)
 	{
-		var items = await Set.Where(n => n.NoteListId == noteListId).ToListAsync(ct);
+		await using var db = await CreateDbContextAsync(ct).ConfigureAwait(false);
+		var items = await db.NoteItems.Where(n => n.NoteListId == noteListId).ToListAsync(ct).ConfigureAwait(false);
 		return items
 			.OrderByDescending(n => n.IsPinned)
 			.ThenByDescending(n => n.UpdatedAt)
@@ -27,7 +29,8 @@ public class NoteItemRepository(AppDbContext db)
 
 	public async Task<IReadOnlyList<NoteItem>> ListByGoalAsync(Guid goalId, CancellationToken ct = default)
 	{
-		var items = await Set.Where(n => n.GoalId == goalId).ToListAsync(ct);
+		await using var db = await CreateDbContextAsync(ct).ConfigureAwait(false);
+		var items = await db.NoteItems.Where(n => n.GoalId == goalId).ToListAsync(ct).ConfigureAwait(false);
 		return items
 			.OrderByDescending(n => n.IsPinned)
 			.ThenByDescending(n => n.UpdatedAt)

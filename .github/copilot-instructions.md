@@ -29,6 +29,7 @@ For more details on the system's design, please refer to the following documents
 - Prefer existing abstractions, helpers, and services over introducing new patterns.
 - Preserve nullability annotations and existing async APIs.
 - Keep parameter ordering consistent across similar APIs.
+- When adding a new interface or modifying an existing one, add or update XML documentation comments for the interface and its members to explain intent, contracts, and usage expectations.
 
 ## Database Migrations
 

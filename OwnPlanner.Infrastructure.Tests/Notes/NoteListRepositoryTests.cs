@@ -25,8 +25,9 @@ public class NoteListRepositoryTests
 		using var db = CreateDb(out var conn);
 		await using var _ = conn;
 		var ct = TestContext.Current.CancellationToken;
+		var dbContextFactory = new TestPlannerDbContextFactory(conn);
 
-		var repo = new NoteListRepository(db);
+		var repo = new NoteListRepository(dbContextFactory);
 		var list = new NoteList("Personal Notes", "My personal thoughts", "#4CAF50");
 		await repo.AddAsync(list, ct);
 
@@ -54,7 +55,8 @@ public class NoteListRepositoryTests
 		using var db = CreateDb(out var conn);
 		await using var _ = conn;
 		var ct = TestContext.Current.CancellationToken;
-		var repo = new NoteListRepository(db);
+		var dbContextFactory = new TestPlannerDbContextFactory(conn);
+		var repo = new NoteListRepository(dbContextFactory);
 
 		var personal = new NoteList("Personal");
 		var work = new NoteList("Work");
@@ -85,9 +87,10 @@ public class NoteListRepositoryTests
 		using var db = CreateDb(out var conn);
 		await using var _ = conn;
 		var ct = TestContext.Current.CancellationToken;
+		var dbContextFactory = new TestPlannerDbContextFactory(conn);
 
-		var listRepo = new NoteListRepository(db);
-		var noteRepo = new NoteItemRepository(db);
+		var listRepo = new NoteListRepository(dbContextFactory);
+		var noteRepo = new NoteItemRepository(dbContextFactory);
 
 		var list = new NoteList("Test List");
 		await listRepo.AddAsync(list, ct);
@@ -112,7 +115,8 @@ public class NoteListRepositoryTests
 		using var db = CreateDb(out var conn);
 		await using var _ = conn;
 		var ct = TestContext.Current.CancellationToken;
-		var repo = new NoteListRepository(db);
+		var dbContextFactory = new TestPlannerDbContextFactory(conn);
+		var repo = new NoteListRepository(dbContextFactory);
 
 		var contextId = Guid.NewGuid();
 		var list = new NoteList("Journal", contextId: contextId);
@@ -129,7 +133,8 @@ public class NoteListRepositoryTests
 		using var db = CreateDb(out var conn);
 		await using var _ = conn;
 		var ct = TestContext.Current.CancellationToken;
-		var repo = new NoteListRepository(db);
+		var dbContextFactory = new TestPlannerDbContextFactory(conn);
+		var repo = new NoteListRepository(dbContextFactory);
 
 		var contextA = Guid.NewGuid();
 		var contextB = Guid.NewGuid();
@@ -155,7 +160,8 @@ public class NoteListRepositoryTests
 		using var db = CreateDb(out var conn);
 		await using var _ = conn;
 		var ct = TestContext.Current.CancellationToken;
-		var repo = new NoteListRepository(db);
+		var dbContextFactory = new TestPlannerDbContextFactory(conn);
+		var repo = new NoteListRepository(dbContextFactory);
 
 		var contextId = Guid.NewGuid();
 		var assigned1 = new NoteList("Assigned 1", contextId: contextId);

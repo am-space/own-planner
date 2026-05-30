@@ -1,11 +1,22 @@
 using Serilog;
 using OwnPlanner.Web.Server.Middleware;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
+using OwnPlanner.Application.Contexts;
 using OwnPlanner.Infrastructure.Persistence;
+using OwnPlanner.Domain.Contexts;
+using OwnPlanner.Domain.Goals;
+using OwnPlanner.Domain.Notes;
+using OwnPlanner.Domain.Tasks;
 using OwnPlanner.Domain.Users;
 using OwnPlanner.Infrastructure.Repositories;
 using OwnPlanner.Application.Auth;
+using OwnPlanner.Application.Goals;
+using OwnPlanner.Application.Inbox;
+using OwnPlanner.Application.Notes;
+using OwnPlanner.Application.Tasks;
+using OwnPlanner.Mcp.Tools;
 using OwnPlanner.Web.Server.Configuration;
 using OwnPlanner.Web.Server.Services;
 
@@ -43,16 +54,49 @@ namespace OwnPlanner.Web.Server
 					: Path.GetFullPath(configuredAuthDbPath);
 
 				Log.Information("Database path configured: {AuthDbPath}", authDbPath);
+				var configuredUserDbDirectory = builder.Configuration["Database:UserDbDirectory"];
+				var userDbDirectory = string.IsNullOrWhiteSpace(configuredUserDbDirectory)
+					? Path.GetFullPath(Environment.GetEnvironmentVariable("MCP_DATA_DIR") ?? Path.Combine(builder.Environment.ContentRootPath, "data", "databases"))
+					: Path.GetFullPath(configuredUserDbDirectory);
+
+				Directory.CreateDirectory(userDbDirectory);
+				Log.Information("Planner user database directory configured: {UserDbDirectory}", userDbDirectory);
 
 				builder.Services.AddDbContext<AuthDbContext>(options =>
 					options.UseSqlite($"Data Source={authDbPath}")
 				);
+				builder.Services.AddHttpContextAccessor();
+				builder.Services.AddSingleton<IPlannerSessionContextAccessor, PlannerSessionContextAccessor>();
+				builder.Services.AddSingleton<PerUserAppInitializationService>();
+				builder.Services.AddScoped<SessionContext>(sp =>
+				{
+					var sessionContextAccessor = sp.GetRequiredService<IPlannerSessionContextAccessor>();
+					return sessionContextAccessor.Current ?? CreateSessionContext(sp.GetRequiredService<IHttpContextAccessor>().HttpContext);
+				});
+				builder.Services.AddScoped<IPlannerDbContextFactory>(serviceProvider =>
+					new PlannerAppDbContextFactory(
+						userDbDirectory,
+						serviceProvider.GetRequiredService<IPlannerSessionContextAccessor>(),
+						serviceProvider.GetRequiredService<IHttpContextAccessor>()));
 
 				// Register repositories
 				builder.Services.AddScoped<IUserRepository, UserRepository>();
+				builder.Services.AddScoped<ITaskItemRepository, TaskItemRepository>();
+				builder.Services.AddScoped<ITaskListRepository, TaskListRepository>();
+				builder.Services.AddScoped<INoteListRepository, NoteListRepository>();
+				builder.Services.AddScoped<INoteItemRepository, NoteItemRepository>();
+				builder.Services.AddScoped<IGoalRepository, GoalRepository>();
+				builder.Services.AddScoped<IPlanningContextRepository, PlanningContextRepository>();
 
 				// Register application services
 				builder.Services.AddScoped<IAuthService, AuthService>();
+				builder.Services.AddScoped<ITaskItemService, TaskItemService>();
+				builder.Services.AddScoped<ITaskListService, TaskListService>();
+				builder.Services.AddScoped<INoteListService, NoteListService>();
+				builder.Services.AddScoped<INoteItemService, NoteItemService>();
+				builder.Services.AddScoped<IGoalService, GoalService>();
+				builder.Services.AddScoped<IPlanningContextService, PlanningContextService>();
+				builder.Services.AddScoped<IInboxSeeder, InboxSeeder>();
 
 				// Configure chat settings
 				builder.Services.Configure<ChatSettings>(builder.Configuration.GetSection("Chat"));
@@ -110,7 +154,7 @@ namespace OwnPlanner.Web.Server
 				// Place Serilog request logging at the start so handled exceptions don't log twice
 				app.UseSerilogRequestLogging(options =>
 				{
-					options.GetLevel = (httpContext, elapsed, ex) => ex != null
+					options.GetLevel = (httpContext, _, ex) => ex != null
 						? Serilog.Events.LogEventLevel.Warning  // Log requests with exceptions at Warning level
 						: httpContext.Response.StatusCode >= 500
 							? Serilog.Events.LogEventLevel.Warning
@@ -155,6 +199,29 @@ namespace OwnPlanner.Web.Server
 			{
 				Log.CloseAndFlush();
 			}
+		}
+
+		private static SessionContext CreateSessionContext(HttpContext? httpContext)
+		{
+			var userId = ResolveAuthenticatedUserId(httpContext);
+			var sessionId = httpContext?.User.FindFirstValue("SessionId");
+
+			return new SessionContext
+			{
+				SessionId = string.IsNullOrWhiteSpace(sessionId) ? $"http-{userId}" : sessionId,
+				UserId = userId
+			};
+		}
+
+		private static string ResolveAuthenticatedUserId(HttpContext? httpContext)
+		{
+			var userId = httpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier);
+			if (string.IsNullOrWhiteSpace(userId))
+			{
+				throw new UnauthorizedAccessException("Authenticated user id is required for planner data access.");
+			}
+
+			return userId;
 		}
 	}
 }

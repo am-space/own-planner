@@ -12,44 +12,51 @@ namespace OwnPlanner.Web.Server.Services
 	{
 		private readonly ChatSettings _settings;
 		private readonly ILogger<ChatServiceFactory> _logger;
+		private readonly ILogger<DirectToolMcpAdapter> _directToolMcpAdapterLogger;
 		private readonly ILogger<PlanningService> _planningServiceLogger;
+		private readonly IServiceScopeFactory _serviceScopeFactory;
+		private readonly IPlannerSessionContextAccessor _sessionContextAccessor;
+		private readonly PerUserAppInitializationService _initializationService;
 
-		public ChatServiceFactory(IOptions<ChatSettings> settings, ILogger<ChatServiceFactory> logger, ILogger<PlanningService> planningServiceLogger)
+		public ChatServiceFactory(
+			IOptions<ChatSettings> settings,
+			ILogger<ChatServiceFactory> logger,
+			ILogger<DirectToolMcpAdapter> directToolMcpAdapterLogger,
+			ILogger<PlanningService> planningServiceLogger,
+			IServiceScopeFactory serviceScopeFactory,
+			IPlannerSessionContextAccessor sessionContextAccessor,
+			PerUserAppInitializationService initializationService)
 		{
 			_settings = settings.Value;
 			_logger = logger;
+			_directToolMcpAdapterLogger = directToolMcpAdapterLogger;
 			_planningServiceLogger = planningServiceLogger;
+			_serviceScopeFactory = serviceScopeFactory;
+			_sessionContextAccessor = sessionContextAccessor;
+			_initializationService = initializationService;
 		}
 
 		public async Task<IPlanningService> CreateAsync(string sessionId, string userId, CancellationToken cancellationToken = default)
 		{
 			_logger.LogDebug("Creating new ChatServiceAdapter instance for session: {SessionId}, user: {UserId}", sessionId, userId);
 
-			// Create a dedicated MCP adapter for this session if configured
-			McpAdapter? mcpAdapter = null;
-			if (!string.IsNullOrEmpty(_settings.Mcp.Command))
+			IMcpAdapter? mcpAdapter = null;
+			try
 			{
-				try
-				{
-					_logger.LogInformation("Initializing MCP adapter for session: {SessionId}, user: {UserId}", sessionId, userId);
-					
-					// Add session ID and user ID as arguments to the MCP server
-					var mcpArguments = _settings.Mcp.Arguments.ToList();
-					mcpArguments.Add("--session-id");
-					mcpArguments.Add(sessionId);
-					mcpArguments.Add("--user-id");
-					mcpArguments.Add(userId);
-					
-					mcpAdapter = new McpAdapter(_settings.Mcp.Command, mcpArguments.ToArray());
-					await mcpAdapter.InitializeAsync(cancellationToken);
-					
-					_logger.LogInformation("MCP adapter initialized successfully for session: {SessionId}, user: {UserId}", sessionId, userId);
-				}
-				catch (Exception ex)
-				{
-					_logger.LogError(ex, "Failed to initialize MCP adapter for session: {SessionId}, user: {UserId}", sessionId, userId);
-					// Continue without MCP
-				}
+				_logger.LogInformation("Initializing direct MCP adapter for session: {SessionId}, user: {UserId}", sessionId, userId);
+				mcpAdapter = new DirectToolMcpAdapter(
+					sessionId,
+					userId,
+					_serviceScopeFactory,
+					_sessionContextAccessor,
+					_initializationService,
+					_directToolMcpAdapterLogger);
+				await mcpAdapter.InitializeAsync(cancellationToken).ConfigureAwait(false);
+				_logger.LogInformation("Direct MCP adapter initialized successfully for session: {SessionId}, user: {UserId}", sessionId, userId);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Failed to initialize direct MCP adapter for session: {SessionId}, user: {UserId}", sessionId, userId);
 			}
 
 			var chatService = new ChatServiceAdapter(
