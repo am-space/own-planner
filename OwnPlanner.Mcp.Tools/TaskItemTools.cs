@@ -2,7 +2,7 @@ using System.ComponentModel;
 using ModelContextProtocol.Server;
 using OwnPlanner.Application.Tasks;
 
-namespace OwnPlanner.Mcp.StdioApp.Tools;
+namespace OwnPlanner.Mcp.Tools;
 
 [McpServerToolType]
 public class TaskItemTools
@@ -205,3 +205,4 @@ public class TaskItemTools
 		}
 	}
 }
+

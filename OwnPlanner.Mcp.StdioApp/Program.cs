@@ -11,7 +11,7 @@ using OwnPlanner.Application.Tasks;
 using OwnPlanner.Application.Notes;
 using OwnPlanner.Infrastructure.Persistence;
 using OwnPlanner.Infrastructure.Repositories;
-using OwnPlanner.Mcp.StdioApp.Tools;
+using OwnPlanner.Mcp.Tools;
 
 namespace OwnPlanner.Mcp.StdioApp
 {
@@ -153,14 +153,5 @@ namespace OwnPlanner.Mcp.StdioApp
 
 			await host.RunAsync();
 		}
-	}
-
-	/// <summary>
-	/// Context information for the current MCP session
-	/// </summary>
-	public class SessionContext
-	{
-		public required string SessionId { get; init; }
-		public required string UserId { get; init; }
 	}
 }

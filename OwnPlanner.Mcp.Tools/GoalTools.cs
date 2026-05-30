@@ -3,7 +3,7 @@ using ModelContextProtocol.Server;
 using OwnPlanner.Application.Goals;
 using OwnPlanner.Domain.Goals;
 
-namespace OwnPlanner.Mcp.StdioApp.Tools;
+namespace OwnPlanner.Mcp.Tools;
 
 [McpServerToolType]
 public class GoalTools(IGoalService service)
@@ -133,3 +133,4 @@ public class GoalTools(IGoalService service)
 		}
 	}
 }
+

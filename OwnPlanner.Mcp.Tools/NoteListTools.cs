@@ -2,7 +2,7 @@ using System.ComponentModel;
 using ModelContextProtocol.Server;
 using OwnPlanner.Application.Notes;
 
-namespace OwnPlanner.Mcp.StdioApp.Tools;
+namespace OwnPlanner.Mcp.Tools;
 
 [McpServerToolType]
 public class NoteListTools
@@ -112,3 +112,4 @@ public class NoteListTools
 		}
 	}
 }
+

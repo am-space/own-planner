@@ -2,7 +2,7 @@ using System.ComponentModel;
 using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Server;
 
-namespace OwnPlanner.Mcp.StdioApp.Tools;
+namespace OwnPlanner.Mcp.Tools;
 
 [McpServerToolType]
 public class DateTimeTools
@@ -19,12 +19,12 @@ public class DateTimeTools
 	[McpServerTool(Name = "datetime_get_current", Idempotent = true, ReadOnly = true), Description("Get the current date and time in UTC and local timezone. Useful for time-sensitive queries, scheduling, and understanding what time it is now.")]
 	public Task<object> GetCurrentDateTime()
 	{
-		_logger.LogDebug("Getting current datetime for user: {UserId}, session: {SessionId}", 
+		_logger.LogDebug("Getting current datetime for user: {UserId}, session: {SessionId}",
 			_sessionContext.UserId, _sessionContext.SessionId);
 
 		var utcNow = DateTime.UtcNow;
 		var localNow = DateTime.Now;
-		
+
 		return Task.FromResult<object>(new
 		{
 			utc = new
@@ -49,3 +49,4 @@ public class DateTimeTools
 		});
 	}
 }
+

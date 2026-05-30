@@ -3,7 +3,7 @@ using ModelContextProtocol.Server;
 using OwnPlanner.Application.Contexts;
 using OwnPlanner.Domain.Contexts;
 
-namespace OwnPlanner.Mcp.StdioApp.Tools;
+namespace OwnPlanner.Mcp.Tools;
 
 [McpServerToolType]
 public class PlanningContextTools(IPlanningContextService service)
@@ -105,3 +105,4 @@ public class PlanningContextTools(IPlanningContextService service)
 		}
 	}
 }
+
