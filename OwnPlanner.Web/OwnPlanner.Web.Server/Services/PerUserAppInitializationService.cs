@@ -23,9 +23,10 @@ public sealed class PerUserAppInitializationService(
 	IPlannerSessionContextAccessor sessionContextAccessor,
 	ILogger<PerUserAppInitializationService> logger)
 {
-	private readonly IServiceScopeFactory _scopeFactory = scopeFactory;
-	private readonly IPlannerSessionContextAccessor _sessionContextAccessor = sessionContextAccessor;
-	private readonly ILogger<PerUserAppInitializationService> _logger = logger;
+	// TODO: _initializations retains a completed entry for every user ever seen by this process.
+	// In a long-running deployment with many users this can grow without bound.
+	// Consider evicting successful entries after a TTL or switching to a bounded cache
+	// (e.g., IMemoryCache with sliding expiration) while preserving single-flight behavior.
 	private readonly ConcurrentDictionary<string, Lazy<Task>> _initializations = new(StringComparer.Ordinal);
 
 	public async Task EnsureInitializedAsync(SessionContext sessionContext, CancellationToken cancellationToken = default)
@@ -104,17 +105,17 @@ public sealed class PerUserAppInitializationService(
 
 	private async Task InitializeUserAsync(SessionContext sessionContext)
 	{
-		using var _ = _sessionContextAccessor.BeginScope(sessionContext);
-		using var scope = _scopeFactory.CreateScope();
+		using var _ = sessionContextAccessor.BeginScope(sessionContext);
+		using var scope = scopeFactory.CreateScope();
 		var serviceProvider = scope.ServiceProvider;
 		var dbContextFactory = serviceProvider.GetRequiredService<IPlannerDbContextFactory>();
 		await using var dbContext = await dbContextFactory.CreateAsync().ConfigureAwait(false);
 		var inboxSeeder = serviceProvider.GetRequiredService<IInboxSeeder>();
 
-		_logger.LogInformation("Initializing planner database for user {UserId}", sessionContext.UserId);
+		logger.LogInformation("Initializing planner database for user {UserId}", sessionContext.UserId);
 		await dbContext.Database.MigrateAsync().ConfigureAwait(false);
 		await inboxSeeder.SeedAsync().ConfigureAwait(false);
-		_logger.LogInformation("Planner database ready for user {UserId}", sessionContext.UserId);
+		logger.LogInformation("Planner database ready for user {UserId}", sessionContext.UserId);
 	}
 }
 

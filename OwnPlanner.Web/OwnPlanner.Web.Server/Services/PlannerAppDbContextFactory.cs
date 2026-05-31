@@ -14,14 +14,10 @@ internal sealed class PlannerAppDbContextFactory(
 	IPlannerSessionContextAccessor sessionContextAccessor,
 	IHttpContextAccessor httpContextAccessor) : IPlannerDbContextFactory
 {
-	private readonly string _userDbDirectory = userDbDirectory;
-	private readonly IPlannerSessionContextAccessor _sessionContextAccessor = sessionContextAccessor;
-	private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
-
 	public ValueTask<AppDbContext> CreateAsync(CancellationToken cancellationToken = default)
 	{
-		var userId = _sessionContextAccessor.Current?.UserId ?? ResolveAuthenticatedUserId(_httpContextAccessor.HttpContext);
-		var dbPath = Path.Combine(_userDbDirectory, $"ownplanner-user-{userId}.db");
+		var userId = sessionContextAccessor.Current?.UserId ?? ResolveAuthenticatedUserId(httpContextAccessor.HttpContext);
+		var dbPath = Path.Combine(userDbDirectory, $"ownplanner-user-{userId}.db");
 		var options = new DbContextOptionsBuilder<AppDbContext>()
 			.UseSqlite($"Data Source={dbPath}")
 			.Options;

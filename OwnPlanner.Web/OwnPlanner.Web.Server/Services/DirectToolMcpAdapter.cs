@@ -102,7 +102,7 @@ public sealed class DirectToolMcpAdapter(
 			var parameter = parameters[index];
 			if (arguments is not null && arguments.TryGetValue(parameter.Name!, out var rawValue))
 			{
-							values[index] = ConvertArgument(rawValue, parameter);
+				values[index] = ConvertArgument(rawValue, parameter);
 				continue;
 			}
 
