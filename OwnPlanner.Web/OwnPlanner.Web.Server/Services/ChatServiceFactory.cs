@@ -8,47 +8,52 @@ namespace OwnPlanner.Web.Server.Services
 	/// <summary>
 	/// Factory implementation for creating IPlanningService instances with per-session MCP support
 	/// </summary>
-	public class ChatServiceFactory : IChatServiceFactory
+	public class ChatServiceFactory(
+		IOptions<ChatSettings> settings,
+		ILogger<ChatServiceFactory> logger,
+		ILogger<DirectToolMcpAdapter> directToolMcpAdapterLogger,
+		ILogger<PlanningService> planningServiceLogger,
+		IServiceScopeFactory serviceScopeFactory,
+		IPlannerSessionContextAccessor sessionContextAccessor,
+		PerUserAppInitializationService initializationService)
+		: IChatServiceFactory
 	{
-		private readonly ChatSettings _settings;
-		private readonly ILogger<ChatServiceFactory> _logger;
-		private readonly ILogger<PlanningService> _planningServiceLogger;
-
-		public ChatServiceFactory(IOptions<ChatSettings> settings, ILogger<ChatServiceFactory> logger, ILogger<PlanningService> planningServiceLogger)
-		{
-			_settings = settings.Value;
-			_logger = logger;
-			_planningServiceLogger = planningServiceLogger;
-		}
+		private readonly ChatSettings _settings = settings.Value;
 
 		public async Task<IPlanningService> CreateAsync(string sessionId, string userId, CancellationToken cancellationToken = default)
 		{
-			_logger.LogDebug("Creating new ChatServiceAdapter instance for session: {SessionId}, user: {UserId}", sessionId, userId);
+			logger.LogDebug("Creating new ChatServiceAdapter instance for session: {SessionId}, user: {UserId}", sessionId, userId);
 
-			// Create a dedicated MCP adapter for this session if configured
-			McpAdapter? mcpAdapter = null;
-			if (!string.IsNullOrEmpty(_settings.Mcp.Command))
+			IMcpAdapter? mcpAdapter = null;
+			try
 			{
-				try
+				logger.LogInformation("Initializing direct MCP adapter for session: {SessionId}, user: {UserId}", sessionId, userId);
+				mcpAdapter = new DirectToolMcpAdapter(
+					sessionId,
+					userId,
+					serviceScopeFactory,
+					sessionContextAccessor,
+					initializationService,
+					directToolMcpAdapterLogger);
+				await mcpAdapter.InitializeAsync(cancellationToken).ConfigureAwait(false);
+				logger.LogInformation("Direct MCP adapter initialized successfully for session: {SessionId}, user: {UserId}", sessionId, userId);
+			}
+			catch (Exception ex)
+			{
+				logger.LogError(ex, "Failed to initialize direct MCP adapter for session: {SessionId}, user: {UserId}", sessionId, userId);
+
+				if (mcpAdapter != null)
 				{
-					_logger.LogInformation("Initializing MCP adapter for session: {SessionId}, user: {UserId}", sessionId, userId);
-					
-					// Add session ID and user ID as arguments to the MCP server
-					var mcpArguments = _settings.Mcp.Arguments.ToList();
-					mcpArguments.Add("--session-id");
-					mcpArguments.Add(sessionId);
-					mcpArguments.Add("--user-id");
-					mcpArguments.Add(userId);
-					
-					mcpAdapter = new McpAdapter(_settings.Mcp.Command, mcpArguments.ToArray());
-					await mcpAdapter.InitializeAsync(cancellationToken);
-					
-					_logger.LogInformation("MCP adapter initialized successfully for session: {SessionId}, user: {UserId}", sessionId, userId);
-				}
-				catch (Exception ex)
-				{
-					_logger.LogError(ex, "Failed to initialize MCP adapter for session: {SessionId}, user: {UserId}", sessionId, userId);
-					// Continue without MCP
+					try
+					{
+						await mcpAdapter.DisposeAsync().ConfigureAwait(false);
+					}
+					catch (Exception disposeEx)
+					{
+						logger.LogWarning(disposeEx, "Failed to dispose partially initialized MCP adapter for session: {SessionId}, user: {UserId}", sessionId, userId);
+					}
+
+					mcpAdapter = null;
 				}
 			}
 
@@ -59,8 +64,8 @@ namespace OwnPlanner.Web.Server.Services
 				mcpAdapter
 			);
 
-			_logger.LogDebug("ChatServiceAdapter instance created successfully for session: {SessionId}, user: {UserId}", sessionId, userId);
-            return new PlanningService(chatService, mcpAdapter, _planningServiceLogger, _settings.Gemini.MaxContextLengthTokens);
+			logger.LogDebug("ChatServiceAdapter instance created successfully for session: {SessionId}, user: {UserId}", sessionId, userId);
+			return new PlanningService(chatService, mcpAdapter, planningServiceLogger, _settings.Gemini.MaxContextLengthTokens);
 		}
 	}
 }

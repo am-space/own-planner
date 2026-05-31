@@ -25,8 +25,9 @@ public class GoalRepositoryTests
 		using var db = CreateDb(out var conn);
 		await using var _ = conn;
 		var ct = TestContext.Current.CancellationToken;
+		var dbContextFactory = new TestPlannerDbContextFactory(conn);
 
-		var repo = new GoalRepository(db);
+		var repo = new GoalRepository(dbContextFactory);
 		var goal = new Goal("Q2 Launch", GoalHorizon.Quarterly, "Ship the product", "2025-Q2", null, "Release v1.0");
 		await repo.AddAsync(goal, ct);
 
@@ -58,8 +59,9 @@ public class GoalRepositoryTests
 		using var db = CreateDb(out var conn);
 		await using var _ = conn;
 		var ct = TestContext.Current.CancellationToken;
+		var dbContextFactory = new TestPlannerDbContextFactory(conn);
 
-		var repo = new GoalRepository(db);
+		var repo = new GoalRepository(dbContextFactory);
 		var deadline = new DateTime(2025, 12, 31, 0, 0, 0, DateTimeKind.Utc);
 		var goal = new Goal("Finish book", GoalHorizon.TargetDate, targetDate: deadline);
 		await repo.AddAsync(goal, ct);
@@ -77,8 +79,9 @@ public class GoalRepositoryTests
 		using var db = CreateDb(out var conn);
 		await using var _ = conn;
 		var ct = TestContext.Current.CancellationToken;
+		var dbContextFactory = new TestPlannerDbContextFactory(conn);
 
-		var repo = new GoalRepository(db);
+		var repo = new GoalRepository(dbContextFactory);
 
 		var active = new Goal("Health", GoalHorizon.Quarterly, targetPeriod: "2025-Q2");
 		var achieved = new Goal("Learn Spanish", GoalHorizon.Yearly, targetPeriod: "2024");

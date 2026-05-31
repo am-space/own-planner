@@ -26,9 +26,9 @@ namespace OwnPlanner.Infrastructure.Adapters
 		""";
 		private static readonly FunctionDeclaration SearchAgentFunctionDeclaration = BuildSearchAgentFunctionDeclaration();
 
-		private readonly GoogleAI _googleAI;
+		private readonly GoogleAI _googleAi;
 		private readonly string _model;
-		private readonly McpAdapter? _mcpClient;
+		private readonly IMcpAdapter? _mcpClient;
 		private readonly bool _shouldDisposeMcp;
 		private readonly int _maxToolCallRounds;
 		private Tools? _geminiTools;
@@ -63,8 +63,8 @@ namespace OwnPlanner.Infrastructure.Adapters
 			}
 
 			_generativeModel = _geminiTools != null
-				? _googleAI.GenerativeModel(_model, tools: _geminiTools)
-				: _googleAI.GenerativeModel(_model);
+				? _googleAi.GenerativeModel(_model, tools: _geminiTools)
+				: _googleAi.GenerativeModel(_model);
 			InitializeChatWithInstructions(systemPrompt);
 			Log.Information("Chat session initialized successfully");
 		}
@@ -74,10 +74,10 @@ namespace OwnPlanner.Infrastructure.Adapters
 			InitializeChatSession(systemPrompt, allowedTools);
 		}
 
-		public ChatServiceAdapter(string apiKey, string model, int maxToolCallRounds = 10, McpAdapter? mcpAdapter = null)
+		public ChatServiceAdapter(string apiKey, string model, int maxToolCallRounds = 10, IMcpAdapter? mcpAdapter = null)
 		{
 			Log.Debug("Creating ChatServiceAdapter with model: {Model}, MCP: {HasMcp}, MaxToolCallRounds: {MaxRounds}", model, mcpAdapter != null, maxToolCallRounds);
-			_googleAI = new GoogleAI(apiKey);
+			_googleAi = new GoogleAI(apiKey);
 			_model = model;
 			_mcpClient = mcpAdapter;
 			_shouldDisposeMcp = mcpAdapter != null; // Don't dispose injected adapter
@@ -151,7 +151,7 @@ namespace OwnPlanner.Infrastructure.Adapters
 				Log.Debug("Initializing MCP client...");
 				await _mcpClient.InitializeAsync();
 				
-				var details = await _mcpClient.ListToolDetailsAsync();
+				var details = await _mcpClient.ListToolDetailsAsync().ConfigureAwait(false);
 				Log.Information("Retrieved {Count} MCP tool details", details.Count);
 
 				if (details.Any())
@@ -163,8 +163,9 @@ namespace OwnPlanner.Infrastructure.Adapters
 						try
 						{
 							// Build the Schema object from the JsonSchema property
-							var jsonSchema = d.JsonSchema;
-							if (jsonSchema.ValueKind != JsonValueKind.Undefined && jsonSchema.ValueKind != JsonValueKind.Null)
+							if (d.JsonSchema is JsonElement jsonSchema &&
+								jsonSchema.ValueKind != JsonValueKind.Undefined &&
+								jsonSchema.ValueKind != JsonValueKind.Null)
 							{
 								schema = ConvertJsonSchemaToGeminiSchema(jsonSchema);
 							}
@@ -274,7 +275,7 @@ namespace OwnPlanner.Infrastructure.Adapters
 			Log.Information("Executing local search agent call");
 			Log.Debug("Query: {Query}", query);
 
-			var searchModel = _googleAI.GenerativeModel(_model);
+			var searchModel = _googleAi.GenerativeModel(_model);
 			searchModel.UseGoogleSearch = true;
 
 			var searchChat = searchModel.StartChat(history:

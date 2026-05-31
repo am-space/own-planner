@@ -25,9 +25,10 @@ public class NoteItemRepositoryTests
 		using var db = CreateDb(out var conn);
 		await using var _ = conn;
 		var ct = TestContext.Current.CancellationToken;
+		var dbContextFactory = new TestPlannerDbContextFactory(conn);
 
-		var repo = new NoteItemRepository(db);
-		var listRepo = new NoteListRepository(db);
+		var repo = new NoteItemRepository(dbContextFactory);
+		var listRepo = new NoteListRepository(dbContextFactory);
 		
 		var list = new NoteList("Test List");
 		await listRepo.AddAsync(list, ct);
@@ -59,8 +60,9 @@ public class NoteItemRepositoryTests
 		using var db = CreateDb(out var conn);
 		await using var _ = conn;
 		var ct = TestContext.Current.CancellationToken;
-		var repo = new NoteItemRepository(db);
-		var listRepo = new NoteListRepository(db);
+		var dbContextFactory = new TestPlannerDbContextFactory(conn);
+		var repo = new NoteItemRepository(dbContextFactory);
+		var listRepo = new NoteListRepository(dbContextFactory);
 
 		var list = new NoteList("Test List");
 		await listRepo.AddAsync(list, ct);
@@ -97,8 +99,9 @@ public class NoteItemRepositoryTests
 		using var db = CreateDb(out var conn);
 		await using var _ = conn;
 		var ct = TestContext.Current.CancellationToken;
-		var noteRepo = new NoteItemRepository(db);
-		var listRepo = new NoteListRepository(db);
+		var dbContextFactory = new TestPlannerDbContextFactory(conn);
+		var noteRepo = new NoteItemRepository(dbContextFactory);
+		var listRepo = new NoteListRepository(dbContextFactory);
 
 		var list1 = new NoteList("List 1");
 		var list2 = new NoteList("List 2");
@@ -134,8 +137,9 @@ public class NoteItemRepositoryTests
 		using var db = CreateDb(out var conn);
 		await using var _ = conn;
 		var ct = TestContext.Current.CancellationToken;
-		var repo = new NoteItemRepository(db);
-		var listRepo = new NoteListRepository(db);
+		var dbContextFactory = new TestPlannerDbContextFactory(conn);
+		var repo = new NoteItemRepository(dbContextFactory);
+		var listRepo = new NoteListRepository(dbContextFactory);
 
 		var list = new NoteList("Test List");
 		await listRepo.AddAsync(list, ct);
@@ -173,8 +177,9 @@ public class NoteItemRepositoryTests
 		using var db = CreateDb(out var conn);
 		await using var _ = conn;
 		var ct = TestContext.Current.CancellationToken;
-		var repo = new NoteItemRepository(db);
-		var listRepo = new NoteListRepository(db);
+		var dbContextFactory = new TestPlannerDbContextFactory(conn);
+		var repo = new NoteItemRepository(dbContextFactory);
+		var listRepo = new NoteListRepository(dbContextFactory);
 
 		var list = new NoteList("Test List");
 		await listRepo.AddAsync(list, ct);
@@ -202,8 +207,9 @@ public class NoteItemRepositoryTests
 		using var db = CreateDb(out var conn);
 		await using var _ = conn;
 		var ct = TestContext.Current.CancellationToken;
-		var repo = new NoteItemRepository(db);
-		var listRepo = new NoteListRepository(db);
+		var dbContextFactory = new TestPlannerDbContextFactory(conn);
+		var repo = new NoteItemRepository(dbContextFactory);
+		var listRepo = new NoteListRepository(dbContextFactory);
 
 		var list = new NoteList("Test List");
 		await listRepo.AddAsync(list, ct);
@@ -236,8 +242,9 @@ public class NoteItemRepositoryTests
 		using var db = CreateDb(out var conn);
 		await using var _ = conn;
 		var ct = TestContext.Current.CancellationToken;
-		var repo = new NoteItemRepository(db);
-		var listRepo = new NoteListRepository(db);
+		var dbContextFactory = new TestPlannerDbContextFactory(conn);
+		var repo = new NoteItemRepository(dbContextFactory);
+		var listRepo = new NoteListRepository(dbContextFactory);
 
 		var list = new NoteList("Test List");
 		await listRepo.AddAsync(list, ct);

@@ -11,6 +11,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Presentation", "Presentatio
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OwnPlanner.Mcp.StdioApp", "OwnPlanner.Mcp.StdioApp\OwnPlanner.Mcp.StdioApp.csproj", "{420BA1F7-6C2E-4439-A245-73A728FC1E6B}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OwnPlanner.Mcp.Tools", "OwnPlanner.Mcp.Tools\OwnPlanner.Mcp.Tools.csproj", "{C3D4E5F6-A7B8-49CD-EF01-234567890ABC}"
+EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OwnPlanner.Domain", "OwnPlanner.Domain\OwnPlanner.Domain.csproj", "{4E47E57A-021A-4FA0-AF20-C29AA9955139}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OwnPlanner.Application", "OwnPlanner.Application\OwnPlanner.Application.csproj", "{0A22B4B2-6107-49BC-A6E7-C4F0EB382C99}"
@@ -27,7 +29,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OwnPlanner.Console", "OwnPl
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Docs", "Docs", "{6554420F-4B0E-4CE9-9F60-ECBCA6CE3BCC}"
 	ProjectSection(SolutionItems) = preProject
-		MCP_CONTAINER.md = MCP_CONTAINER.md
 		docs\MCP_TOOLS_REFERENCE.md = docs\MCP_TOOLS_REFERENCE.md
 	EndProjectSection
 EndProject
@@ -41,8 +42,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OwnPlanner.Web.Server.Tests", "OwnPlanner.Web.Server.Tests\OwnPlanner.Web.Server.Tests.csproj", "{5C1B1319-89C0-47A4-894E-A1318A3A3FB4}"
-EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "OwnPlanner.Web", "OwnPlanner.Web", "{DF9B571A-EE35-59A5-09B7-B106E1DB9BD6}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -66,6 +65,18 @@ Global
 		{420BA1F7-6C2E-4439-A245-73A728FC1E6B}.Release|x64.Build.0 = Release|Any CPU
 		{420BA1F7-6C2E-4439-A245-73A728FC1E6B}.Release|x86.ActiveCfg = Release|Any CPU
 		{420BA1F7-6C2E-4439-A245-73A728FC1E6B}.Release|x86.Build.0 = Release|Any CPU
+		{C3D4E5F6-A7B8-49CD-EF01-234567890ABC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C3D4E5F6-A7B8-49CD-EF01-234567890ABC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C3D4E5F6-A7B8-49CD-EF01-234567890ABC}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{C3D4E5F6-A7B8-49CD-EF01-234567890ABC}.Debug|x64.Build.0 = Debug|Any CPU
+		{C3D4E5F6-A7B8-49CD-EF01-234567890ABC}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{C3D4E5F6-A7B8-49CD-EF01-234567890ABC}.Debug|x86.Build.0 = Debug|Any CPU
+		{C3D4E5F6-A7B8-49CD-EF01-234567890ABC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C3D4E5F6-A7B8-49CD-EF01-234567890ABC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C3D4E5F6-A7B8-49CD-EF01-234567890ABC}.Release|x64.ActiveCfg = Release|Any CPU
+		{C3D4E5F6-A7B8-49CD-EF01-234567890ABC}.Release|x64.Build.0 = Release|Any CPU
+		{C3D4E5F6-A7B8-49CD-EF01-234567890ABC}.Release|x86.ActiveCfg = Release|Any CPU
+		{C3D4E5F6-A7B8-49CD-EF01-234567890ABC}.Release|x86.Build.0 = Release|Any CPU
 		{4E47E57A-021A-4FA0-AF20-C29AA9955139}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{4E47E57A-021A-4FA0-AF20-C29AA9955139}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{4E47E57A-021A-4FA0-AF20-C29AA9955139}.Debug|x64.ActiveCfg = Debug|Any CPU
@@ -190,6 +201,7 @@ Global
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{420BA1F7-6C2E-4439-A245-73A728FC1E6B} = {EF918898-108B-4B32-9F82-9C7A9399B274}
+		{C3D4E5F6-A7B8-49CD-EF01-234567890ABC} = {EF918898-108B-4B32-9F82-9C7A9399B274}
 		{4E47E57A-021A-4FA0-AF20-C29AA9955139} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{0A22B4B2-6107-49BC-A6E7-C4F0EB382C99} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{A8CFAD70-A553-4219-A136-FE78F6523599} = {0332601B-A2EB-46B2-9025-ECBA29CB90B4}

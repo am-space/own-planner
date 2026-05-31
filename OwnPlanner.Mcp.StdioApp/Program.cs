@@ -9,9 +9,13 @@ using OwnPlanner.Application.Goals;
 using OwnPlanner.Application.Inbox;
 using OwnPlanner.Application.Tasks;
 using OwnPlanner.Application.Notes;
+using OwnPlanner.Domain.Contexts;
+using OwnPlanner.Domain.Goals;
+using OwnPlanner.Domain.Notes;
+using OwnPlanner.Domain.Tasks;
 using OwnPlanner.Infrastructure.Persistence;
 using OwnPlanner.Infrastructure.Repositories;
-using OwnPlanner.Mcp.StdioApp.Tools;
+using OwnPlanner.Mcp.Tools;
 
 namespace OwnPlanner.Mcp.StdioApp
 {
@@ -70,7 +74,7 @@ namespace OwnPlanner.Mcp.StdioApp
 
 			var hostBuilder = Host.CreateDefaultBuilder(args)
 				.UseSerilog()
-				.ConfigureServices((context, services) =>
+				.ConfigureServices((_, services) =>
 				{
 					// Register session context as a singleton for access in tools
 					services.AddSingleton(new SessionContext 
@@ -91,21 +95,16 @@ namespace OwnPlanner.Mcp.StdioApp
 					services.AddDbContext<AppDbContext>(options =>
 						options.UseSqlite($"Data Source={dbPath}")
 					);
+					services.AddScoped<IPlannerDbContextFactory>(_ => new FixedPathPlannerDbContextFactory(dbPath));
 
 					// Repositories
-					services.AddScoped<TaskItemRepository>();
-					services.AddScoped<OwnPlanner.Domain.Tasks.ITaskItemRepository, TaskItemRepository>();
-					services.AddScoped<TaskListRepository>();
-					services.AddScoped<OwnPlanner.Domain.Tasks.ITaskListRepository, TaskListRepository>();
-					services.AddScoped<NoteListRepository>();
-					services.AddScoped<OwnPlanner.Domain.Notes.INoteListRepository, NoteListRepository>();
-					services.AddScoped<NoteItemRepository>();
-					services.AddScoped<OwnPlanner.Domain.Notes.INoteItemRepository, NoteItemRepository>();
+					services.AddScoped<ITaskItemRepository, TaskItemRepository>();
+					services.AddScoped<ITaskListRepository, TaskListRepository>();
+					services.AddScoped<INoteListRepository, NoteListRepository>();
+					services.AddScoped<INoteItemRepository, NoteItemRepository>();
 
-					services.AddScoped<GoalRepository>();
-					services.AddScoped<OwnPlanner.Domain.Goals.IGoalRepository, GoalRepository>();
-					services.AddScoped<PlanningContextRepository>();
-					services.AddScoped<OwnPlanner.Domain.Contexts.IPlanningContextRepository, PlanningContextRepository>();
+					services.AddScoped<IGoalRepository, GoalRepository>();
+					services.AddScoped<IPlanningContextRepository, PlanningContextRepository>();
 
 					// Application services
 					services.AddScoped<ITaskItemService, TaskItemService>();
@@ -153,14 +152,5 @@ namespace OwnPlanner.Mcp.StdioApp
 
 			await host.RunAsync();
 		}
-	}
-
-	/// <summary>
-	/// Context information for the current MCP session
-	/// </summary>
-	public class SessionContext
-	{
-		public required string SessionId { get; init; }
-		public required string UserId { get; init; }
 	}
 }

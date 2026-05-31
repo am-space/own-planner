@@ -1,6 +1,6 @@
 # Chat API
 
-The Chat API provides AI-powered conversational capabilities using Google's Gemini LLM with optional MCP (Model Context Protocol) tool integration.
+The Chat API provides AI-powered conversational capabilities using Google's Gemini LLM with direct in-process planner tool integration.
 
 ## Key Features
 
@@ -10,7 +10,7 @@ The Chat API provides AI-powered conversational capabilities using Google's Gemi
 - When a user logs in, a new session ID is generated and stored in the authentication cookie
 - Each session has its own:
   - Conversation context (history)
-  - MCP server process
+  - Direct tool adapter instance
   - Independent lifecycle
 
 ### ?? Per-User Data Isolation
@@ -24,7 +24,7 @@ The Chat API provides AI-powered conversational capabilities using Google's Gemi
 - **Session ID is unique per login** - generated as a GUID when user logs in
 - Sessions persist across multiple requests (conversation context maintained)
 - Inactive sessions are automatically cleaned up after 30 minutes
-- Each session has its own MCP server process with user-specific database
+- Each session has its own chat adapter and direct tool adapter bound to the authenticated user database
 - Logging out doesn't automatically clean up the session (timeout handles it)
 
 ## Authentication & Session Flow
@@ -51,7 +51,7 @@ ChatController extracts from cookie:
     ?
 ChatSessionManager creates session:
     - Key: "e4d2c9f8-..."
-    - Launches MCP with: --session-id e4d2c9f8-... --user-id abc-123
+    - Creates a direct tool adapter with the sessionId and userId
     - Database: ownplanner-user-abc-123.db
 ```
 
@@ -59,22 +59,22 @@ ChatSessionManager creates session:
 ```
 User logs in from Browser A
     SessionId: "aaaa-1111"
-    Chat Session: "aaaa-1111" ? MCP Process A ? user-abc-123.db
+    Chat Session: "aaaa-1111" ? Direct Tool Adapter A ? user-abc-123.db
 
 User logs in from Browser B
     SessionId: "bbbb-2222"
-    Chat Session: "bbbb-2222" ? MCP Process B ? user-abc-123.db
+    Chat Session: "bbbb-2222" ? Direct Tool Adapter B ? user-abc-123.db
 
 Result:
 ? Two independent chat conversations
-? Two separate MCP server processes
+? Two separate per-session tool adapters
 ? Same user database (shared task/note data)
 ? Different conversation contexts
 ```
 
 ## Configuration
 
-Add your Gemini API key and MCP settings to `appsettings.Development.json`:
+Add your Gemini API key to `appsettings.Development.json`:
 
 ```json
 {
@@ -83,25 +83,20 @@ Add your Gemini API key and MCP settings to `appsettings.Development.json`:
       "ApiKey": "YOUR_GEMINI_API_KEY_HERE",
       "Model": "gemini-2.0-flash-exp",
       "MaxToolCallRounds": 10
-    },
-    "Mcp": {
-      "Command": "dotnet",
-      "Arguments": [
-        "run",
-        "--project",
-        "..\\..\\OwnPlanner.Mcp.StdioApp\\OwnPlanner.Mcp.StdioApp.csproj"
-      ]
     }
   }
 }
 ```
 
-### MCP Configuration
+If you want the web server to target a specific directory for per-user planner databases, configure `Database:UserDbDirectory`:
 
-- **Command**: The command to launch the MCP server (e.g., "dotnet" or absolute path to .exe)
-- **Arguments**: Array of arguments to pass to the command
-- **Auto-appended**: `--session-id <session-id> --user-id <user-id>` are automatically added
-- To disable MCP, set `Command` to an empty string
+```json
+{
+  "Database": {
+    "UserDbDirectory": "/path/to/planner-databases"
+  }
+}
+```
 
 ## API Endpoints
 
@@ -196,9 +191,9 @@ User sends message
     ?
 ChatSessionManager["aaaa-1111"] created
     ?
-MCP Server launches:
-    --session-id aaaa-1111
-    --user-id abc-123
+Direct tool adapter created:
+    SessionId: aaaa-1111
+    UserId: abc-123
     ?
 Database: ownplanner-user-abc-123.db
 
@@ -210,15 +205,15 @@ User sends message
     ?
 ChatSessionManager["bbbb-2222"] created (SEPARATE!)
     ?
-MCP Server launches:
-    --session-id bbbb-2222
-    --user-id abc-123
+Direct tool adapter created:
+    SessionId: bbbb-2222
+    UserId: abc-123
     ?
 Database: ownplanner-user-abc-123.db (SAME!)
 
 Result:
 ? Two independent conversations
-? Two MCP processes
+? Two per-session tool adapters
 ? One shared database
 ```
 
@@ -242,14 +237,14 @@ Result:
 
 4. **ChatServiceFactory**
    - Creates ChatServiceAdapter instances
-   - Passes both SessionId and UserId to MCP server
-   - Launches separate MCP process per session
+   - Creates a direct tool adapter with SessionId and UserId
+   - Keeps tool execution inside the web server process
 
-5. **MCP Server** (`OwnPlanner.Mcp.StdioApp`)
-   - Receives `--session-id` and `--user-id` via command-line
+5. **Direct Tool Adapter**
+   - Uses SessionId and UserId to scope tool execution and logging
    - Uses UserId for database: `ownplanner-user-{userId}.db`
-   - Enriches logs with both SessionId and UserId
-   - Separate process per active session
+   - Resolves planner tools from the web server DI container
+   - Avoids spawning a separate stdio process per session
 
 ### Session Identifier Strategy
 
@@ -300,13 +295,13 @@ Time: 0s - User sends first message
     ?
     [Chat Session Created]
     - Key: aaaa-1111
-    - MCP Server launches
+    - Direct tool adapter is created
     - Conversation starts
     
 Time: 0s-30min - User continues conversation
     ?
     [Session Active]
-    - Same MCP server instance
+    - Same direct tool adapter instance
     - Same database connection
     - Context maintained
     
@@ -321,7 +316,7 @@ Time: 30min - No activity on Browser A session
     [Session aaaa-1111 Expired]
     - Automatic cleanup timer runs
     - Session disposed
-    - MCP server terminated
+    - Direct tool adapter disposed
     
 Browser B session (bbbb-2222) still active!
 ```
@@ -330,7 +325,7 @@ Browser B session (bbbb-2222) still active!
 
 - All chat endpoints require authentication
 - Sessions are isolated per login (using session ID from cookie)
-- Each session has its own MCP server process
+- Each session has its own direct tool adapter
 - Each user has their own database file
 - Multiple logins from same user create independent sessions
 - API keys are stored in configuration (not in source control)
@@ -403,16 +398,17 @@ await fetch('/api/chat/message', {
 // Both sessions work independently but share task/note data
 ```
 
-## MCP Server Session Context
+## Tool Session Context
 
-The MCP server receives both session ID and user ID:
+The web server carries both session ID and user ID into direct tool execution:
 
 ```bash
-# Command executed for session "e4d2c9f8-..." user "abc-123"
-dotnet run --project ... --session-id e4d2c9f8-a1b2-4c3d-9e8f-7g6h5i4j3k2l --user-id abc-123
+# Session context applied for session "e4d2c9f8-..." user "abc-123"
+SessionId=e4d2c9f8-a1b2-4c3d-9e8f-7g6h5i4j3k2l
+UserId=abc-123
 ```
 
-**SessionContext in MCP Server:**
+**SessionContext used by tools:**
 ```csharp
 public class SessionContext
 {
@@ -449,7 +445,7 @@ This is correct behavior:
 ### Session Timeout
 
 Sessions automatically expire after 30 minutes of inactivity:
-- MCP server process is terminated
+- The in-memory chat session and direct tool adapter are disposed
 - Next message creates new session (if cookie still valid)
 - User database persists (data not lost)
 
@@ -458,7 +454,7 @@ Sessions automatically expire after 30 minutes of inactivity:
 Chat operations are logged to:
 - **Console**: INFO level and above
 - **File**: `logs/web-{date}.log` - Web server logs with sessionId and userId
-- **MCP Server**: `logs/stdioapp-{date}.log` - MCP server logs enriched with both IDs
+- Tool execution logs are emitted through the web server logging pipeline with the same session and user context
 
 Example log entries:
 ```
@@ -466,5 +462,5 @@ Example log entries:
 [DBG] Created session ID for user abc-123: e4d2c9f8-a1b2-4c3d-9e8f-7g6h5i4j3k2l
 [INF] Processing chat message for sessionId: e4d2c9f8-..., userId: abc-123
 [INF] Creating new chat session: e4d2c9f8-... for user: abc-123
-[INF] MCP Server starting - SessionId: e4d2c9f8-..., UserId: abc-123
+[INF] Initializing direct MCP adapter for session: e4d2c9f8-..., user: abc-123
 [INF] Using database: /path/to/ownplanner-user-abc-123.db

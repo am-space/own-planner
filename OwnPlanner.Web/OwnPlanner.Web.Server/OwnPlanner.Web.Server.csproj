@@ -35,6 +35,7 @@
     </ProjectReference>
     <ProjectReference Include="..\..\OwnPlanner.Application\OwnPlanner.Application.csproj" />
     <ProjectReference Include="..\..\OwnPlanner.Infrastructure\OwnPlanner.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\OwnPlanner.Mcp.Tools\OwnPlanner.Mcp.Tools.csproj" />
   </ItemGroup>
 
 </Project>

@@ -25,8 +25,9 @@ public class PlanningContextRepositoryTests
 		using var db = CreateDb(out var conn);
 		await using var _ = conn;
 		var ct = TestContext.Current.CancellationToken;
+		var dbContextFactory = new TestPlannerDbContextFactory(conn);
 
-		var repo = new PlanningContextRepository(db);
+		var repo = new PlanningContextRepository(dbContextFactory);
 		var context = new PlanningContext("Health", ContextType.Area, "Physical wellbeing", "#4CAF50");
 		await repo.AddAsync(context, ct);
 
@@ -55,8 +56,9 @@ public class PlanningContextRepositoryTests
 		using var db = CreateDb(out var conn);
 		await using var _ = conn;
 		var ct = TestContext.Current.CancellationToken;
+		var dbContextFactory = new TestPlannerDbContextFactory(conn);
 
-		var repo = new PlanningContextRepository(db);
+		var repo = new PlanningContextRepository(dbContextFactory);
 
 		var active = new PlanningContext("Work", ContextType.Project);
 		var paused = new PlanningContext("Health", ContextType.Area);

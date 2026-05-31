@@ -13,6 +13,7 @@ WORKDIR /src
 # Copy MCP project and dependencies
 COPY ["Directory.Build.props", "."]
 COPY ["OwnPlanner.Mcp.StdioApp/OwnPlanner.Mcp.StdioApp.csproj", "OwnPlanner.Mcp.StdioApp/"]
+COPY ["OwnPlanner.Mcp.Tools/OwnPlanner.Mcp.Tools.csproj", "OwnPlanner.Mcp.Tools/"]
 COPY ["OwnPlanner.Application/OwnPlanner.Application.csproj", "OwnPlanner.Application/"]
 COPY ["OwnPlanner.Domain/OwnPlanner.Domain.csproj", "OwnPlanner.Domain/"]
 COPY ["OwnPlanner.Infrastructure/OwnPlanner.Infrastructure.csproj", "OwnPlanner.Infrastructure/"]
@@ -51,6 +52,7 @@ WORKDIR /src
 COPY ["Directory.Build.props", "."]
 COPY ["OwnPlanner.Web/OwnPlanner.Web.Server/OwnPlanner.Web.Server.csproj", "OwnPlanner.Web/OwnPlanner.Web.Server/"]
 COPY ["OwnPlanner.Web/ownplanner.web.client/ownplanner.web.client.esproj", "OwnPlanner.Web/ownplanner.web.client/"]
+COPY ["OwnPlanner.Mcp.Tools/OwnPlanner.Mcp.Tools.csproj", "OwnPlanner.Mcp.Tools/"]
 COPY ["OwnPlanner.Application/OwnPlanner.Application.csproj", "OwnPlanner.Application/"]
 COPY ["OwnPlanner.Domain/OwnPlanner.Domain.csproj", "OwnPlanner.Domain/"]
 COPY ["OwnPlanner.Infrastructure/OwnPlanner.Infrastructure.csproj", "OwnPlanner.Infrastructure/"]

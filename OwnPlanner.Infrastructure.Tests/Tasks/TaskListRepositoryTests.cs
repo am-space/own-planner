@@ -25,8 +25,9 @@ public class TaskListRepositoryTests
 		using var db = CreateDb(out var conn);
 		await using var _ = conn;
 		var ct = TestContext.Current.CancellationToken;
+		var dbContextFactory = new TestPlannerDbContextFactory(conn);
 
-		var repo = new TaskListRepository(db);
+		var repo = new TaskListRepository(dbContextFactory);
 		var list = new TaskList("Shopping", "Grocery items", "#FF5733");
 		await repo.AddAsync(list, ct);
 
@@ -54,7 +55,8 @@ public class TaskListRepositoryTests
 		using var db = CreateDb(out var conn);
 		await using var _ = conn;
 		var ct = TestContext.Current.CancellationToken;
-		var repo = new TaskListRepository(db);
+		var dbContextFactory = new TestPlannerDbContextFactory(conn);
+		var repo = new TaskListRepository(dbContextFactory);
 
 		var personal = new TaskList("Personal");
 		var work = new TaskList("Work");
@@ -85,9 +87,10 @@ public class TaskListRepositoryTests
 		using var db = CreateDb(out var conn);
 		await using var _ = conn;
 		var ct = TestContext.Current.CancellationToken;
+		var dbContextFactory = new TestPlannerDbContextFactory(conn);
 
-		var listRepo = new TaskListRepository(db);
-		var taskRepo = new TaskItemRepository(db);
+		var listRepo = new TaskListRepository(dbContextFactory);
+		var taskRepo = new TaskItemRepository(dbContextFactory);
 
 		var list = new TaskList("Test List");
 		await listRepo.AddAsync(list, ct);
@@ -112,7 +115,8 @@ public class TaskListRepositoryTests
 		using var db = CreateDb(out var conn);
 		await using var _ = conn;
 		var ct = TestContext.Current.CancellationToken;
-		var repo = new TaskListRepository(db);
+		var dbContextFactory = new TestPlannerDbContextFactory(conn);
+		var repo = new TaskListRepository(dbContextFactory);
 
 		var contextId = Guid.NewGuid();
 		var list = new TaskList("Work", contextId: contextId);
@@ -129,7 +133,8 @@ public class TaskListRepositoryTests
 		using var db = CreateDb(out var conn);
 		await using var _ = conn;
 		var ct = TestContext.Current.CancellationToken;
-		var repo = new TaskListRepository(db);
+		var dbContextFactory = new TestPlannerDbContextFactory(conn);
+		var repo = new TaskListRepository(dbContextFactory);
 
 		var contextA = Guid.NewGuid();
 		var contextB = Guid.NewGuid();
@@ -155,7 +160,8 @@ public class TaskListRepositoryTests
 		using var db = CreateDb(out var conn);
 		await using var _ = conn;
 		var ct = TestContext.Current.CancellationToken;
-		var repo = new TaskListRepository(db);
+		var dbContextFactory = new TestPlannerDbContextFactory(conn);
+		var repo = new TaskListRepository(dbContextFactory);
 
 		var contextId = Guid.NewGuid();
 		var assigned1 = new TaskList("Assigned 1", contextId: contextId);

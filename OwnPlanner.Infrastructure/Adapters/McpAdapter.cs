@@ -44,7 +44,7 @@ namespace OwnPlanner.Infrastructure.Adapters
 				var clientTransport = new StdioClientTransport(options);
 				Log.Debug("StdioClientTransport created, initializing McpClient...");
 				
-				_client = await ModelContextProtocol.Client.McpClient.CreateAsync(clientTransport, cancellationToken: cancellationToken).ConfigureAwait(false);
+				_client = await McpClient.CreateAsync(clientTransport, cancellationToken: cancellationToken).ConfigureAwait(false);
 				Log.Information("MCP client created successfully");
 			}
 			catch (Exception ex)
@@ -62,10 +62,11 @@ namespace OwnPlanner.Infrastructure.Adapters
 			// Log server info if available
 			try
 			{
-				var name = _client!.ServerInfo?.Name ?? "unknown";
-				var version = _client.ServerInfo?.Version ?? "";
+				var serverInfo = _client!.ServerInfo;
+				var name = string.IsNullOrWhiteSpace(serverInfo.Name) ? "unknown" : serverInfo.Name;
+				var version = serverInfo.Version;
 				var message = $"[MCP] Connected to {name}{(string.IsNullOrEmpty(version) ? string.Empty : $" v{version}")}";
-				System.Console.WriteLine(message);
+				Console.WriteLine(message);
 				Log.Information(message);
 			}
 			catch (Exception ex)
@@ -73,30 +74,19 @@ namespace OwnPlanner.Infrastructure.Adapters
 				Log.Warning(ex, "Failed to retrieve server info");
 			}
 		}
-
-		public async Task<List<string>> ListToolNamesAsync(CancellationToken cancellationToken = default)
-		{
-			Log.Debug("Listing MCP tools...");
-			await EnsureClientAsync(cancellationToken).ConfigureAwait(false);
-
-			var tools = await _client!.ListToolsAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
-			var names = tools.Select(t => t.Name ?? string.Empty).Where(n => n.Length > 0).ToList();
-			
-			var message = $"[MCP] Found {names.Count} tools: {string.Join(", ", names)}";
-			System.Console.WriteLine(message);
-			Log.Information(message);
-			
-			return names;
-		}
-
-		public async Task<IList<McpClientTool>> ListToolDetailsAsync(CancellationToken cancellationToken = default)
+		
+		async Task<IReadOnlyList<McpToolDefinition>> IMcpAdapter.ListToolDetailsAsync(CancellationToken cancellationToken)
 		{
 			Log.Debug("Listing MCP tool details...");
 			await EnsureClientAsync(cancellationToken).ConfigureAwait(false);
 
-			return await _client!.ListToolsAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+			var tools = await _client!.ListToolsAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+			return tools
+				.Select(tool => new McpToolDefinition(tool.Name, tool.Description, tool.JsonSchema))
+				.Where(tool => !string.IsNullOrWhiteSpace(tool.Name))
+				.ToList();
 		}
-
+		
 		public async Task<string> CallToolAsync(string toolName, IReadOnlyDictionary<string, object?>? arguments = null, CancellationToken cancellationToken = default)
 		{
 			Log.Debug("Calling MCP tool: {ToolName} with arguments: {Arguments}", toolName, JsonSerializer.Serialize(arguments));
