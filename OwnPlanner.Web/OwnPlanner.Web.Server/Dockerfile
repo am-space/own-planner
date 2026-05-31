@@ -1,33 +1,8 @@
 # Multi-stage Dockerfile for OwnPlanner
-# Combines Web.Server + MCP.StdioApp in a single container
+# Builds and runs the Web.Server container
 # Build context: Repository root directory
 
-# Stage 1: Build MCP.StdioApp
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build-mcp
-ARG APP_VERSION=0.0.0-local
-ARG APP_FILE_VERSION=0.0.0.0
-ENV APP_VERSION=$APP_VERSION \
-    APP_FILE_VERSION=$APP_FILE_VERSION
-WORKDIR /src
-
-# Copy MCP project and dependencies
-COPY ["Directory.Build.props", "."]
-COPY ["OwnPlanner.Mcp.StdioApp/OwnPlanner.Mcp.StdioApp.csproj", "OwnPlanner.Mcp.StdioApp/"]
-COPY ["OwnPlanner.Mcp.Tools/OwnPlanner.Mcp.Tools.csproj", "OwnPlanner.Mcp.Tools/"]
-COPY ["OwnPlanner.Application/OwnPlanner.Application.csproj", "OwnPlanner.Application/"]
-COPY ["OwnPlanner.Domain/OwnPlanner.Domain.csproj", "OwnPlanner.Domain/"]
-COPY ["OwnPlanner.Infrastructure/OwnPlanner.Infrastructure.csproj", "OwnPlanner.Infrastructure/"]
-
-RUN dotnet restore "OwnPlanner.Mcp.StdioApp/OwnPlanner.Mcp.StdioApp.csproj"
-
-# Copy all source code
-COPY . .
-
-# Build and publish MCP.StdioApp
-WORKDIR "/src/OwnPlanner.Mcp.StdioApp"
-RUN dotnet publish "OwnPlanner.Mcp.StdioApp.csproj" -c Release -o /app/mcp --no-restore
-
-# Stage 2: Setup Node.js for React frontend
+# Stage 1: Setup Node.js for React frontend
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS with-node
 WORKDIR /src
 
@@ -38,7 +13,7 @@ RUN apt-get update && \
     apt-get install -y nodejs && \
     rm -rf /var/lib/apt/lists/*
 
-# Stage 3: Build Web.Server with React frontend
+# Stage 2: Build Web.Server with React frontend
 FROM with-node AS build
 ARG BUILD_CONFIGURATION=Release
 ARG APP_VERSION=0.0.0-local
@@ -71,7 +46,7 @@ FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
 RUN dotnet publish "OwnPlanner.Web.Server.csproj" -c $BUILD_CONFIGURATION -o /app/web /p:UseAppHost=false --no-restore
 
-# Stage 4: Final runtime image
+# Stage 3: Final runtime image
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 ARG APP_VERSION=0.0.0-local
 LABEL org.opencontainers.image.version=$APP_VERSION
@@ -88,12 +63,9 @@ RUN apt-get update && \
 # Copy published Web.Server from build stage
 COPY --from=publish /app/web ./
 
-# Copy published MCP.StdioApp to mcp subdirectory
-COPY --from=build-mcp /app/mcp ./mcp/
-
-# Create data directories and set ownership to APP_UID user
-RUN mkdir -p /app/data/auth /app/data/databases /app/data/logs && \
-    chown -R $APP_UID:$APP_UID /app/data
+# Create data and log directories and set ownership to APP_UID user
+RUN mkdir -p /app/data/auth /app/data/databases /app/logs && \
+    chown -R $APP_UID:$APP_UID /app/data /app/logs
 
 # Set environment variables
 # Core ASP.NET settings
@@ -105,12 +77,7 @@ ENV ASPNETCORE_URLS=http://+:8080 \
 
 # Application configuration (paths match created directories)
 ENV Database__AuthDbPath=/app/data/auth/auth.db \
-    Chat__Mcp__Command=dotnet \
-    Chat__Mcp__Arguments__0=/app/mcp/OwnPlanner.Mcp.StdioApp.dll
-
-# MCP.StdioApp configuration (used by spawned MCP processes)
-ENV MCP_DATA_DIR=/app/data/databases \
-    MCP_LOG_DIR=/app/data/logs
+    Database__UserDbDirectory=/app/data/databases
 
 # Expose port (only 8080 for production)
 EXPOSE 8080

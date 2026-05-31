@@ -15,7 +15,7 @@ docker save -o ownplanner_latest.tar ownplanner:latest
 docker run -d --name test -p 8080:8080 -e Chat__Gemini__ApiKey=YOUR_KEY ownplanner:latest
 ```
 
-Register and use chat to create tasks, this will spawn MCP processes
+Register and use chat to create tasks; the web server executes planner tools in-process.
 
 ### Check database locations
 ```sh
@@ -25,6 +25,6 @@ Should show: ownplanner-user-{userId}.db files
 
 ### Check log locations
 ```sh
-docker exec test ls -la /app/data/logs/
+docker exec test ls -la /app/logs/
 ```
-Should show: mcp-stdioapp-user-{userId}-*.log files
+Should show: web-*.log files
