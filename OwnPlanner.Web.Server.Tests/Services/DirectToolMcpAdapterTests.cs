@@ -33,6 +33,24 @@ public sealed class DirectToolMcpAdapterTests : IDisposable
 	}
 
 	[Fact]
+	public async Task ListToolDetailsAsync_MarksNonNullableReferenceParametersAsRequired()
+	{
+		var ct = TestContext.Current.CancellationToken;
+		await using var serviceProvider = BuildServiceProvider();
+		await using var adapter = CreateAdapter(serviceProvider);
+
+		var toolDetails = await adapter.ListToolDetailsAsync(ct);
+		var createTool = toolDetails.Single(tool => tool.Name == "tasklist_create");
+
+		createTool.JsonSchema.Should().NotBeNull();
+		createTool.JsonSchema!.Value.GetProperty("required")
+			.EnumerateArray()
+			.Select(item => item.GetString())
+			.Should()
+			.Contain(["contextId", "title"]);
+	}
+
+	[Fact]
 	public async Task CallToolAsync_DatetimeTool_ReturnsSerializedJsonPayload()
 	{
 		var ct = TestContext.Current.CancellationToken;
@@ -69,6 +87,77 @@ public sealed class DirectToolMcpAdapterTests : IDisposable
 
 		document.RootElement.GetProperty("title").GetString().Should().Be("Review planning");
 		await taskService.Received(1).GetAsync(taskId, Arg.Any<CancellationToken>());
+	}
+
+	[Fact]
+	public async Task CallToolAsync_TaskListCreate_RejectsNullForNonNullableTitle()
+	{
+		var ct = TestContext.Current.CancellationToken;
+		var taskListService = Substitute.For<ITaskListService>();
+
+		await using var serviceProvider = BuildServiceProvider(taskListService: taskListService);
+		var adapter = CreateAdapter(serviceProvider);
+		var arguments = new Dictionary<string, object?>
+		{
+			["contextId"] = ParseJsonElement($"\"{Guid.NewGuid()}\""),
+			["title"] = ParseJsonElement("null")
+		};
+
+		try
+		{
+			InvalidOperationException? exception = null;
+			try
+			{
+				await adapter.CallToolAsync("tasklist_create", arguments, ct);
+			}
+			catch (InvalidOperationException ex)
+			{
+				exception = ex;
+			}
+
+			exception.Should().NotBeNull();
+			exception!.Message.Should().Match("*title*cannot be null*");
+			await taskListService.DidNotReceive().CreateAsync(Arg.Any<string>(), Arg.Any<Guid>(), Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<CancellationToken>());
+		}
+		finally
+		{
+			await adapter.DisposeAsync();
+		}
+	}
+
+	[Fact]
+	public async Task CallToolAsync_TaskTool_WithInvalidGuid_ThrowsParameterSpecificInvalidOperationException()
+	{
+		var ct = TestContext.Current.CancellationToken;
+		var taskService = Substitute.For<ITaskItemService>();
+
+		await using var serviceProvider = BuildServiceProvider(taskService: taskService);
+		var adapter = CreateAdapter(serviceProvider);
+		var arguments = new Dictionary<string, object?>
+		{
+			["id"] = ParseJsonElement("\"not-a-guid\"")
+		};
+
+		try
+		{
+			InvalidOperationException? exception = null;
+			try
+			{
+				await adapter.CallToolAsync("taskitem_get", arguments, ct);
+			}
+			catch (InvalidOperationException ex)
+			{
+				exception = ex;
+			}
+
+			exception.Should().NotBeNull();
+			exception!.Message.Should().Match("*id*Guid*");
+			await taskService.DidNotReceive().GetAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+		}
+		finally
+		{
+			await adapter.DisposeAsync();
+		}
 	}
 
 	[Fact]
@@ -110,7 +199,7 @@ public sealed class DirectToolMcpAdapterTests : IDisposable
 		}
 	}
 
-	private ServiceProvider BuildServiceProvider(ITaskItemService? taskService = null)
+	private ServiceProvider BuildServiceProvider(ITaskItemService? taskService = null, ITaskListService? taskListService = null)
 	{
 		Directory.CreateDirectory(_tempDirectory);
 		var inboxSeeder = Substitute.For<IInboxSeeder>();
@@ -126,6 +215,10 @@ public sealed class DirectToolMcpAdapterTests : IDisposable
 		if (taskService is not null)
 		{
 			services.AddScoped(_ => taskService);
+		}
+		if (taskListService is not null)
+		{
+			services.AddScoped(_ => taskListService);
 		}
 
 		return services.BuildServiceProvider();

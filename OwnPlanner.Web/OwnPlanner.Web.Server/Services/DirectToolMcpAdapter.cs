@@ -21,6 +21,7 @@ public sealed class DirectToolMcpAdapter(
 	PerUserAppInitializationService initializationService,
 	ILogger<DirectToolMcpAdapter> logger) : IMcpAdapter
 {
+	private static readonly NullabilityInfoContext NullabilityContext = new();
 	private static readonly JsonSerializerOptions JsonSerializerOptions = new(JsonSerializerDefaults.Web);
 	private static readonly IReadOnlyDictionary<string, ToolRegistration> ToolRegistrations = BuildToolRegistrations();
 
@@ -101,7 +102,7 @@ public sealed class DirectToolMcpAdapter(
 			var parameter = parameters[index];
 			if (arguments is not null && arguments.TryGetValue(parameter.Name!, out var rawValue))
 			{
-				values[index] = ConvertArgument(rawValue, parameter.ParameterType, parameter.Name!);
+							values[index] = ConvertArgument(rawValue, parameter);
 				continue;
 			}
 
@@ -117,11 +118,14 @@ public sealed class DirectToolMcpAdapter(
 		return values;
 	}
 
-	private static object? ConvertArgument(object? rawValue, Type targetType, string parameterName)
+	private static object? ConvertArgument(object? rawValue, ParameterInfo parameter)
 	{
+		var targetType = parameter.ParameterType;
+		var parameterName = parameter.Name!;
+
 		if (rawValue is null)
 		{
-			if (IsNullable(targetType))
+			if (IsNullable(parameter))
 			{
 				return null;
 			}
@@ -139,7 +143,7 @@ public sealed class DirectToolMcpAdapter(
 		{
 			if (jsonElement.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
 			{
-				if (IsNullable(targetType))
+				if (IsNullable(parameter))
 				{
 					return null;
 				}
@@ -159,12 +163,26 @@ public sealed class DirectToolMcpAdapter(
 
 		if (underlyingType == typeof(Guid) && rawValue is string guidString)
 		{
-			return Guid.Parse(guidString);
+			try
+			{
+				return Guid.Parse(guidString);
+			}
+			catch (Exception ex) when (ex is FormatException or OverflowException)
+			{
+				throw new InvalidOperationException($"Tool parameter '{parameterName}' could not be converted to {targetType.Name}.", ex);
+			}
 		}
 
 		if (underlyingType.IsEnum && rawValue is string enumString)
 		{
-			return Enum.Parse(underlyingType, enumString, ignoreCase: true);
+			try
+			{
+				return Enum.Parse(underlyingType, enumString, ignoreCase: true);
+			}
+			catch (Exception ex) when (ex is ArgumentException or OverflowException)
+			{
+				throw new InvalidOperationException($"Tool parameter '{parameterName}' could not be converted to {targetType.Name}.", ex);
+			}
 		}
 
 		if (underlyingType == typeof(string))
@@ -182,9 +200,20 @@ public sealed class DirectToolMcpAdapter(
 		}
 	}
 
-	private static bool IsNullable(Type type)
+	private static bool IsNullable(ParameterInfo parameter)
 	{
-		return !type.IsValueType || Nullable.GetUnderlyingType(type) is not null;
+		var type = parameter.ParameterType;
+		if (Nullable.GetUnderlyingType(type) is not null)
+		{
+			return true;
+		}
+
+		if (type.IsValueType)
+		{
+			return false;
+		}
+
+		return NullabilityContext.Create(parameter).ReadState != NullabilityState.NotNull;
 	}
 
 	private static IReadOnlyDictionary<string, ToolRegistration> BuildToolRegistrations()
@@ -229,7 +258,7 @@ public sealed class DirectToolMcpAdapter(
 		foreach (var parameter in method.GetParameters())
 		{
 			properties[parameter.Name!] = BuildParameterSchema(parameter.ParameterType);
-			if (!parameter.HasDefaultValue && !IsNullable(parameter.ParameterType))
+			if (!parameter.HasDefaultValue && !IsNullable(parameter))
 			{
 				required.Add(parameter.Name!);
 			}

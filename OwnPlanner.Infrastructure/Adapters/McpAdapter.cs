@@ -21,7 +21,7 @@ namespace OwnPlanner.Infrastructure.Adapters
 			// Example: "dotnet", "run", "--project", "path/to/McpServer.csproj"
 			// Or: "npx", "-y", "@modelcontextprotocol/server-everything"
 			_command = command;
-			_arguments = arguments;
+			_arguments = arguments ?? [];
 			
 			Log.Debug("McpAdapter created with command: {Command} {Arguments}", _command, string.Join(" ", _arguments));
 		}
