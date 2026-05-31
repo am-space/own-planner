@@ -35,10 +35,9 @@ graph TB
 
   subgraph host["Host / Container"]
     web["OwnPlanner.Web.Server<br/>ASP.NET Core (.NET 10)"]
-    mcpapp["OwnPlanner.Mcp.StdioApp<br/>MCP tools over stdio<br/>(spawned process)"]
     authdb["SQLite: ownplanner-auth.db<br/>(users/auth)"]
     userdb["SQLite: ownplanner-user-{userId}.db<br/>(tasks/notes per-user)"]
-    logs["File logs<br/>/app/data/logs"]
+    logs["File logs<br/>/app/logs"]
   end
 
   llm["Google Gemini API"]
@@ -46,10 +45,8 @@ graph TB
   browser --> web
   web --> authdb
   web --> llm
-  web --> mcpapp
+  web --> userdb
   web --> logs
-  mcpapp --> userdb
-  mcpapp --> logs
 ```
 
 ### Layered Code Structure
@@ -77,16 +74,13 @@ sequenceDiagram
   participant B as Browser (React)
   participant W as Web Server (ASP.NET Core)
   participant G as Gemini API
-  participant M as MCP Stdio App (process)
   participant D as SQLite (per-user db)
 
   B->>W: POST /chat (message)
   W->>G: Send prompt + tool definitions
   G-->>W: Tool call request (e.g., tasklist_list_create)
-  W->>M: Call tool over stdio (MCP)
-  M->>D: Read/write tasks/lists
-  D-->>M: OK
-  M-->>W: Tool result (text/json)
+  W->>D: Execute tool in-process against user database
+  D-->>W: Tool result (text/json)
   W->>G: Provide tool result to continue
   G-->>W: Final assistant message
   W-->>B: Response
