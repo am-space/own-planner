@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+using System.Reflection;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -37,12 +39,13 @@ public sealed class PerUserAppInitializationServiceTests : IDisposable
 
 		var firstCall = service.EnsureInitializedAsync(sessionContext, cancellationTokenSource.Token);
 		await firstAttemptStarted.Task.WaitAsync(TestContext.Current.CancellationToken);
+		var firstInitializationTask = GetCurrentInitializationTask(service, sessionContext.UserId);
 		cancellationTokenSource.Cancel();
 
 		await Assert.ThrowsAnyAsync<OperationCanceledException>(async () => await firstCall);
 
 		allowFirstAttemptToFail.TrySetResult();
-		await EventuallyAsync(() => counter.Value.Should().Be(1));
+		await Assert.ThrowsAsync<InvalidOperationException>(async () => await firstInitializationTask);
 
 		await service.EnsureInitializedAsync(sessionContext, TestContext.Current.CancellationToken);
 
@@ -106,27 +109,27 @@ public sealed class PerUserAppInitializationServiceTests : IDisposable
 		};
 	}
 
+	private static Task GetCurrentInitializationTask(PerUserAppInitializationService service, string userId)
+	{
+		var field = typeof(PerUserAppInitializationService)
+			.GetField("_initializations", BindingFlags.Instance | BindingFlags.NonPublic);
+
+		field.Should().NotBeNull();
+		var initializations = field.GetValue(service)
+			.Should().BeOfType<ConcurrentDictionary<string, Lazy<Task>>>()
+			.Subject;
+
+		initializations.TryGetValue(userId, out var initialization).Should().BeTrue();
+		initialization.Should().NotBeNull();
+		return initialization.Value;
+	}
+
 	private static async Task FailAfterSignalAsync(Task signalTask)
 	{
 		await signalTask.ConfigureAwait(false);
 		throw new InvalidOperationException("Initialization failed after waiter cancellation.");
 	}
 
-	private static async Task EventuallyAsync(Action assertion)
-	{
-		for (var attempt = 0; attempt < 20; attempt++)
-		{
-			try
-			{
-				assertion();
-				return;
-			}
-			catch when (attempt < 19)
-			{
-				await Task.Delay(25, TestContext.Current.CancellationToken);
-			}
-		}
-	}
 
 	private sealed class DelegatingInboxSeeder(
 		Func<AppDbContext, CancellationToken, Task> seedAsync,

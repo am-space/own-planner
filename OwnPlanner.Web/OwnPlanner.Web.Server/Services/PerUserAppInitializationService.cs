@@ -11,11 +11,11 @@ namespace OwnPlanner.Web.Server.Services;
 /// A single-flight guard prevents duplicate startup work when multiple sessions for the
 /// same user trigger tool calls at the same time.
 /// <para>
-/// Each user gets at most one in-flight or completed initialization task in the dictionary.
-/// A caller whose <paramref name="cancellationToken"/> fires cancels only its own wait via
+/// Each user gets at most one in-flight or completed initialization entry in the dictionary.
+/// A caller whose <c>cancellationToken</c> fires cancels only its own wait via
 /// <see cref="Task.WaitAsync(CancellationToken)"/>; the shared initialization task keeps
-/// running independently. If that task later faults or is cancelled the caller that first
-/// observes the failure removes it from the dictionary so the next call retries.
+/// running independently. If that task later faults or is cancelled the failed entry is
+/// evicted so the next call retries against a fresh initialization task.
 /// </para>
 /// </summary>
 public sealed class PerUserAppInitializationService(
@@ -26,7 +26,7 @@ public sealed class PerUserAppInitializationService(
 	private readonly IServiceScopeFactory _scopeFactory = scopeFactory;
 	private readonly IPlannerSessionContextAccessor _sessionContextAccessor = sessionContextAccessor;
 	private readonly ILogger<PerUserAppInitializationService> _logger = logger;
-	private readonly ConcurrentDictionary<string, Task> _initializations = new(StringComparer.Ordinal);
+	private readonly ConcurrentDictionary<string, Lazy<Task>> _initializations = new(StringComparer.Ordinal);
 
 	public async Task EnsureInitializedAsync(SessionContext sessionContext, CancellationToken cancellationToken = default)
 	{
@@ -36,31 +36,70 @@ public sealed class PerUserAppInitializationService(
 			throw new UnauthorizedAccessException("Authenticated user id is required for planner tool access.");
 		}
 
-		// GetOrAdd guarantees that only one InitializeUserAsync task is started per user.
-		// The factory delegate is not guaranteed to run exactly once under contention, but
-		// ConcurrentDictionary ensures only one value is stored, so at most one extra task
-		// may be started and immediately discarded.
-		var initializationTask = _initializations.GetOrAdd(
-			sessionContext.UserId,
-			_ => InitializeUserAsync(sessionContext));
+		while (true)
+		{
+			// Store the lazy wrapper instead of an already-started task. This lets us distinguish
+			// a stale, previously failed entry from a freshly created attempt for this caller.
+			var newInitialization = CreateInitialization(sessionContext);
+			var initialization = _initializations.GetOrAdd(sessionContext.UserId, newInitialization);
 
-		try
-		{
-			// WaitAsync only cancels this caller's wait; the shared task continues unaffected.
-			await initializationTask.WaitAsync(cancellationToken).ConfigureAwait(false);
-		}
-		catch
-		{
-			// If the shared initialization task itself faulted or was cancelled, remove it so
-			// the next caller gets a fresh attempt. Use the exact key/value pair to avoid
-			// accidentally removing a replacement task inserted by a concurrent caller.
-			if (initializationTask.IsFaulted || initializationTask.IsCanceled)
+			// If we found an existing entry that has already faulted or been cancelled, evict it
+			// and retry immediately so this call can start a fresh initialization attempt.
+			if (!ReferenceEquals(initialization, newInitialization) &&
+				initialization.IsValueCreated &&
+				(initialization.Value.IsFaulted || initialization.Value.IsCanceled))
 			{
-				_initializations.TryRemove(new KeyValuePair<string, Task>(sessionContext.UserId, initializationTask));
+				_initializations.TryRemove(new KeyValuePair<string, Lazy<Task>>(sessionContext.UserId, initialization));
+				continue;
 			}
 
-			throw;
+			var initializationTask = initialization.Value;
+
+			try
+			{
+				// WaitAsync only cancels this caller's wait; the shared task continues unaffected.
+				await initializationTask.WaitAsync(cancellationToken).ConfigureAwait(false);
+				return;
+			}
+			catch
+			{
+				if (initializationTask.IsFaulted || initializationTask.IsCanceled)
+				{
+					_initializations.TryRemove(new KeyValuePair<string, Lazy<Task>>(sessionContext.UserId, initialization));
+				}
+
+				throw;
+			}
 		}
+	}
+
+	private Lazy<Task> CreateInitialization(SessionContext sessionContext)
+	{
+		Lazy<Task>? lazyInitialization = null;
+		lazyInitialization = new Lazy<Task>(
+			() =>
+			{
+				var initializationTask = InitializeUserAsync(sessionContext);
+
+				_ = initializationTask.ContinueWith(
+					static (completedTask, state) =>
+					{
+						var (initializations, userId, initialization) = ((ConcurrentDictionary<string, Lazy<Task>> Initializations, string UserId, Lazy<Task> Initialization))state!;
+						if (completedTask.IsFaulted || completedTask.IsCanceled)
+						{
+							initializations.TryRemove(new KeyValuePair<string, Lazy<Task>>(userId, initialization));
+						}
+					},
+					(_initializations, sessionContext.UserId, lazyInitialization!),
+					CancellationToken.None,
+					TaskContinuationOptions.ExecuteSynchronously,
+					TaskScheduler.Default);
+
+				return initializationTask;
+			},
+			LazyThreadSafetyMode.ExecutionAndPublication);
+
+		return lazyInitialization;
 	}
 
 	private async Task InitializeUserAsync(SessionContext sessionContext)
