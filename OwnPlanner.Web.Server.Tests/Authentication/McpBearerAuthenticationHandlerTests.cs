@@ -55,6 +55,20 @@ public sealed class McpBearerAuthenticationHandlerTests
 		result.Principal!.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value.Should().Be("user-42");
 	}
 
+	[Fact]
+	public async Task AuthenticateAsync_ReturnsFail_WhenResolvedUserIdIsWhitespace()
+	{
+		var result = await AuthenticateAsync(
+			authorizationHeader: "Bearer valid-token",
+			resolver: new DictionaryResolver(new Dictionary<string, string>(StringComparer.Ordinal)
+			{
+				["valid-token"] = "   "
+			}));
+
+		result.Succeeded.Should().BeFalse();
+		result.Failure.Should().NotBeNull();
+	}
+
 	private static async Task<AuthenticateResult> AuthenticateAsync(string? authorizationHeader, IMcpBearerTokenResolver resolver)
 	{
 		var context = new DefaultHttpContext();

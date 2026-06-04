@@ -12,12 +12,19 @@ public sealed class McpBearerSettingsValidator : IValidateOptions<McpBearerSetti
 		ArgumentNullException.ThrowIfNull(options);
 
 		var failures = new List<string>();
+		var tokenBindings = options.TokenBindings;
+		if (tokenBindings is null)
+		{
+			failures.Add("McpBearer:TokenBindings must not be null.");
+			return ValidateOptionsResult.Fail(failures);
+		}
+
 		var seenTokens = new HashSet<string>(StringComparer.Ordinal);
 		var seenUserIds = new HashSet<string>(StringComparer.Ordinal);
 
-		for (var index = 0; index < options.TokenBindings.Count; index++)
+		for (var index = 0; index < tokenBindings.Count; index++)
 		{
-			var binding = options.TokenBindings[index];
+			var binding = tokenBindings[index];
 			var token = binding.Token?.Trim() ?? string.Empty;
 			var userId = binding.UserId?.Trim() ?? string.Empty;
 

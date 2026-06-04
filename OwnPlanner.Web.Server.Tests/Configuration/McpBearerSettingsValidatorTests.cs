@@ -8,6 +8,20 @@ public sealed class McpBearerSettingsValidatorTests
 	private readonly McpBearerSettingsValidator _validator = new();
 
 	[Fact]
+	public void Validate_Fails_WhenTokenBindingsIsNull()
+	{
+		var result = _validator.Validate(
+			name: null,
+			new McpBearerSettings
+			{
+				TokenBindings = null!
+			});
+
+		result.Succeeded.Should().BeFalse();
+		result.Failures.Should().Contain(message => message.Contains("TokenBindings must not be null.", StringComparison.Ordinal));
+	}
+
+	[Fact]
 	public void Validate_Fails_WhenTokenIsMissing()
 	{
 		var result = _validator.Validate(

@@ -39,6 +39,11 @@ internal sealed class McpBearerAuthenticationHandler(
 			return Task.FromResult(AuthenticateResult.Fail("Invalid bearer token."));
 		}
 
+		if (string.IsNullOrWhiteSpace(userId))
+		{
+			return Task.FromResult(AuthenticateResult.Fail("Invalid bearer token."));
+		}
+
 		var sessionContext = new SessionContext
 		{
 			SessionId = $"mcp-{userId}",
