@@ -1,8 +1,10 @@
 using Serilog;
 using OwnPlanner.Web.Server.Middleware;
 using System.Security.Claims;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using OwnPlanner.Application.Contexts;
 using OwnPlanner.Infrastructure.Persistence;
 using OwnPlanner.Domain.Contexts;
@@ -17,6 +19,7 @@ using OwnPlanner.Application.Inbox;
 using OwnPlanner.Application.Notes;
 using OwnPlanner.Application.Tasks;
 using OwnPlanner.Mcp.Tools;
+using OwnPlanner.Web.Server.Authentication;
 using OwnPlanner.Web.Server.Configuration;
 using OwnPlanner.Web.Server.Services;
 
@@ -62,12 +65,19 @@ namespace OwnPlanner.Web.Server
 				Directory.CreateDirectory(userDbDirectory);
 				Log.Information("Planner user database directory configured: {UserDbDirectory}", userDbDirectory);
 
+				builder.Services.AddOptions<McpBearerSettings>()
+					.Bind(builder.Configuration.GetSection(McpBearerSettings.SectionName))
+					.ValidateOnStart();
+				builder.Services.AddSingleton<IValidateOptions<McpBearerSettings>, McpBearerSettingsValidator>();
+				builder.Services.AddSingleton<IMcpBearerTokenResolver, ConfigurationMcpBearerTokenResolver>();
+
 				builder.Services.AddDbContext<AuthDbContext>(options =>
 					options.UseSqlite($"Data Source={authDbPath}")
 				);
 				builder.Services.AddHttpContextAccessor();
 				builder.Services.AddSingleton<IPlannerSessionContextAccessor, PlannerSessionContextAccessor>();
 				builder.Services.AddSingleton<PerUserAppInitializationService>();
+				builder.Services.AddTransient<McpRequestInitializationMiddleware>();
 				builder.Services.AddScoped<SessionContext>(sp =>
 				{
 					var sessionContextAccessor = sp.GetRequiredService<IPlannerSessionContextAccessor>();
@@ -129,9 +139,30 @@ namespace OwnPlanner.Web.Server
 							context.Response.StatusCode = StatusCodes.Status403Forbidden;
 							return Task.CompletedTask;
 						};
-					});
+					})
+					.AddScheme<AuthenticationSchemeOptions, McpBearerAuthenticationHandler>(
+						McpBearerAuthenticationDefaults.AuthenticationScheme,
+						_ => { });
 
-				builder.Services.AddAuthorization();
+				builder.Services.AddAuthorization(options =>
+				{
+					options.AddPolicy(McpBearerAuthenticationDefaults.AuthorizationPolicy, policy =>
+					{
+						policy.AddAuthenticationSchemes(McpBearerAuthenticationDefaults.AuthenticationScheme);
+						policy.RequireAuthenticatedUser();
+					});
+				});
+
+				builder.Services
+					.AddMcpServer()
+					.WithHttpTransport()
+					.WithTools<TaskItemTools>()
+					.WithTools<TaskListTools>()
+					.WithTools<NoteListTools>()
+					.WithTools<NoteItemTools>()
+					.WithTools<GoalTools>()
+					.WithTools<PlanningContextTools>()
+					.WithTools<DateTimeTools>();
 
 				// Register global exception handler
 				builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
@@ -181,8 +212,13 @@ namespace OwnPlanner.Web.Server
 				// Authentication & Authorization middleware (must be in this order)
 				app.UseAuthentication();
 				app.UseAuthorization();
+				app.UseWhen(
+					context => context.Request.Path.StartsWithSegments("/mcp", StringComparison.OrdinalIgnoreCase),
+					branch => branch.UseMiddleware<McpRequestInitializationMiddleware>());
 
 				app.MapControllers();
+				app.MapMcp("/mcp")
+					.RequireAuthorization(McpBearerAuthenticationDefaults.AuthorizationPolicy);
 
 				app.MapFallbackToFile("/index.html");
 

@@ -98,6 +98,40 @@ If you want the web server to target a specific directory for per-user planner d
 }
 ```
 
+Configure MCP bearer tokens (server-managed mapping for this phase):
+
+```json
+{
+  "McpBearer": {
+    "TokenBindings": [
+      {
+        "Token": "replace-with-secret-token",
+        "UserId": "replace-with-user-id"
+      }
+    ]
+  }
+}
+```
+
+For container/runtime configuration, use environment variables (for example):
+
+- `McpBearer__TokenBindings__0__Token`
+- `McpBearer__TokenBindings__0__UserId`
+
+## MCP HTTP Endpoint
+
+The server exposes an MCP Streamable HTTP endpoint at:
+
+- `POST/GET /mcp` (transport-managed by `ModelContextProtocol.AspNetCore`)
+
+Authentication for `/mcp` is bearer-only in this phase:
+
+```http
+Authorization: Bearer <configured-token>
+```
+
+Requests with missing/invalid bearer tokens receive `401 Unauthorized`.
+
 ## API Endpoints
 
 All endpoints require authentication (user must be logged in).

@@ -8,6 +8,7 @@ OwnPlanner integrates with the Google Gemini API to provide an intelligent conve
 2.  **Web Server / Console Orchestrator**: The host application that manages the conversation state, context window, and tool definitions.
 3.  **Direct tool adapter**: The web server executes planner MCP-style tools in-process via `DirectToolMcpAdapter`, resolving tool implementations from its own dependency injection container and authenticated user context.
 4.  **MCP StdioApp**: A separate command-line application (`OwnPlanner.Mcp.StdioApp`) kept for stdio-based hosts such as the console tooling.
+5.  **MCP HTTP endpoint**: The web server also exposes `/mcp` over Streamable HTTP for external MCP clients, authenticated with a dedicated bearer scheme.
 
 ## The Chat Workflow (Tool Calling)
 
