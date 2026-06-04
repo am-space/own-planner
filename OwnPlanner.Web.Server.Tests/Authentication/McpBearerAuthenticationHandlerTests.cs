@@ -69,6 +69,28 @@ public sealed class McpBearerAuthenticationHandlerTests
 		result.Failure.Should().NotBeNull();
 	}
 
+	[Fact]
+	public async Task ChallengeAsync_AddsBearerWwwAuthenticateHeader()
+	{
+		var context = new DefaultHttpContext();
+		var handler = new McpBearerAuthenticationHandler(
+			new TestAuthenticationOptionsMonitor(),
+			NullLoggerFactory.Instance,
+			UrlEncoder.Default,
+			new DictionaryResolver(new Dictionary<string, string>(StringComparer.Ordinal)));
+
+		var scheme = new AuthenticationScheme(
+			McpBearerAuthenticationDefaults.AuthenticationScheme,
+			displayName: null,
+			typeof(McpBearerAuthenticationHandler));
+
+		await handler.InitializeAsync(scheme, context);
+		await handler.ChallengeAsync(new AuthenticationProperties());
+
+		context.Response.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
+		context.Response.Headers.WWWAuthenticate.ToString().Should().Contain("Bearer");
+	}
+
 	private static async Task<AuthenticateResult> AuthenticateAsync(string? authorizationHeader, IMcpBearerTokenResolver resolver)
 	{
 		var context = new DefaultHttpContext();

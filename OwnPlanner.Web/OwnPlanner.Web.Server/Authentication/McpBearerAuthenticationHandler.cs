@@ -14,6 +14,12 @@ internal sealed class McpBearerAuthenticationHandler(
 	IMcpBearerTokenResolver tokenResolver)
 	: AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
 {
+	protected override async Task HandleChallengeAsync(AuthenticationProperties properties)
+	{
+		Response.Headers.Append("WWW-Authenticate", "Bearer");
+		await base.HandleChallengeAsync(properties);
+	}
+
 	protected override Task<AuthenticateResult> HandleAuthenticateAsync()
 	{
 		if (!Request.Headers.TryGetValue("Authorization", out var authorizationHeader) ||
