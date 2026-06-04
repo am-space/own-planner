@@ -13,6 +13,7 @@ public sealed class McpBearerSettingsValidator : IValidateOptions<McpBearerSetti
 
 		var failures = new List<string>();
 		var seenTokens = new HashSet<string>(StringComparer.Ordinal);
+		var seenUserIds = new HashSet<string>(StringComparer.Ordinal);
 
 		for (var index = 0; index < options.TokenBindings.Count; index++)
 		{
@@ -34,6 +35,12 @@ public sealed class McpBearerSettingsValidator : IValidateOptions<McpBearerSetti
 			if (string.IsNullOrWhiteSpace(userId))
 			{
 				failures.Add($"McpBearer:TokenBindings:{index}:UserId must not be empty.");
+				continue;
+			}
+
+			if (!seenUserIds.Add(userId))
+			{
+				failures.Add($"McpBearer:TokenBindings:{index}:UserId is duplicated.");
 			}
 		}
 

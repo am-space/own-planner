@@ -72,7 +72,7 @@ public sealed class ConfigurationMcpBearerTokenResolverTests
 	}
 
 	[Fact]
-	public void TryResolveUserId_ReturnsEmptyUserId_WhenMappedUserIdIsNull()
+	public void TryResolveUserId_ReturnsFalse_WhenMappedUserIdIsNull()
 	{
 		var settings = Options.Create(new McpBearerSettings
 		{
@@ -87,9 +87,29 @@ public sealed class ConfigurationMcpBearerTokenResolverTests
 		});
 		var resolver = new ConfigurationMcpBearerTokenResolver(settings);
 
-		var found = resolver.TryResolveUserId("token-1", out var userId);
+		var found = resolver.TryResolveUserId("token-1", out _);
 
-		found.Should().BeTrue();
-		userId.Should().BeEmpty();
+		found.Should().BeFalse();
+	}
+
+	[Fact]
+	public void TryResolveUserId_ReturnsFalse_WhenMappedUserIdIsWhitespace()
+	{
+		var settings = Options.Create(new McpBearerSettings
+		{
+			TokenBindings =
+			[
+				new McpBearerTokenBinding
+				{
+					Token = "token-1",
+					UserId = "   "
+				}
+			]
+		});
+		var resolver = new ConfigurationMcpBearerTokenResolver(settings);
+
+		var found = resolver.TryResolveUserId("token-1", out _);
+
+		found.Should().BeFalse();
 	}
 }

@@ -118,6 +118,32 @@ public sealed class McpBearerSettingsValidatorTests
 	}
 
 	[Fact]
+	public void Validate_Fails_WhenUserIdIsDuplicated()
+	{
+		var result = _validator.Validate(
+			name: null,
+			new McpBearerSettings
+			{
+				TokenBindings =
+				[
+					new McpBearerTokenBinding
+					{
+						Token = "token-1",
+						UserId = "user-1"
+					},
+					new McpBearerTokenBinding
+					{
+						Token = "token-2",
+						UserId = "user-1"
+					}
+				]
+			});
+
+		result.Succeeded.Should().BeFalse();
+		result.Failures.Should().Contain(message => message.Contains("UserId is duplicated.", StringComparison.Ordinal));
+	}
+
+	[Fact]
 	public void Validate_Succeeds_WhenBindingsAreValid()
 	{
 		var result = _validator.Validate(

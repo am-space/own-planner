@@ -15,12 +15,18 @@ internal sealed class ConfigurationMcpBearerTokenResolver : IMcpBearerTokenResol
 		foreach (var binding in settings.Value.TokenBindings)
 		{
 			var token = binding.Token?.Trim() ?? string.Empty;
+			var userId = binding.UserId?.Trim() ?? string.Empty;
 			if (string.IsNullOrWhiteSpace(token))
 			{
 				continue;
 			}
 
-			tokenToUserId[token] = binding.UserId?.Trim() ?? string.Empty;
+			if (string.IsNullOrWhiteSpace(userId))
+			{
+				continue;
+			}
+
+			tokenToUserId[token] = userId;
 		}
 
 		_tokenToUserId = tokenToUserId;
