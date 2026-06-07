@@ -115,7 +115,7 @@ The server exposes an MCP Streamable HTTP endpoint at:
 Authentication for `/mcp` is bearer-only in this phase:
 
 ```http
-Authorization: Bearer <configured-token>
+Authorization: Bearer <personal-access-token>
 ```
 
 Requests with missing/invalid bearer tokens receive `401 Unauthorized`.

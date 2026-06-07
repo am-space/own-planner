@@ -81,8 +81,12 @@ export default function SettingsPage() {
   };
 
   const handleCopy = async (value: string) => {
-    await navigator.clipboard.writeText(value);
-    setCopyNotice('Token copied to clipboard');
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopyNotice('Token copied to clipboard');
+    } catch {
+      setError('Failed to copy token to clipboard');
+    }
   };
 
   const formatDate = (value: string | null) => {

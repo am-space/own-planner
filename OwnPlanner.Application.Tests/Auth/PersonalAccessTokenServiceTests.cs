@@ -2,6 +2,7 @@ using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using OwnPlanner.Application.Auth;
+using OwnPlanner.Domain;
 using OwnPlanner.Domain.Users;
 
 namespace OwnPlanner.Application.Tests.Auth;
@@ -43,9 +44,13 @@ public sealed class PersonalAccessTokenServiceTests
 	{
 		var ct = TestContext.Current.CancellationToken;
 		var older = new PersonalAccessToken(Guid.NewGuid(), "Old", "hash-old");
-		await Task.Delay(5, ct);
 		var newer = new PersonalAccessToken(Guid.NewGuid(), "New", "hash-new");
 		newer.RecordUsage();
+
+		// Ensure a deterministic ordering by backdating the older token's CreatedAt.
+		typeof(EntityBase)
+			.GetProperty(nameof(EntityBase.CreatedAt))!
+			.SetValue(older, DateTime.UtcNow.AddSeconds(-10));
 
 		_tokenRepository.ListByUserIdAsync(Arg.Any<Guid>(), ct).Returns([older, newer]);
 

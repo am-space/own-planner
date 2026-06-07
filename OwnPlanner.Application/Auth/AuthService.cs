@@ -187,6 +187,8 @@ public class AuthService(
 		return true;
 	}
 
+	private static readonly TimeSpan LastUsedUpdateThreshold = TimeSpan.FromMinutes(1);
+
 	public async Task<string?> ResolveMcpBearerTokenUserIdAsync(
 		string token,
 		CancellationToken cancellationToken = default)
@@ -203,8 +205,13 @@ public class AuthService(
 			return null;
 		}
 
-		accessToken.RecordUsage();
-		await personalAccessTokenRepository.UpdateAsync(accessToken, cancellationToken);
+		if (accessToken.LastUsedAt is null ||
+			DateTime.UtcNow - accessToken.LastUsedAt.Value >= LastUsedUpdateThreshold)
+		{
+			accessToken.RecordUsage();
+			await personalAccessTokenRepository.UpdateAsync(accessToken, cancellationToken);
+		}
+
 		return accessToken.UserId.ToString();
 	}
 

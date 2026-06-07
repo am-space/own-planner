@@ -171,8 +171,13 @@ public class AuthController : ControllerBase
 	/// </summary>
 	[HttpPost("tokens")]
 	[Authorize]
-	public async Task<IActionResult> CreatePersonalAccessToken([FromBody] CreatePersonalAccessTokenRequest request, CancellationToken cancellationToken)
+	public async Task<IActionResult> CreatePersonalAccessToken([FromBody] CreatePersonalAccessTokenRequest? request, CancellationToken cancellationToken)
 	{
+		if (request is null)
+		{
+			return BadRequest(new { message = "Request body is required." });
+		}
+
 		if (!TryGetAuthenticatedUserId(out var userId))
 		{
 			return Unauthorized(new { message = "Invalid authentication" });

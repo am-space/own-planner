@@ -36,6 +36,10 @@ public class AuthDbContext(DbContextOptions<AuthDbContext> options) : DbContext(
 		personalAccessToken.Property(t => t.CreatedAt).IsRequired();
 		personalAccessToken.Property(t => t.LastUsedAt);
 		personalAccessToken.Property(t => t.RevokedAt);
+		personalAccessToken.HasOne<User>()
+			.WithMany()
+			.HasForeignKey(t => t.UserId)
+			.OnDelete(DeleteBehavior.Cascade);
 		personalAccessToken.HasIndex(t => t.TokenHash).IsUnique();
 		personalAccessToken.HasIndex(t => t.UserId);
 	}
