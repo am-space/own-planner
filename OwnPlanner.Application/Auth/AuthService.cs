@@ -131,7 +131,7 @@ public class AuthService(
 			throw new ArgumentException("User id is required", nameof(userId));
 
 		if (string.IsNullOrWhiteSpace(request.Name))
-			throw new ArgumentException("Token name is required", nameof(request));
+			throw new ArgumentException("Token name is required", nameof(request.Name));
 
 		var plaintextToken = GeneratePlaintextToken();
 		var tokenHash = HashToken(plaintextToken);
