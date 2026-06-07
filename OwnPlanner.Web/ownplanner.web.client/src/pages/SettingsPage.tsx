@@ -94,16 +94,17 @@ export default function SettingsPage() {
   };
 
   return (
-    <Container maxWidth="md" sx={{ py: 4 }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
+    <Container maxWidth="md" sx={{ py: 3 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3, flexWrap: 'wrap' }}>
         <Button
           component={RouterLink}
           to="/chat"
           startIcon={<ArrowBackIcon />}
+          size="small"
         >
           Back to chat
         </Button>
-        <Typography variant="h4" component="h1">
+        <Typography variant="h5" component="h1" sx={{ fontWeight: 500 }}>
           Personal access tokens
         </Typography>
       </Box>
@@ -136,23 +137,34 @@ export default function SettingsPage() {
       )}
 
       <Paper sx={{ p: 3, mb: 3 }}>
-        <Box component="form" onSubmit={handleCreate} sx={{ display: 'flex', gap: 2, alignItems: 'flex-end' }}>
-          <TextField
-            fullWidth
-            label="Token name"
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            disabled={busy}
-            helperText="Use a descriptive name like Claude Code or MacBook"
-          />
-          <Button
-            type="submit"
-            variant="contained"
-            startIcon={<AddIcon />}
-            disabled={busy || !name.trim()}
-          >
-            Create
-          </Button>
+        <Box
+          component="form"
+          onSubmit={handleCreate}
+          sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}
+        >
+          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: { xs: 'wrap', sm: 'nowrap' } }}>
+            <Box sx={{ flex: 1, minWidth: 0, width: '100%' }}>
+              <TextField
+                fullWidth
+                label="Token name"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                disabled={busy}
+              />
+            </Box>
+            <Button
+              type="submit"
+              variant="contained"
+              startIcon={<AddIcon />}
+              disabled={busy || !name.trim()}
+              sx={{ alignSelf: { xs: 'stretch', sm: 'center' } }}
+            >
+              Create
+            </Button>
+          </Box>
+          <Typography variant="body2" color="text.secondary" sx={{ px: 1.75 }}>
+            Use a descriptive name like Claude Code or MacBook
+          </Typography>
         </Box>
       </Paper>
 
