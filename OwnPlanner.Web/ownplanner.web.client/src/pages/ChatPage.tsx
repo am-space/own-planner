@@ -400,11 +400,10 @@ export default function ChatPage() {
                                     }}
                                 />
                                 {isMobile ? (
-                                    <>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                         <IconButton
                                             color="inherit"
                                             onClick={handleOpenSettings}
-                                            sx={{ mr: 0.5 }}
                                         >
                                             <SettingsIcon />
                                         </IconButton>
@@ -412,7 +411,6 @@ export default function ChatPage() {
                                             color="inherit"
                                             onClick={handleClearSession}
                                             disabled={isLoading}
-                                            sx={{ mr: 0.5 }}
                                         >
                                             <DeleteIcon />
                                         </IconButton>
@@ -422,14 +420,13 @@ export default function ChatPage() {
                                         >
                                             <LogoutIcon />
                                         </IconButton>
-                                    </>
+                                    </Box>
                                 ) : (
-                                    <>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                                         <Button
                                             color="inherit"
                                             startIcon={<SettingsIcon />}
                                             onClick={handleOpenSettings}
-                                            sx={{ mr: 1 }}
                                         >
                                             Settings
                                         </Button>
@@ -437,7 +434,6 @@ export default function ChatPage() {
                                             color="inherit"
                                             startIcon={<DeleteIcon />}
                                             onClick={handleClearSession}
-                                            sx={{ mr: 1 }}
                                             disabled={isLoading}
                                         >
                                             Clear
@@ -449,7 +445,7 @@ export default function ChatPage() {
                                         >
                                             Logout
                                         </Button>
-                                    </>
+                                    </Box>
                                 )}
                             </>
                         )}
