@@ -26,6 +26,36 @@ public interface IAuthService
 	Task<int> GetRegisteredUserCountAsync(CancellationToken cancellationToken = default);
 
 	/// <summary>
+	/// Creates a new personal access token for the specified user.
+	/// </summary>
+	Task<PersonalAccessTokenCreatedResponse> CreatePersonalAccessTokenAsync(
+		Guid userId,
+		CreatePersonalAccessTokenRequest request,
+		CancellationToken cancellationToken = default);
+
+	/// <summary>
+	/// Lists the personal access tokens owned by the specified user.
+	/// </summary>
+	Task<IReadOnlyList<PersonalAccessTokenResponse>> ListPersonalAccessTokensAsync(
+		Guid userId,
+		CancellationToken cancellationToken = default);
+
+	/// <summary>
+	/// Revokes a personal access token owned by the specified user.
+	/// </summary>
+	Task<bool> RevokePersonalAccessTokenAsync(
+		Guid userId,
+		Guid tokenId,
+		CancellationToken cancellationToken = default);
+
+	/// <summary>
+	/// Resolves a bearer token to a planner user identifier.
+	/// </summary>
+	Task<string?> ResolveMcpBearerTokenUserIdAsync(
+		string token,
+		CancellationToken cancellationToken = default);
+
+	/// <summary>
 	/// Verifies a password against a hash.
 	/// </summary>
 	bool VerifyPassword(string password, string passwordHash);

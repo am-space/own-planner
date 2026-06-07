@@ -98,6 +98,28 @@ If you want the web server to target a specific directory for per-user planner d
 }
 ```
 
+Manage MCP bearer tokens from the web app settings page or the auth API:
+
+- `GET /api/auth/tokens`
+- `POST /api/auth/tokens`
+- `DELETE /api/auth/tokens/{tokenId}`
+
+The `/mcp` endpoint accepts `Authorization: Bearer <personal-access-token>`.
+
+## MCP HTTP Endpoint
+
+The server exposes an MCP Streamable HTTP endpoint at:
+
+- `POST/GET /mcp` (transport-managed by `ModelContextProtocol.AspNetCore`)
+
+Authentication for `/mcp` is bearer-only in this phase:
+
+```http
+Authorization: Bearer <personal-access-token>
+```
+
+Requests with missing/invalid bearer tokens receive `401 Unauthorized`.
+
 ## API Endpoints
 
 All endpoints require authentication (user must be logged in).

@@ -23,6 +23,7 @@ import {
 import SendIcon from '@mui/icons-material/Send';
 import LogoutIcon from '@mui/icons-material/Logout';
 import DeleteIcon from '@mui/icons-material/Delete';
+import SettingsIcon from '@mui/icons-material/Settings';
 import InfoIcon from '@mui/icons-material/Info';
 import LightbulbOutlinedIcon from '@mui/icons-material/LightbulbOutlined';
 import LightModeIcon from '@mui/icons-material/LightMode';
@@ -159,6 +160,10 @@ export default function ChatPage() {
     const handleLogout = async () => {
         await logout();
         navigate('/login');
+    };
+
+    const handleOpenSettings = () => {
+        navigate('/settings');
     };
 
     const handleClearSession = async () => {
@@ -395,12 +400,17 @@ export default function ChatPage() {
                                     }}
                                 />
                                 {isMobile ? (
-                                    <>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                        <IconButton
+                                            color="inherit"
+                                            onClick={handleOpenSettings}
+                                        >
+                                            <SettingsIcon />
+                                        </IconButton>
                                         <IconButton
                                             color="inherit"
                                             onClick={handleClearSession}
                                             disabled={isLoading}
-                                            sx={{ mr: 0.5 }}
                                         >
                                             <DeleteIcon />
                                         </IconButton>
@@ -410,14 +420,20 @@ export default function ChatPage() {
                                         >
                                             <LogoutIcon />
                                         </IconButton>
-                                    </>
+                                    </Box>
                                 ) : (
-                                    <>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                        <Button
+                                            color="inherit"
+                                            startIcon={<SettingsIcon />}
+                                            onClick={handleOpenSettings}
+                                        >
+                                            Settings
+                                        </Button>
                                         <Button
                                             color="inherit"
                                             startIcon={<DeleteIcon />}
                                             onClick={handleClearSession}
-                                            sx={{ mr: 1 }}
                                             disabled={isLoading}
                                         >
                                             Clear
@@ -429,7 +445,7 @@ export default function ChatPage() {
                                         >
                                             Logout
                                         </Button>
-                                    </>
+                                    </Box>
                                 )}
                             </>
                         )}
