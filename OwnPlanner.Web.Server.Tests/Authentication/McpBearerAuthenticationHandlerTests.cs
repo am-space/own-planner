@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using NSubstitute;
+using OwnPlanner.Application.Auth;
 using OwnPlanner.Web.Server.Authentication;
 
 namespace OwnPlanner.Web.Server.Tests.Authentication;
@@ -15,7 +17,7 @@ public sealed class McpBearerAuthenticationHandlerTests
 	{
 		var result = await AuthenticateAsync(
 			authorizationHeader: null,
-			resolver: new DictionaryResolver(new Dictionary<string, string>(StringComparer.Ordinal)));
+			authService: Substitute.For<IAuthService>());
 
 		result.None.Should().BeTrue();
 	}
@@ -25,7 +27,7 @@ public sealed class McpBearerAuthenticationHandlerTests
 	{
 		var result = await AuthenticateAsync(
 			authorizationHeader: "Basic abc123",
-			resolver: new DictionaryResolver(new Dictionary<string, string>(StringComparer.Ordinal)));
+			authService: Substitute.For<IAuthService>());
 
 		result.None.Should().BeTrue();
 	}
@@ -33,9 +35,13 @@ public sealed class McpBearerAuthenticationHandlerTests
 	[Fact]
 	public async Task AuthenticateAsync_ReturnsFail_WhenBearerTokenIsInvalid()
 	{
+		var authService = Substitute.For<IAuthService>();
+		authService.ResolveMcpBearerTokenUserIdAsync("invalid-token", Arg.Any<CancellationToken>())
+			.Returns(Task.FromResult<string?>(null));
+
 		var result = await AuthenticateAsync(
 			authorizationHeader: "Bearer invalid-token",
-			resolver: new DictionaryResolver(new Dictionary<string, string>(StringComparer.Ordinal)));
+			authService);
 
 		result.Succeeded.Should().BeFalse();
 		result.Failure.Should().NotBeNull();
@@ -44,12 +50,13 @@ public sealed class McpBearerAuthenticationHandlerTests
 	[Fact]
 	public async Task AuthenticateAsync_ReturnsPrincipal_WhenBearerTokenIsValid()
 	{
+		var authService = Substitute.For<IAuthService>();
+		authService.ResolveMcpBearerTokenUserIdAsync("valid-token", Arg.Any<CancellationToken>())
+			.Returns(Task.FromResult<string?>("user-42"));
+
 		var result = await AuthenticateAsync(
 			authorizationHeader: "Bearer valid-token",
-			resolver: new DictionaryResolver(new Dictionary<string, string>(StringComparer.Ordinal)
-			{
-				["valid-token"] = "user-42"
-			}));
+			authService);
 
 		result.Succeeded.Should().BeTrue();
 		result.Principal!.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value.Should().Be("user-42");
@@ -58,12 +65,13 @@ public sealed class McpBearerAuthenticationHandlerTests
 	[Fact]
 	public async Task AuthenticateAsync_ReturnsFail_WhenResolvedUserIdIsWhitespace()
 	{
+		var authService = Substitute.For<IAuthService>();
+		authService.ResolveMcpBearerTokenUserIdAsync("valid-token", Arg.Any<CancellationToken>())
+			.Returns(Task.FromResult<string?>("   "));
+
 		var result = await AuthenticateAsync(
 			authorizationHeader: "Bearer valid-token",
-			resolver: new DictionaryResolver(new Dictionary<string, string>(StringComparer.Ordinal)
-			{
-				["valid-token"] = "   "
-			}));
+			authService);
 
 		result.Succeeded.Should().BeFalse();
 		result.Failure.Should().NotBeNull();
@@ -77,7 +85,7 @@ public sealed class McpBearerAuthenticationHandlerTests
 			new TestAuthenticationOptionsMonitor(),
 			NullLoggerFactory.Instance,
 			UrlEncoder.Default,
-			new DictionaryResolver(new Dictionary<string, string>(StringComparer.Ordinal)));
+			Substitute.For<IAuthService>());
 
 		var scheme = new AuthenticationScheme(
 			McpBearerAuthenticationDefaults.AuthenticationScheme,
@@ -91,7 +99,7 @@ public sealed class McpBearerAuthenticationHandlerTests
 		context.Response.Headers.WWWAuthenticate.ToString().Should().Contain("Bearer");
 	}
 
-	private static async Task<AuthenticateResult> AuthenticateAsync(string? authorizationHeader, IMcpBearerTokenResolver resolver)
+	private static async Task<AuthenticateResult> AuthenticateAsync(string? authorizationHeader, IAuthService authService)
 	{
 		var context = new DefaultHttpContext();
 		if (!string.IsNullOrWhiteSpace(authorizationHeader))
@@ -103,7 +111,7 @@ public sealed class McpBearerAuthenticationHandlerTests
 			new TestAuthenticationOptionsMonitor(),
 			NullLoggerFactory.Instance,
 			UrlEncoder.Default,
-			resolver);
+			authService);
 
 		var scheme = new AuthenticationScheme(
 			McpBearerAuthenticationDefaults.AuthenticationScheme,
@@ -112,14 +120,6 @@ public sealed class McpBearerAuthenticationHandlerTests
 
 		await handler.InitializeAsync(scheme, context);
 		return await handler.AuthenticateAsync();
-	}
-
-	private sealed class DictionaryResolver(IReadOnlyDictionary<string, string> tokenToUserId) : IMcpBearerTokenResolver
-	{
-		public bool TryResolveUserId(string token, out string userId)
-		{
-			return tokenToUserId.TryGetValue(token.Trim(), out userId!);
-		}
 	}
 
 	private sealed class TestAuthenticationOptionsMonitor : IOptionsMonitor<AuthenticationSchemeOptions>

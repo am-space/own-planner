@@ -150,6 +150,65 @@ public class AuthController : ControllerBase
 		return Ok(new { registeredUserCount });
 	}
 
+	/// <summary>
+	/// Lists the current user's personal access tokens.
+	/// </summary>
+	[HttpGet("tokens")]
+	[Authorize]
+	public async Task<IActionResult> ListPersonalAccessTokens(CancellationToken cancellationToken)
+	{
+		if (!TryGetAuthenticatedUserId(out var userId))
+		{
+			return Unauthorized(new { message = "Invalid authentication" });
+		}
+
+		var tokens = await _authService.ListPersonalAccessTokensAsync(userId, cancellationToken);
+		return Ok(tokens);
+	}
+
+	/// <summary>
+	/// Creates a new personal access token for the current user.
+	/// </summary>
+	[HttpPost("tokens")]
+	[Authorize]
+	public async Task<IActionResult> CreatePersonalAccessToken([FromBody] CreatePersonalAccessTokenRequest request, CancellationToken cancellationToken)
+	{
+		if (!TryGetAuthenticatedUserId(out var userId))
+		{
+			return Unauthorized(new { message = "Invalid authentication" });
+		}
+
+		try
+		{
+			var result = await _authService.CreatePersonalAccessTokenAsync(userId, request, cancellationToken);
+			return Ok(new
+			{
+				token = result.Token,
+				plaintextToken = result.PlaintextToken
+			});
+		}
+		catch (ArgumentException ex)
+		{
+			return BadRequest(new { message = ex.Message });
+		}
+	}
+
+	/// <summary>
+	/// Revokes an existing personal access token for the current user.
+	/// </summary>
+	[HttpDelete("tokens/{tokenId:guid}")]
+	[Authorize]
+	public async Task<IActionResult> RevokePersonalAccessToken(Guid tokenId, CancellationToken cancellationToken)
+	{
+		if (!TryGetAuthenticatedUserId(out var userId))
+		{
+			return Unauthorized(new { message = "Invalid authentication" });
+		}
+
+		var revoked = await _authService.RevokePersonalAccessTokenAsync(userId, tokenId, cancellationToken);
+		return revoked ? NoContent() : NotFound(new { message = "Personal access token not found" });
+	}
+
 	private async Task SignInUserAsync(UserResponse user)
 	{
 		// Generate a unique session ID for this login
@@ -177,5 +236,18 @@ public class AuthController : ControllerBase
 			authProperties);
 
 		_logger.LogDebug("Created session ID for user {UserId}: {SessionId}", user.Id, sessionId);
+	}
+
+	private bool TryGetAuthenticatedUserId(out Guid userId)
+	{
+		userId = default;
+		var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+		if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out userId))
+		{
+			_logger.LogWarning("Invalid user ID claim in token");
+			return false;
+		}
+
+		return true;
 	}
 }

@@ -98,25 +98,13 @@ If you want the web server to target a specific directory for per-user planner d
 }
 ```
 
-Configure MCP bearer tokens (server-managed mapping for this phase):
+Manage MCP bearer tokens from the web app settings page or the auth API:
 
-```json
-{
-  "McpBearer": {
-    "TokenBindings": [
-      {
-        "Token": "replace-with-secret-token",
-        "UserId": "replace-with-user-id"
-      }
-    ]
-  }
-}
-```
+- `GET /api/auth/tokens`
+- `POST /api/auth/tokens`
+- `DELETE /api/auth/tokens/{tokenId}`
 
-For container/runtime configuration, use environment variables (for example):
-
-- `McpBearer__TokenBindings__0__Token`
-- `McpBearer__TokenBindings__0__UserId`
+The `/mcp` endpoint accepts `Authorization: Bearer <personal-access-token>`.
 
 ## MCP HTTP Endpoint
 

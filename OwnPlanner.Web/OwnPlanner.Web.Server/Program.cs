@@ -4,7 +4,6 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 using OwnPlanner.Application.Contexts;
 using OwnPlanner.Infrastructure.Persistence;
 using OwnPlanner.Domain.Contexts;
@@ -65,12 +64,6 @@ namespace OwnPlanner.Web.Server
 				Directory.CreateDirectory(userDbDirectory);
 				Log.Information("Planner user database directory configured: {UserDbDirectory}", userDbDirectory);
 
-				builder.Services.AddOptions<McpBearerSettings>()
-					.Bind(builder.Configuration.GetSection(McpBearerSettings.SectionName))
-					.ValidateOnStart();
-				builder.Services.AddSingleton<IValidateOptions<McpBearerSettings>, McpBearerSettingsValidator>();
-				builder.Services.AddSingleton<IMcpBearerTokenResolver, ConfigurationMcpBearerTokenResolver>();
-
 				builder.Services.AddDbContext<AuthDbContext>(options =>
 					options.UseSqlite($"Data Source={authDbPath}")
 				);
@@ -91,6 +84,7 @@ namespace OwnPlanner.Web.Server
 
 				// Register repositories
 				builder.Services.AddScoped<IUserRepository, UserRepository>();
+				builder.Services.AddScoped<IPersonalAccessTokenRepository, PersonalAccessTokenRepository>();
 				builder.Services.AddScoped<ITaskItemRepository, TaskItemRepository>();
 				builder.Services.AddScoped<ITaskListRepository, TaskListRepository>();
 				builder.Services.AddScoped<INoteListRepository, NoteListRepository>();

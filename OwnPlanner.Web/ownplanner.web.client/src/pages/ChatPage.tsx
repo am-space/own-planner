@@ -23,6 +23,7 @@ import {
 import SendIcon from '@mui/icons-material/Send';
 import LogoutIcon from '@mui/icons-material/Logout';
 import DeleteIcon from '@mui/icons-material/Delete';
+import SettingsIcon from '@mui/icons-material/Settings';
 import InfoIcon from '@mui/icons-material/Info';
 import LightbulbOutlinedIcon from '@mui/icons-material/LightbulbOutlined';
 import LightModeIcon from '@mui/icons-material/LightMode';
@@ -159,6 +160,10 @@ export default function ChatPage() {
     const handleLogout = async () => {
         await logout();
         navigate('/login');
+    };
+
+    const handleOpenSettings = () => {
+        navigate('/settings');
     };
 
     const handleClearSession = async () => {
@@ -398,6 +403,13 @@ export default function ChatPage() {
                                     <>
                                         <IconButton
                                             color="inherit"
+                                            onClick={handleOpenSettings}
+                                            sx={{ mr: 0.5 }}
+                                        >
+                                            <SettingsIcon />
+                                        </IconButton>
+                                        <IconButton
+                                            color="inherit"
                                             onClick={handleClearSession}
                                             disabled={isLoading}
                                             sx={{ mr: 0.5 }}
@@ -413,6 +425,14 @@ export default function ChatPage() {
                                     </>
                                 ) : (
                                     <>
+                                        <Button
+                                            color="inherit"
+                                            startIcon={<SettingsIcon />}
+                                            onClick={handleOpenSettings}
+                                            sx={{ mr: 1 }}
+                                        >
+                                            Settings
+                                        </Button>
                                         <Button
                                             color="inherit"
                                             startIcon={<DeleteIcon />}

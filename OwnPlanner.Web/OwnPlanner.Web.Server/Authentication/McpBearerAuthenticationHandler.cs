@@ -3,6 +3,7 @@ using System.Security.Claims;
 using System.Text.Encodings.Web;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Options;
+using OwnPlanner.Application.Auth;
 using OwnPlanner.Mcp.Tools;
 
 namespace OwnPlanner.Web.Server.Authentication;
@@ -11,7 +12,7 @@ internal sealed class McpBearerAuthenticationHandler(
 	IOptionsMonitor<AuthenticationSchemeOptions> options,
 	ILoggerFactory logger,
 	UrlEncoder encoder,
-	IMcpBearerTokenResolver tokenResolver)
+	IAuthService authService)
 	: AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
 {
 	protected override async Task HandleChallengeAsync(AuthenticationProperties properties)
@@ -20,34 +21,30 @@ internal sealed class McpBearerAuthenticationHandler(
 		await base.HandleChallengeAsync(properties);
 	}
 
-	protected override Task<AuthenticateResult> HandleAuthenticateAsync()
+	protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
 	{
 		if (!Request.Headers.TryGetValue("Authorization", out var authorizationHeader) ||
 			string.IsNullOrWhiteSpace(authorizationHeader))
 		{
-			return Task.FromResult(AuthenticateResult.NoResult());
+			return AuthenticateResult.NoResult();
 		}
 
 		if (!AuthenticationHeaderValue.TryParse(authorizationHeader, out var parsedHeader) ||
 			!string.Equals(parsedHeader.Scheme, "Bearer", StringComparison.OrdinalIgnoreCase))
 		{
-			return Task.FromResult(AuthenticateResult.NoResult());
+			return AuthenticateResult.NoResult();
 		}
 
 		var token = parsedHeader.Parameter;
 		if (string.IsNullOrWhiteSpace(token))
 		{
-			return Task.FromResult(AuthenticateResult.Fail("Missing bearer token."));
+			return AuthenticateResult.Fail("Missing bearer token.");
 		}
 
-		if (!tokenResolver.TryResolveUserId(token, out var userId))
-		{
-			return Task.FromResult(AuthenticateResult.Fail("Invalid bearer token."));
-		}
-
+		var userId = await authService.ResolveMcpBearerTokenUserIdAsync(token, Context.RequestAborted);
 		if (string.IsNullOrWhiteSpace(userId))
 		{
-			return Task.FromResult(AuthenticateResult.Fail("Invalid bearer token."));
+			return AuthenticateResult.Fail("Invalid bearer token.");
 		}
 
 		var sessionContext = new SessionContext
@@ -65,6 +62,6 @@ internal sealed class McpBearerAuthenticationHandler(
 		var identity = new ClaimsIdentity(claims, McpBearerAuthenticationDefaults.AuthenticationScheme);
 		var principal = new ClaimsPrincipal(identity);
 		var ticket = new AuthenticationTicket(principal, McpBearerAuthenticationDefaults.AuthenticationScheme);
-		return Task.FromResult(AuthenticateResult.Success(ticket));
+		return AuthenticateResult.Success(ticket);
 	}
 }

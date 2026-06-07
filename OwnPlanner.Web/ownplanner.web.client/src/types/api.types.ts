@@ -37,6 +37,24 @@ export interface AuthStatsResponse {
   registeredUserCount: number;
 }
 
+export interface CreatePersonalAccessTokenRequest {
+  name: string;
+}
+
+export interface PersonalAccessTokenResponse {
+  id: string;
+  userId: string;
+  name: string;
+  createdAt: string;
+  lastUsedAt: string | null;
+  revokedAt: string | null;
+}
+
+export interface PersonalAccessTokenCreatedResponse {
+  token: PersonalAccessTokenResponse;
+  plaintextToken: string;
+}
+
 // Chat API types
 export interface ChatRequest {
   message: string;

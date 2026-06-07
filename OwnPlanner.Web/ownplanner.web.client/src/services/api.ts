@@ -6,6 +6,9 @@ import type {
   AuthResult,
   AuthCheckResponse,
   AuthStatsResponse,
+  CreatePersonalAccessTokenRequest,
+  PersonalAccessTokenCreatedResponse,
+  PersonalAccessTokenResponse,
   ChatRequest,
   ChatResponse,
   SessionStatusResponse,
@@ -112,6 +115,55 @@ class ApiService {
     }
 
     return await response.json();
+  }
+
+  async getPersonalAccessTokens(): Promise<PersonalAccessTokenResponse[]> {
+    const response = await fetch(`${this.baseUrl}/auth/tokens`, {
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      let message = 'Failed to get personal access tokens';
+      try { message = (JSON.parse(text) as { message?: string }).message || message; } catch { if (text) message = text; }
+      throw new Error(message);
+    }
+
+    return await response.json();
+  }
+
+  async createPersonalAccessToken(name: string): Promise<PersonalAccessTokenCreatedResponse> {
+    const response = await fetch(`${this.baseUrl}/auth/tokens`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ name } satisfies CreatePersonalAccessTokenRequest),
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      let message = 'Failed to create personal access token';
+      try { message = (JSON.parse(text) as { message?: string }).message || message; } catch { if (text) message = text; }
+      throw new Error(message);
+    }
+
+    return await response.json();
+  }
+
+  async revokePersonalAccessToken(tokenId: string): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/auth/tokens/${tokenId}`, {
+      method: 'DELETE',
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      let message = 'Failed to revoke personal access token';
+      try { message = (JSON.parse(text) as { message?: string }).message || message; } catch { if (text) message = text; }
+      throw new Error(message);
+    }
   }
 
   // Chat API methods
