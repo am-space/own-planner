@@ -152,11 +152,9 @@ public class PlanningServiceTests
 	// --- GetResponseAsync ---
 
 	[Fact]
-	public async Task GetResponseAsync_BeforeModeSwitch_ActivatesDefaultModeAndPrependsContext()
+	public async Task GetResponseAsync_BeforeModeSwitch_ActivatesDefaultModeAndForwardsMessageDirectly()
 	{
 		var ct = TestContext.Current.CancellationToken;
-		_mcpAdapter.CallToolAsync(Arg.Any<string>(), Arg.Any<Dictionary<string, object?>?>(), ct)
-			.Returns("today-tasks");
 
 		string? captured = null;
 	  _chatAdapter.GetResponse(Arg.Do<string>(m => captured = m)).Returns(new ChatTurnResult("ok", 111));
@@ -164,10 +162,7 @@ public class PlanningServiceTests
 		await _svc.GetResponseAsync("hello", ct);
 
 		_chatAdapter.Received(1).ResetChatSession(Arg.Any<string?>(), Arg.Any<IReadOnlyList<string>?>());
-		captured.Should().Contain("[Refreshed context]");
-		captured.Should().Contain("today-tasks");
-		captured.Should().Contain("[User message]");
-		captured.Should().Contain("hello");
+		captured.Should().Be("hello");
 	}
 
 	[Fact]
@@ -184,23 +179,19 @@ public class PlanningServiceTests
 	}
 
 	[Fact]
-	public async Task GetResponseAsync_AfterDayWork_PrependsRefreshedContext()
+	public async Task GetResponseAsync_AfterDayWork_ForwardsMessageDirectlyWithoutPerTurnPreload()
 	{
 		var ct = TestContext.Current.CancellationToken;
 		await _svc.SwitchModeAsync(PlanningMode.DayWork, ct);
 		_mcpAdapter.ClearReceivedCalls();
-		_mcpAdapter.CallToolAsync(Arg.Any<string>(), Arg.Any<Dictionary<string, object?>?>(), ct)
-			.Returns("today-tasks");
 
 		string? captured = null;
 	  _chatAdapter.GetResponse(Arg.Do<string>(m => captured = m)).Returns(new ChatTurnResult("ok", 111));
 
 		await _svc.GetResponseAsync("what should I do?", ct);
 
-		captured.Should().Contain("[Refreshed context]");
-		captured.Should().Contain("today-tasks");
-		captured.Should().Contain("[User message]");
-		captured.Should().Contain("what should I do?");
+		captured.Should().Be("what should I do?");
+		await _mcpAdapter.DidNotReceive().CallToolAsync(Arg.Any<string>(), Arg.Any<Dictionary<string, object?>?>(), ct);
 	}
 
 	[Fact]

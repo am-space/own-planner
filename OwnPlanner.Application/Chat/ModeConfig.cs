@@ -6,7 +6,6 @@ public sealed record ModeConfig(
 	IReadOnlyList<string> PreloadTools,
 	IReadOnlyList<string> AllowedTools,
 	bool CanWrite,
-	bool RefreshOnTurn,
 	IReadOnlyList<string> StarterPrompts)
 {
 	public static readonly IReadOnlyDictionary<PlanningMode, ModeConfig> All =
@@ -36,8 +35,7 @@ public sealed record ModeConfig(
 					""",
 				PreloadTools: ["goal_list", "context_list", "notelist_all", "noteitem_list_items"],
 				AllowedTools: [],
-				CanWrite: true,
-				RefreshOnTurn: false),
+				CanWrite: true),
 
 			[PlanningMode.WeekPlanning] = new ModeConfig(
 				ModeId: PlanningMode.WeekPlanning,
@@ -64,8 +62,7 @@ public sealed record ModeConfig(
 					""",
 				PreloadTools: ["goal_list", "tasklist_all", "taskitem_list_items"],
 				AllowedTools: [],
-				CanWrite: true,
-				RefreshOnTurn: false),
+				CanWrite: true),
 
 			[PlanningMode.DayWork] = new ModeConfig(
 				ModeId: PlanningMode.DayWork,
@@ -75,7 +72,7 @@ public sealed record ModeConfig(
 
 					Your focus: execute on today only.
 
-					Context is refreshed every turn so you always see the current state of today's tasks and any overdue items.
+					On entry you have been given today's tasks and any overdue items. This snapshot can go stale as the user works — when you need the current state (for example after completing tasks, or if the user asks what's left), call taskitem_list_by_focus_date to refresh it rather than relying on the entry snapshot.
 
 					- Suggest what to tackle first
 					- Mark tasks complete as the user works through them
@@ -92,8 +89,7 @@ public sealed record ModeConfig(
 					""",
 				PreloadTools: ["taskitem_list_by_focus_date", "taskitem_list_items"],
 				AllowedTools: [],
-				CanWrite: true,
-				RefreshOnTurn: true),
+				CanWrite: true),
 
 			[PlanningMode.Reflection] = new ModeConfig(
 				ModeId: PlanningMode.Reflection,
@@ -121,8 +117,7 @@ public sealed record ModeConfig(
 					""",
 				PreloadTools: ["goal_list", "notelist_all", "noteitem_list_items", "taskitem_list_items"],
 				AllowedTools: [],
-				CanWrite: true,
-				RefreshOnTurn: false),
+				CanWrite: true),
 
 			[PlanningMode.SystemAnalysis] = new ModeConfig(
 				ModeId: PlanningMode.SystemAnalysis,
@@ -161,7 +156,6 @@ public sealed record ModeConfig(
 					"noteitem_list_items", "noteitem_get",
 					"datetime_get_current"
 				],
-				CanWrite: false,
-				RefreshOnTurn: false),
+				CanWrite: false),
 		};
 }

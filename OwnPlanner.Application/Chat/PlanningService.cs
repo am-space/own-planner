@@ -48,18 +48,9 @@ public sealed class PlanningService(IChatAdapter chatAdapter, IMcpAdapter? mcpAd
 			await SwitchModeAsync(_currentMode, cancellationToken).ConfigureAwait(false);
 		}
 
-		string message = userMessage;
+		EnsureContextWithinLimit(userMessage);
 
-		if (_modeActivated && _currentConfig.RefreshOnTurn && _mcpAdapter != null)
-		{
-			var context = await LoadContextAsync(_currentConfig, cancellationToken);
-			if (!string.IsNullOrEmpty(context))
-				message = $"[Refreshed context]\n{context}\n\n[User message]\n{userMessage}";
-		}
-
-		EnsureContextWithinLimit(message);
-
-		var result = await _chatAdapter.GetResponse(message);
+		var result = await _chatAdapter.GetResponse(userMessage);
 		var assistantResponseTokens = EstimateTokenCount(result.Message);
 		_projectedContextLengthTokens = result.ContextLengthTokens is int promptTokens
 			? promptTokens + assistantResponseTokens
