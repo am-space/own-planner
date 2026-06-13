@@ -72,7 +72,7 @@ public sealed record ModeConfig(
 
 					Your focus: execute on today only.
 
-					On entry you have been given today's tasks and any overdue items. This snapshot can go stale as the user works — when you need the current state (for example after completing tasks, or if the user asks what's left), call taskitem_list_by_focus_date to refresh it rather than relying on the entry snapshot.
+					On entry you have been given today's focused tasks. This snapshot can go stale as the user works — when you need the current state (for example after completing tasks, or if the user asks what's left), call taskitem_list_by_focus_date to refresh it. Use the task tools to look up overdue items or anything outside today's focus when the user asks.
 
 					- Suggest what to tackle first
 					- Mark tasks complete as the user works through them
@@ -87,7 +87,7 @@ public sealed record ModeConfig(
 					- Format responses clearly; don't show entity IDs unless asked
 					- Confirm all write actions taken
 					""",
-				PreloadTools: ["taskitem_list_by_focus_date", "taskitem_list_items"],
+				PreloadTools: ["taskitem_list_by_focus_date"],
 				AllowedTools: [],
 				CanWrite: true),
 

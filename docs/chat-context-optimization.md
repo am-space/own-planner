@@ -57,26 +57,34 @@ Each `TaskItemDto` serializes 13 fields including **4 GUIDs** (`Id`, `TaskListId
 - Replace 36-char GUIDs with short per-turn handles (e.g. `t1`, `t2`) mapped back to GUIDs
   server-side when a write tool is called. Biggest single saver; keeps write-by-id working.
 
-### 3. Note `Content` is unbounded and dumped wholesale
+### 3. Note `Content` is unbounded and dumped wholesale — ✅ DONE
 
-`noteitem_list_items` returns every note **including the full `Content`** body
-(`OwnPlanner.Mcp.Tools/NoteItemTools.cs:40`). Retrospective/Brief notes are free text and
-can be large. Reflection, GlobalPlanning, and SystemAnalysis all preload this.
+`noteitem_list_items` returned every note **including the full `Content`** body. Retrospective/
+Brief notes are free text and can be large. Reflection, GlobalPlanning, and SystemAnalysis all
+preload this.
 
-**Fix:** in list/preload views return title + truncated snippet (first ~200 chars); full
-body only via `noteitem_get` when the model asks.
+**Fixed.** The note list tools (`noteitem_list_items`, `noteitem_list_by_goal`) now truncate
+`Content` to a 200-char preview, appending `… [truncated — call noteitem_get for full content]`
+so the model knows the full body is available on demand. Truncation lives in the MCP tool layer
+(`OwnPlanner.Mcp.Tools/NoteItemTools.cs`) via a `NoteItemDto with { Content = … }` projection,
+so the shape is unchanged and the web/UI path (which calls `INoteItemService` directly) keeps
+full content. `noteitem_get` still returns the complete note.
 
-### 4. Preloads fetch more than the mode needs
+### 4. Preloads fetch more than the mode needs — ✅ DONE (DayWork)
 
-- **DayWork** preloads `taskitem_list_by_focus_date` **and** `taskitem_list_items` (ALL
-  incomplete tasks) — the second contradicts "today only" (`ModeConfig.cs:93`). Drop it.
-- **WeekPlanning** loads all tasks but only needs next-7-days + overdue.
-- **SystemAnalysis** preloads the **entire database** (goals + contexts + all lists + all
-  tasks + all notes with content) in one shot (`ModeConfig.cs:153`). Worst-case single
-  payload.
+- **DayWork** preloaded `taskitem_list_by_focus_date` **and** `taskitem_list_items` (ALL
+  incomplete tasks) — the second contradicted "today only". **Fixed:** dropped
+  `taskitem_list_items`; DayWork now preloads only today's focused tasks, and the prompt
+  tells the model to use the task tools for overdue items or anything outside today's focus.
+- **WeekPlanning** loads all tasks but only needs next-7-days + overdue. *Deferred* — needs
+  a date-range query tool/repository method that doesn't exist yet; out of scope for a
+  preload-config change.
+- **SystemAnalysis** preloads the **entire database** in one shot (`ModeConfig.cs`). Left
+  as-is: this is inherent to its one-shot full-system diagnostic purpose.
 
-**Fix:** add filters/limits to preload calls (exclude completed, date-bound, cap counts,
-titles-only for notes).
+All other list preloads already default to lean filters (active goals only, exclude
+archived contexts/lists, exclude completed tasks), so no further change was needed there.
+The remaining preload bloat is note `Content`, which is tracked separately as #3.
 
 ### 5. No history management — it only throws
 
@@ -99,8 +107,8 @@ per turn), but per-mode allow-lists recover a few thousand tokens of fixed overh
 |---|---|---|---|
 | 1 | ✅ Stop DayWork from stacking refreshed context in history (done — model pulls on demand) | Low | Huge — fixes growth-during-use |
 | 2 | Compact projections (drop timestamps, short ids, lines not JSON) | Med | Huge — ~3-5× smaller preloads |
-| 3 | Truncate note `Content` in list views | Low | Large for note-heavy modes |
-| 4 | Filter/limit preloads per mode (drop `taskitem_list_items` from DayWork) | Low | Large |
+| 3 | ✅ Truncate note `Content` in list views (done — 200-char preview) | Low | Large for note-heavy modes |
+| 4 | ✅ Filter/limit preloads per mode (done — dropped `taskitem_list_items` from DayWork) | Low | Large |
 | 5 | History trim/summarize instead of throwing | Med | Resilience |
 | 6 | Per-mode tool allow-lists | Low | Small, fixed savings |
 
