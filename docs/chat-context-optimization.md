@@ -128,11 +128,22 @@ adapter already uses, so function-call/response pairs can't be split. The hard
 left to compact (e.g. a single turn larger than the whole budget). Thresholds, retained-turn
 count, and strategy are constructor-configurable on `PlanningService`.
 
-### 6. (Minor) All ~30 tool schemas attached to most modes
+### 6. All tool schemas attached to most modes — ✅ DONE
 
-`AllowedTools: []` disables filtering, so every non-SystemAnalysis mode exposes the full
-tool set's schemas (`ChatServiceAdapter.cs:207`). Smaller effect (schemas count once, not
-per turn), but per-mode allow-lists recover a few thousand tokens of fixed overhead.
+`AllowedTools: []` disabled filtering, so every non-SystemAnalysis mode exposed all 46 MCP tool
+schemas + `search_agent_call` on every request.
+
+**Fixed.** Each mode now declares an explicit allow-list following one rule: **full CRUD for the
+entity types the mode owns, read-only tools for types it merely references, plus
+`datetime_get_current`** (and `search_agent_call` for the analytical modes — DayWork omits web
+search to stay narrow). Result: GlobalPlanning ~39, WeekPlanning ~22, Reflection ~19, DayWork ~13
+tools instead of 47 — DayWork and WeekPlanning roughly halved or better. Preload tools bypass the
+allow-list (called directly), but every preload tool is also in its mode's allow-list so the model
+can refresh it.
+
+Guard tests: `ModeConfigTests` (allow-lists non-empty, no duplicates, preload ⊆ allowed) and a
+`DirectToolMcpAdapterTests` case asserting every name is a real registered tool (catches typos that
+would silently disable a capability).
 
 ## Recommended order of work
 
@@ -143,7 +154,7 @@ per turn), but per-mode allow-lists recover a few thousand tokens of fixed overh
 | 3 | ✅ Truncate note `Content` in list views (done — 200-char preview) | Low | Large for note-heavy modes |
 | 4 | ✅ Filter/limit preloads per mode (done — dropped `taskitem_list_items` from DayWork) | Low | Large |
 | 5 | ✅ History trim/summarize instead of throwing (done — summarize+rebuild, trim fallback) | Med | Resilience |
-| 6 | Per-mode tool allow-lists | Low | Small, fixed savings |
+| 6 | ✅ Per-mode tool allow-lists (done — scoped per mode, guard-tested) | Low | Small, fixed savings |
 
 ## Notes
 

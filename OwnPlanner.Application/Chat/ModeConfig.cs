@@ -34,7 +34,16 @@ public sealed record ModeConfig(
 					- Confirm all write actions taken
 					""",
 				PreloadTools: ["goal_list", "context_list", "notelist_all", "noteitem_list_items"],
-				AllowedTools: [],
+				AllowedTools:
+				[
+					"goal_list", "goal_get", "goal_create", "goal_update", "goal_delete",
+					"context_list", "context_get", "context_create", "context_update", "context_delete",
+					"tasklist_all", "tasklist_get", "tasklist_create", "tasklist_update", "tasklist_archive", "tasklist_unarchive", "tasklist_delete",
+					"notelist_all", "notelist_get", "notelist_create", "notelist_update", "notelist_archive", "notelist_unarchive", "notelist_delete",
+					"noteitem_list_items", "noteitem_list_by_goal", "noteitem_get", "noteitem_create", "noteitem_update", "noteitem_assign", "noteitem_pin", "noteitem_unpin", "noteitem_delete",
+					"taskitem_list_items", "taskitem_list_by_goal", "taskitem_list_by_focus_date", "taskitem_get",
+					"datetime_get_current", "search_agent_call"
+				],
 				CanWrite: true),
 
 			[PlanningMode.WeekPlanning] = new ModeConfig(
@@ -61,7 +70,14 @@ public sealed record ModeConfig(
 					- Confirm all write actions taken
 					""",
 				PreloadTools: ["goal_list", "tasklist_all", "taskitem_list_items"],
-				AllowedTools: [],
+				AllowedTools:
+				[
+					"goal_list", "goal_get",
+					"tasklist_all", "tasklist_get", "tasklist_create", "tasklist_update", "tasklist_archive", "tasklist_unarchive", "tasklist_delete",
+					"taskitem_list_items", "taskitem_list_by_focus_date", "taskitem_list_by_goal", "taskitem_get",
+					"taskitem_create", "taskitem_update", "taskitem_assign", "taskitem_set_focus_date", "taskitem_set_important", "taskitem_complete", "taskitem_reopen", "taskitem_delete",
+					"datetime_get_current", "search_agent_call"
+				],
 				CanWrite: true),
 
 			[PlanningMode.DayWork] = new ModeConfig(
@@ -88,7 +104,14 @@ public sealed record ModeConfig(
 					- Confirm all write actions taken
 					""",
 				PreloadTools: ["taskitem_list_by_focus_date"],
-				AllowedTools: [],
+				AllowedTools:
+				[
+					"taskitem_list_by_focus_date", "taskitem_list_items", "taskitem_get",
+					"taskitem_create", "taskitem_complete", "taskitem_reopen", "taskitem_set_focus_date", "taskitem_set_important",
+					"tasklist_all", "tasklist_get",
+					"notelist_all", "noteitem_create",
+					"datetime_get_current"
+				],
 				CanWrite: true),
 
 			[PlanningMode.Reflection] = new ModeConfig(
@@ -116,7 +139,15 @@ public sealed record ModeConfig(
 					- Confirm all write actions taken
 					""",
 				PreloadTools: ["goal_list", "notelist_all", "noteitem_list_items", "taskitem_list_items"],
-				AllowedTools: [],
+				AllowedTools:
+				[
+					"goal_list", "goal_get", "goal_update",
+					"notelist_all", "notelist_get", "notelist_create", "notelist_update",
+					"noteitem_list_items", "noteitem_list_by_goal", "noteitem_get", "noteitem_create", "noteitem_update",
+					"tasklist_all", "tasklist_get",
+					"taskitem_list_items", "taskitem_list_by_goal", "taskitem_get",
+					"datetime_get_current", "search_agent_call"
+				],
 				CanWrite: true),
 
 			[PlanningMode.SystemAnalysis] = new ModeConfig(
