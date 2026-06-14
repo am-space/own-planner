@@ -107,14 +107,26 @@ All other list preloads already default to lean filters (active goals only, excl
 archived contexts/lists, exclude completed tasks), so no further change was needed there.
 The remaining preload bloat is note `Content`, which is tracked separately as #3.
 
-### 5. No history management — it only throws
+### 5. No history management — it only threw — ✅ DONE
 
-The sole guardrail is `EnsureContextWithinLimit` throwing
-`ChatContextLimitExceededException` (`PlanningService.cs:71`). At 64k the chat dies instead
-of recovering.
+The sole guardrail used to be `EnsureContextWithinLimit` throwing
+`ChatContextLimitExceededException`. At 64k the chat died instead of recovering.
 
-**Fix:** add a sliding-window trim or summarize-old-turns step before sending, so long
-sessions degrade gracefully.
+**Fixed via shadow-transcript + rebuild.** `PlanningService` keeps a plain-text transcript of
+completed turns (`ChatMessage`/`ChatRole`). When the projected next-turn size crosses a **soft
+threshold (70% of max)**, it compacts: the oldest turns are replaced and the chat session is
+rebuilt from `[system prompt] + [compacted history] + [last 3 turns]` via the new
+`IChatAdapter.RebuildSession`. Two strategies (`HistoryCompactionStrategy`):
+- **Summarize** (default) — `IChatAdapter.SummarizeAsync` condenses the older span on a tool-less
+  side session; if it fails, it **falls back to Trim**.
+- **Trim** — drops the older span entirely.
+
+This deliberately avoids reading/mutating the chat SDK's internal history (the fragile path
+rejected in #1): we replay our own transcript through the same `StartChat(history:…)` path the
+adapter already uses, so function-call/response pairs can't be split. The hard
+`ChatContextLimitExceededException` remains only as a genuine last resort — when there's nothing
+left to compact (e.g. a single turn larger than the whole budget). Thresholds, retained-turn
+count, and strategy are constructor-configurable on `PlanningService`.
 
 ### 6. (Minor) All ~30 tool schemas attached to most modes
 
@@ -130,7 +142,7 @@ per turn), but per-mode allow-lists recover a few thousand tokens of fixed overh
 | 2 | ✅ Compact projections — 2a done (drop nulls + audit timestamps, keep GUIDs); 2b (id shrinking) deferred | Med | Large |
 | 3 | ✅ Truncate note `Content` in list views (done — 200-char preview) | Low | Large for note-heavy modes |
 | 4 | ✅ Filter/limit preloads per mode (done — dropped `taskitem_list_items` from DayWork) | Low | Large |
-| 5 | History trim/summarize instead of throwing | Med | Resilience |
+| 5 | ✅ History trim/summarize instead of throwing (done — summarize+rebuild, trim fallback) | Med | Resilience |
 | 6 | Per-mode tool allow-lists | Low | Small, fixed savings |
 
 ## Notes

@@ -3,6 +3,7 @@ using Mscc.GenerativeAI;
 using Mscc.GenerativeAI.Types;
 using OwnPlanner.Application.Chat;
 using Serilog;
+using ChatMessage = OwnPlanner.Application.Chat.ChatMessage;
 
 namespace OwnPlanner.Infrastructure.Adapters
 {
@@ -48,7 +49,7 @@ namespace OwnPlanner.Infrastructure.Adapters
 
 		public int? CurrentContextLengthTokens { get; private set; }
 
-		private void InitializeChatSession(string? systemPrompt = null, IReadOnlyList<string>? allowedTools = null)
+		private void InitializeChatSession(string? systemPrompt = null, IReadOnlyList<string>? allowedTools = null, IReadOnlyList<ChatMessage>? history = null)
 		{
 			CurrentContextLengthTokens = null;
 			// Rebuild tool set, applying allow-list filter when provided
@@ -65,13 +66,19 @@ namespace OwnPlanner.Infrastructure.Adapters
 			_generativeModel = _geminiTools != null
 				? _googleAi.GenerativeModel(_model, tools: _geminiTools)
 				: _googleAi.GenerativeModel(_model);
-			InitializeChatWithInstructions(systemPrompt);
+			InitializeChatWithInstructions(systemPrompt, history);
 			Log.Information("Chat session initialized successfully");
 		}
 
 		public void ResetChatSession(string? systemPrompt = null, IReadOnlyList<string>? allowedTools = null)
 		{
 			InitializeChatSession(systemPrompt, allowedTools);
+		}
+
+		public void RebuildSession(string systemPrompt, IReadOnlyList<string>? allowedTools, IReadOnlyList<ChatMessage> history)
+		{
+			Log.Information("Rebuilding chat session with {Count} replayed history messages", history.Count);
+			InitializeChatSession(systemPrompt, allowedTools, history);
 		}
 
 		public ChatServiceAdapter(string apiKey, string model, int maxToolCallRounds = 10, IMcpAdapter? mcpAdapter = null)
@@ -100,7 +107,7 @@ namespace OwnPlanner.Infrastructure.Adapters
 			Log.Information("ChatServiceAdapter initialized successfully");
 		}
 
-		private void InitializeChatWithInstructions(string? systemPrompt = null)
+		private void InitializeChatWithInstructions(string? systemPrompt = null, IReadOnlyList<ChatMessage>? history = null)
 		{
 			// Define the system instructions / initial prompt
 			var systemInstructions = systemPrompt ??
@@ -136,10 +143,20 @@ namespace OwnPlanner.Infrastructure.Adapters
 				new ContentResponse("Understood! I'm ready to help you with your tasks, notes, and planning needs.","model")
 			};
 
+			// Replay any prior conversation (used when rebuilding the session after history compaction)
+			if (history != null)
+			{
+				foreach (var message in history)
+				{
+					var role = message.Role == ChatRole.Model ? "model" : "user";
+					initialHistory.Add(new ContentResponse(message.Text, role));
+				}
+			}
+
 			// Start chat with the initial instructions
 			_chat = _generativeModel.StartChat(history: initialHistory);
 
-			Log.Debug("Chat initialized with system instructions");
+			Log.Debug("Chat initialized with system instructions and {Count} replayed messages", history?.Count ?? 0);
 		}
 
 		private async Task InitializeMcpAsync()
@@ -286,6 +303,28 @@ namespace OwnPlanner.Infrastructure.Adapters
 
 			var response = await searchChat.SendMessage(query).ConfigureAwait(false);
 			LogUsageMetadata(response, "search-agent-call");
+			return GetSafeResponseText(response);
+		}
+
+		public async Task<string> SummarizeAsync(string conversationText, CancellationToken cancellationToken = default)
+		{
+			if (string.IsNullOrWhiteSpace(conversationText))
+			{
+				return string.Empty;
+			}
+
+			Log.Information("Summarizing earlier conversation for history compaction");
+
+			// Use a separate, tool-less session so summarization never touches the active chat history.
+			var summaryModel = _googleAi.GenerativeModel(_model);
+			var summaryChat = summaryModel.StartChat(history:
+			[
+				new ContentResponse("You compress the earlier part of a personal-planning conversation into a brief factual summary. Preserve concrete outcomes: decisions made, tasks/notes/goals created or changed, and any open threads or pending user requests. Use a few short bullet points. Do not invent details and do not add commentary."),
+				new ContentResponse("Understood. I will return a concise factual summary.", "model")
+			]);
+
+			var response = await summaryChat.SendMessage(conversationText).ConfigureAwait(false);
+			LogUsageMetadata(response, "history-summary");
 			return GetSafeResponseText(response);
 		}
 
