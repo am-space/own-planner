@@ -8,7 +8,8 @@ namespace OwnPlanner.Web.Server.Services;
 /// Serializer options for tool results sent back to the model. Trims context-only noise so large
 /// list results don't dominate the chat context:
 /// <list type="bullet">
-/// <item>null fields are omitted (e.g. an empty <c>description</c>, <c>dueAt</c>, or <c>goalId</c>);</item>
+/// <item>null fields are omitted (e.g. an unset <c>description</c>, <c>dueAt</c>, or <c>goalId</c>) — note
+/// this drops nulls only, not empty strings;</item>
 /// <item>the audit timestamps <c>CreatedAt</c>/<c>UpdatedAt</c> are dropped — they are never used by the
 /// model (ordering happens server-side). Functional dates such as <c>dueAt</c>/<c>focusAt</c> are kept,
 /// in ISO 8601.</item>

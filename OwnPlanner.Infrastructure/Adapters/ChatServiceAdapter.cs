@@ -313,6 +313,9 @@ namespace OwnPlanner.Infrastructure.Adapters
 				return string.Empty;
 			}
 
+			// The SDK's SendMessage has no CancellationToken overload, so honor cancellation at the boundary.
+			cancellationToken.ThrowIfCancellationRequested();
+
 			Log.Information("Summarizing earlier conversation for history compaction");
 
 			// Use a separate, tool-less session so summarization never touches the active chat history.

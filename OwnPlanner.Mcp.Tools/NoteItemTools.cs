@@ -8,9 +8,11 @@ namespace OwnPlanner.Mcp.Tools;
 public class NoteItemTools
 {
 	/// <summary>
-	/// Maximum number of <see cref="NoteItemDto.Content"/> characters returned by list tools.
-	/// Full content is available via <c>noteitem_get</c>. Keeps list payloads small so they
-	/// don't dominate the chat context.
+	/// Maximum number of original <see cref="NoteItemDto.Content"/> characters kept by list tools before
+	/// truncation. When content is truncated the returned value is this many characters plus
+	/// <see cref="TruncationSuffix"/>, so the total length exceeds this value by the suffix length.
+	/// Full content is available via <c>noteitem_get</c>. Keeps list payloads small so they don't
+	/// dominate the chat context.
 	/// </summary>
 	private const int ContentPreviewMaxLength = 200;
 	private const string TruncationSuffix = "… [truncated — call noteitem_get for full content]";

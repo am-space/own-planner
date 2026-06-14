@@ -111,6 +111,18 @@ public sealed class PlanningService : IPlanningService
 			return;
 		}
 
+		// The message alone exceeds the budget — compaction frees history, not the incoming turn, so it
+		// can never make room. Fail fast rather than letting the chat SDK reject the oversized request.
+		if (estimatedMessageTokens > _maxContextLengthTokens)
+		{
+			_logger.LogWarning(
+				"Chat context limit exceeded by the message itself. EstimatedMessageTokens={MessageTokens}, Max={Max}",
+				estimatedMessageTokens,
+				_maxContextLengthTokens);
+
+			throw new ChatContextLimitExceededException(estimatedMessageTokens, _maxContextLengthTokens);
+		}
+
 		_logger.LogInformation(
 			"Chat context approaching limit (projected {Projected} >= soft threshold {Soft} of max {Max}); attempting compaction.",
 			projectedContextLengthTokens,
@@ -167,8 +179,9 @@ public sealed class PlanningService : IPlanningService
 			}
 		}
 
+		var summarized = !string.IsNullOrWhiteSpace(summary);
 		var newHistory = new List<ChatMessage>();
-		if (!string.IsNullOrWhiteSpace(summary))
+		if (summarized)
 		{
 			newHistory.Add(new ChatMessage(ChatRole.User, $"[Earlier conversation summary]\n{summary}"));
 			newHistory.Add(new ChatMessage(ChatRole.Model, "Understood, continuing from here."));
@@ -185,7 +198,7 @@ public sealed class PlanningService : IPlanningService
 			"Compacted chat history from {Old} to {New} message(s) using {Strategy}.",
 			older.Count + recent.Count,
 			newHistory.Count,
-			summary != null ? "summary" : "trim");
+			summarized ? "summary" : "trim");
 
 		return true;
 	}

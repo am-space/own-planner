@@ -378,6 +378,26 @@ public class PlanningServiceTests
 	}
 
 	[Fact]
+	public async Task GetResponseAsync_WhenMessageAloneExceedsBudget_ThrowsWithoutCompacting()
+	{
+		var ct = TestContext.Current.CancellationToken;
+		var svc = CreateCompactingService(); // maxContextLengthTokens: 100
+		_chatAdapter.SummarizeAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns("SUMMARY");
+
+		// Build a transcript so there *is* older history that could be compacted.
+		await BuildTranscriptAsync(svc, ct, "m1", "m2");
+
+		// A single message larger than the whole budget (>100 tokens ≈ >400 chars). Compaction can't help.
+		var hugeMessage = new string('x', 1000);
+		var action = () => svc.GetResponseAsync(hugeMessage, ct);
+
+		await action.Should().ThrowAsync<ChatContextLimitExceededException>();
+		await _chatAdapter.DidNotReceive().SummarizeAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+		_chatAdapter.DidNotReceive().RebuildSession(Arg.Any<string>(), Arg.Any<IReadOnlyList<string>?>(), Arg.Any<IReadOnlyList<ChatMessage>>());
+		await _chatAdapter.DidNotReceive().GetResponse(hugeMessage);
+	}
+
+	[Fact]
 	public async Task GetResponseAsync_OverHardLimit_WithNothingToCompact_Throws()
 	{
 		var ct = TestContext.Current.CancellationToken;
