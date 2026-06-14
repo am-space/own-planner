@@ -15,10 +15,10 @@ public abstract class EntityBase
 	protected EntityBase(Guid id)
 	{
 		Id = id;
-		var now = DateTime.UtcNow;
+		var now = MonotonicClock.UtcNow();
 		CreatedAt = now;
 		UpdatedAt = now;
 	}
 
-	protected void Touch() => UpdatedAt = DateTime.UtcNow;
+	protected void Touch() => UpdatedAt = MonotonicClock.UtcNow();
 }

@@ -6,7 +6,6 @@ public sealed record ModeConfig(
 	IReadOnlyList<string> PreloadTools,
 	IReadOnlyList<string> AllowedTools,
 	bool CanWrite,
-	bool RefreshOnTurn,
 	IReadOnlyList<string> StarterPrompts)
 {
 	public static readonly IReadOnlyDictionary<PlanningMode, ModeConfig> All =
@@ -35,9 +34,17 @@ public sealed record ModeConfig(
 					- Confirm all write actions taken
 					""",
 				PreloadTools: ["goal_list", "context_list", "notelist_all", "noteitem_list_items"],
-				AllowedTools: [],
-				CanWrite: true,
-				RefreshOnTurn: false),
+				AllowedTools:
+				[
+					"goal_list", "goal_get", "goal_create", "goal_update", "goal_delete",
+					"context_list", "context_get", "context_create", "context_update", "context_delete",
+					"tasklist_all", "tasklist_get", "tasklist_create", "tasklist_update", "tasklist_archive", "tasklist_unarchive", "tasklist_delete",
+					"notelist_all", "notelist_get", "notelist_create", "notelist_update", "notelist_archive", "notelist_unarchive", "notelist_delete",
+					"noteitem_list_items", "noteitem_list_by_goal", "noteitem_get", "noteitem_create", "noteitem_update", "noteitem_assign", "noteitem_pin", "noteitem_unpin", "noteitem_delete",
+					"taskitem_list_items", "taskitem_list_by_goal", "taskitem_list_by_focus_date", "taskitem_get",
+					"datetime_get_current", "search_agent_call"
+				],
+				CanWrite: true),
 
 			[PlanningMode.WeekPlanning] = new ModeConfig(
 				ModeId: PlanningMode.WeekPlanning,
@@ -63,9 +70,15 @@ public sealed record ModeConfig(
 					- Confirm all write actions taken
 					""",
 				PreloadTools: ["goal_list", "tasklist_all", "taskitem_list_items"],
-				AllowedTools: [],
-				CanWrite: true,
-				RefreshOnTurn: false),
+				AllowedTools:
+				[
+					"goal_list", "goal_get",
+					"tasklist_all", "tasklist_get", "tasklist_create", "tasklist_update", "tasklist_archive", "tasklist_unarchive", "tasklist_delete",
+					"taskitem_list_items", "taskitem_list_by_focus_date", "taskitem_list_by_goal", "taskitem_get",
+					"taskitem_create", "taskitem_update", "taskitem_assign", "taskitem_set_focus_date", "taskitem_set_important", "taskitem_complete", "taskitem_reopen", "taskitem_delete",
+					"datetime_get_current", "search_agent_call"
+				],
+				CanWrite: true),
 
 			[PlanningMode.DayWork] = new ModeConfig(
 				ModeId: PlanningMode.DayWork,
@@ -75,7 +88,7 @@ public sealed record ModeConfig(
 
 					Your focus: execute on today only.
 
-					Context is refreshed every turn so you always see the current state of today's tasks and any overdue items.
+					On entry you have been given today's focused tasks. This snapshot can go stale as the user works — when you need the current state (for example after completing tasks, or if the user asks what's left), call taskitem_list_by_focus_date to refresh it. Use the task tools to look up overdue items or anything outside today's focus when the user asks.
 
 					- Suggest what to tackle first
 					- Mark tasks complete as the user works through them
@@ -90,10 +103,16 @@ public sealed record ModeConfig(
 					- Format responses clearly; don't show entity IDs unless asked
 					- Confirm all write actions taken
 					""",
-				PreloadTools: ["taskitem_list_by_focus_date", "taskitem_list_items"],
-				AllowedTools: [],
-				CanWrite: true,
-				RefreshOnTurn: true),
+				PreloadTools: ["taskitem_list_by_focus_date"],
+				AllowedTools:
+				[
+					"taskitem_list_by_focus_date", "taskitem_list_items", "taskitem_get",
+					"taskitem_create", "taskitem_complete", "taskitem_reopen", "taskitem_set_focus_date", "taskitem_set_important",
+					"tasklist_all", "tasklist_get",
+					"notelist_all", "noteitem_create",
+					"datetime_get_current"
+				],
+				CanWrite: true),
 
 			[PlanningMode.Reflection] = new ModeConfig(
 				ModeId: PlanningMode.Reflection,
@@ -120,9 +139,16 @@ public sealed record ModeConfig(
 					- Confirm all write actions taken
 					""",
 				PreloadTools: ["goal_list", "notelist_all", "noteitem_list_items", "taskitem_list_items"],
-				AllowedTools: [],
-				CanWrite: true,
-				RefreshOnTurn: false),
+				AllowedTools:
+				[
+					"goal_list", "goal_get", "goal_update",
+					"notelist_all", "notelist_get", "notelist_create", "notelist_update",
+					"noteitem_list_items", "noteitem_list_by_goal", "noteitem_get", "noteitem_create", "noteitem_update",
+					"tasklist_all", "tasklist_get",
+					"taskitem_list_items", "taskitem_list_by_goal", "taskitem_get",
+					"datetime_get_current", "search_agent_call"
+				],
+				CanWrite: true),
 
 			[PlanningMode.SystemAnalysis] = new ModeConfig(
 				ModeId: PlanningMode.SystemAnalysis,
@@ -161,7 +187,6 @@ public sealed record ModeConfig(
 					"noteitem_list_items", "noteitem_get",
 					"datetime_get_current"
 				],
-				CanWrite: false,
-				RefreshOnTurn: false),
+				CanWrite: false),
 		};
 }

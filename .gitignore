@@ -373,5 +373,9 @@ logs/
 
 # Temp database files
 ownplanner-auth.db
+*.db
 *.db-shm
 *.db-wal
+
+# Local debug databases
+OwnPlanner.Web/OwnPlanner.Web.Server/data/

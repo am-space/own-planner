@@ -33,6 +33,28 @@ public sealed class DirectToolMcpAdapterTests : IDisposable
 	}
 
 	[Fact]
+	public async Task ModeConfigs_AllowedAndPreloadTools_AreRealRegisteredTools()
+	{
+		var ct = TestContext.Current.CancellationToken;
+		await using var serviceProvider = BuildServiceProvider();
+		await using var adapter = CreateAdapter(serviceProvider);
+
+		var registered = (await adapter.ListToolDetailsAsync(ct)).Select(tool => tool.Name).ToHashSet();
+		// search_agent_call is a built-in tool added by the chat adapter, not an MCP registration.
+		registered.Add("search_agent_call");
+
+		foreach (var (mode, config) in OwnPlanner.Application.Chat.ModeConfig.All)
+		{
+			config.AllowedTools.Should().OnlyContain(
+				name => registered.Contains(name),
+				"mode {0} should only allow real tools (guards against typos)", mode);
+			config.PreloadTools.Should().OnlyContain(
+				name => registered.Contains(name),
+				"mode {0} should only preload real tools", mode);
+		}
+	}
+
+	[Fact]
 	public async Task ListToolDetailsAsync_MarksNonNullableReferenceParametersAsRequired()
 	{
 		var ct = TestContext.Current.CancellationToken;

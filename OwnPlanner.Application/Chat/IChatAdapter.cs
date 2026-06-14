@@ -40,4 +40,23 @@ public interface IChatAdapter : IAsyncDisposable
 	/// <param name="systemPrompt">Optional replacement system prompt for the new chat session.</param>
 	/// <param name="allowedTools">Optional list of tool names that the new session is allowed to use.</param>
 	void ResetChatSession(string? systemPrompt = null, IReadOnlyList<string>? allowedTools = null);
+
+	/// <summary>
+	/// Rebuilds the chat session from a provided conversation history, preserving the system prompt and
+	/// tool allow-list. Used by history compaction to replace a long transcript with a compacted one
+	/// (summary + recent turns) without leaking the underlying chat SDK's history representation.
+	/// </summary>
+	/// <param name="systemPrompt">The system prompt to seed the rebuilt session with.</param>
+	/// <param name="allowedTools">Optional list of tool names that the rebuilt session is allowed to use.</param>
+	/// <param name="history">The conversation turns to replay into the rebuilt session, in order.</param>
+	void RebuildSession(string systemPrompt, IReadOnlyList<string>? allowedTools, IReadOnlyList<ChatMessage> history);
+
+	/// <summary>
+	/// Produces a concise factual summary of earlier conversation text using a side session that does
+	/// not affect the active chat. Used by history compaction.
+	/// </summary>
+	/// <param name="conversationText">The rendered earlier conversation to summarize.</param>
+	/// <param name="cancellationToken">Cancels the summarization request.</param>
+	/// <returns>A compact summary, or an empty string when there is nothing to summarize.</returns>
+	Task<string> SummarizeAsync(string conversationText, CancellationToken cancellationToken = default);
 }

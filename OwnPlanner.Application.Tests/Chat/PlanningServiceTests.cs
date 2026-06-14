@@ -152,11 +152,9 @@ public class PlanningServiceTests
 	// --- GetResponseAsync ---
 
 	[Fact]
-	public async Task GetResponseAsync_BeforeModeSwitch_ActivatesDefaultModeAndPrependsContext()
+	public async Task GetResponseAsync_BeforeModeSwitch_ActivatesDefaultModeAndForwardsMessageDirectly()
 	{
 		var ct = TestContext.Current.CancellationToken;
-		_mcpAdapter.CallToolAsync(Arg.Any<string>(), Arg.Any<Dictionary<string, object?>?>(), ct)
-			.Returns("today-tasks");
 
 		string? captured = null;
 	  _chatAdapter.GetResponse(Arg.Do<string>(m => captured = m)).Returns(new ChatTurnResult("ok", 111));
@@ -164,10 +162,7 @@ public class PlanningServiceTests
 		await _svc.GetResponseAsync("hello", ct);
 
 		_chatAdapter.Received(1).ResetChatSession(Arg.Any<string?>(), Arg.Any<IReadOnlyList<string>?>());
-		captured.Should().Contain("[Refreshed context]");
-		captured.Should().Contain("today-tasks");
-		captured.Should().Contain("[User message]");
-		captured.Should().Contain("hello");
+		captured.Should().Be("hello");
 	}
 
 	[Fact]
@@ -184,23 +179,19 @@ public class PlanningServiceTests
 	}
 
 	[Fact]
-	public async Task GetResponseAsync_AfterDayWork_PrependsRefreshedContext()
+	public async Task GetResponseAsync_AfterDayWork_ForwardsMessageDirectlyWithoutPerTurnPreload()
 	{
 		var ct = TestContext.Current.CancellationToken;
 		await _svc.SwitchModeAsync(PlanningMode.DayWork, ct);
 		_mcpAdapter.ClearReceivedCalls();
-		_mcpAdapter.CallToolAsync(Arg.Any<string>(), Arg.Any<Dictionary<string, object?>?>(), ct)
-			.Returns("today-tasks");
 
 		string? captured = null;
 	  _chatAdapter.GetResponse(Arg.Do<string>(m => captured = m)).Returns(new ChatTurnResult("ok", 111));
 
 		await _svc.GetResponseAsync("what should I do?", ct);
 
-		captured.Should().Contain("[Refreshed context]");
-		captured.Should().Contain("today-tasks");
-		captured.Should().Contain("[User message]");
-		captured.Should().Contain("what should I do?");
+		captured.Should().Be("what should I do?");
+		await _mcpAdapter.DidNotReceive().CallToolAsync(Arg.Any<string>(), Arg.Any<Dictionary<string, object?>?>(), ct);
 	}
 
 	[Fact]
@@ -285,6 +276,141 @@ public class PlanningServiceTests
 
 		await action.Should().ThrowAsync<ChatContextLimitExceededException>();
 		await _chatAdapter.Received(1).GetResponse(Arg.Any<string>());
+	}
+
+	// --- history compaction ---
+
+	private PlanningService CreateCompactingService(HistoryCompactionStrategy strategy = HistoryCompactionStrategy.Summarize) =>
+		new(_chatAdapter, _mcpAdapter, _logger,
+			maxContextLengthTokens: 100, compactionThresholdRatio: 0.7, recentTurnsToKeep: 1, compactionStrategy: strategy);
+
+	private async Task BuildTranscriptAsync(PlanningService svc, CancellationToken ct, params string[] messages)
+	{
+		_chatAdapter.GetResponse(Arg.Any<string>()).Returns(new ChatTurnResult("resp", 10));
+		_chatAdapter.CurrentContextLengthTokens.Returns(10); // comfortably below the soft threshold
+		await svc.SwitchModeAsync(PlanningMode.DayWork, ct);
+		foreach (var message in messages)
+			await svc.GetResponseAsync(message, ct);
+	}
+
+	[Fact]
+	public async Task GetResponseAsync_BelowSoftThreshold_DoesNotCompact()
+	{
+		var ct = TestContext.Current.CancellationToken;
+		var svc = CreateCompactingService();
+
+		await BuildTranscriptAsync(svc, ct, "m1", "m2", "m3");
+
+		await _chatAdapter.DidNotReceive().SummarizeAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+		_chatAdapter.DidNotReceive().RebuildSession(Arg.Any<string>(), Arg.Any<IReadOnlyList<string>?>(), Arg.Any<IReadOnlyList<ChatMessage>>());
+	}
+
+	[Fact]
+	public async Task GetResponseAsync_OverSoftThreshold_SummarizesOlderTurnsAndRebuilds()
+	{
+		var ct = TestContext.Current.CancellationToken;
+		var svc = CreateCompactingService();
+		_chatAdapter.SummarizeAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns("SUMMARY");
+
+		await BuildTranscriptAsync(svc, ct, "m1", "m2"); // transcript: U:m1, M:resp, U:m2, M:resp
+
+		IReadOnlyList<ChatMessage>? captured = null;
+		_chatAdapter
+			.When(a => a.RebuildSession(Arg.Any<string>(), Arg.Any<IReadOnlyList<string>?>(), Arg.Any<IReadOnlyList<ChatMessage>>()))
+			.Do(c => captured = c.Arg<IReadOnlyList<ChatMessage>>());
+		_chatAdapter.CurrentContextLengthTokens.Returns(80); // > soft threshold (70)
+
+		await svc.GetResponseAsync("m3", ct);
+
+		await _chatAdapter.Received(1).SummarizeAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+		captured.Should().NotBeNull();
+		captured!.Should().HaveCount(4); // summary pair + last 1 turn (2 messages)
+		captured[0].Role.Should().Be(ChatRole.User);
+		captured[0].Text.Should().Contain("SUMMARY");
+		captured.Should().Contain(m => m.Text == "m2");      // recent turn retained
+		captured.Should().NotContain(m => m.Text == "m1");   // older turn summarized away
+	}
+
+	[Fact]
+	public async Task GetResponseAsync_WhenSummarizeFails_FallsBackToTrim()
+	{
+		var ct = TestContext.Current.CancellationToken;
+		var svc = CreateCompactingService();
+		_chatAdapter.SummarizeAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+			.Returns<string>(_ => throw new Exception("summarizer down"));
+
+		await BuildTranscriptAsync(svc, ct, "m1", "m2");
+
+		IReadOnlyList<ChatMessage>? captured = null;
+		_chatAdapter
+			.When(a => a.RebuildSession(Arg.Any<string>(), Arg.Any<IReadOnlyList<string>?>(), Arg.Any<IReadOnlyList<ChatMessage>>()))
+			.Do(c => captured = c.Arg<IReadOnlyList<ChatMessage>>());
+		_chatAdapter.CurrentContextLengthTokens.Returns(80);
+
+		await svc.GetResponseAsync("m3", ct);
+
+		captured.Should().NotBeNull();
+		captured!.Should().HaveCount(2); // recent turn only, no summary entry
+		captured.Should().NotContain(m => m.Text.Contains("summary"));
+		captured.Should().Contain(m => m.Text == "m2");
+	}
+
+	[Fact]
+	public async Task GetResponseAsync_WithTrimStrategy_DropsOlderTurnsWithoutSummarizing()
+	{
+		var ct = TestContext.Current.CancellationToken;
+		var svc = CreateCompactingService(HistoryCompactionStrategy.Trim);
+
+		await BuildTranscriptAsync(svc, ct, "m1", "m2");
+
+		IReadOnlyList<ChatMessage>? captured = null;
+		_chatAdapter
+			.When(a => a.RebuildSession(Arg.Any<string>(), Arg.Any<IReadOnlyList<string>?>(), Arg.Any<IReadOnlyList<ChatMessage>>()))
+			.Do(c => captured = c.Arg<IReadOnlyList<ChatMessage>>());
+		_chatAdapter.CurrentContextLengthTokens.Returns(80);
+
+		await svc.GetResponseAsync("m3", ct);
+
+		await _chatAdapter.DidNotReceive().SummarizeAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+		captured.Should().NotBeNull();
+		captured!.Should().HaveCount(2); // recent turn only
+		captured.Should().Contain(m => m.Text == "m2");
+	}
+
+	[Fact]
+	public async Task GetResponseAsync_WhenMessageAloneExceedsBudget_ThrowsWithoutCompacting()
+	{
+		var ct = TestContext.Current.CancellationToken;
+		var svc = CreateCompactingService(); // maxContextLengthTokens: 100
+		_chatAdapter.SummarizeAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns("SUMMARY");
+
+		// Build a transcript so there *is* older history that could be compacted.
+		await BuildTranscriptAsync(svc, ct, "m1", "m2");
+
+		// A single message larger than the whole budget (>100 tokens ≈ >400 chars). Compaction can't help.
+		var hugeMessage = new string('x', 1000);
+		var action = () => svc.GetResponseAsync(hugeMessage, ct);
+
+		await action.Should().ThrowAsync<ChatContextLimitExceededException>();
+		await _chatAdapter.DidNotReceive().SummarizeAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+		_chatAdapter.DidNotReceive().RebuildSession(Arg.Any<string>(), Arg.Any<IReadOnlyList<string>?>(), Arg.Any<IReadOnlyList<ChatMessage>>());
+		await _chatAdapter.DidNotReceive().GetResponse(hugeMessage);
+	}
+
+	[Fact]
+	public async Task GetResponseAsync_OverHardLimit_WithNothingToCompact_Throws()
+	{
+		var ct = TestContext.Current.CancellationToken;
+		var svc = CreateCompactingService();
+		_chatAdapter.CurrentContextLengthTokens.Returns(100); // at hard limit, transcript empty
+
+		await svc.SwitchModeAsync(PlanningMode.DayWork, ct);
+
+		var action = () => svc.GetResponseAsync("hello", ct);
+
+		await action.Should().ThrowAsync<ChatContextLimitExceededException>();
+		_chatAdapter.DidNotReceive().RebuildSession(Arg.Any<string>(), Arg.Any<IReadOnlyList<string>?>(), Arg.Any<IReadOnlyList<ChatMessage>>());
+		await _chatAdapter.DidNotReceive().GetResponse(Arg.Any<string>());
 	}
 
 	// --- DisposeAsync ---

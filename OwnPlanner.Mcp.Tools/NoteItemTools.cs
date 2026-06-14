@@ -7,6 +7,16 @@ namespace OwnPlanner.Mcp.Tools;
 [McpServerToolType]
 public class NoteItemTools
 {
+	/// <summary>
+	/// Maximum number of original <see cref="NoteItemDto.Content"/> characters kept by list tools before
+	/// truncation. When content is truncated the returned value is this many characters plus
+	/// <see cref="TruncationSuffix"/>, so the total length exceeds this value by the suffix length.
+	/// Full content is available via <c>noteitem_get</c>. Keeps list payloads small so they don't
+	/// dominate the chat context.
+	/// </summary>
+	private const int ContentPreviewMaxLength = 200;
+	private const string TruncationSuffix = "… [truncated — call noteitem_get for full content]";
+
 	private readonly INoteItemService _service;
 
 	public NoteItemTools(INoteItemService service)
@@ -37,19 +47,13 @@ public class NoteItemTools
 		return dto;
 	}
 
-	[McpServerTool(Name = "noteitem_list_items", Idempotent = true, ReadOnly = true), Description("List notes. If noteListId is provided, lists notes by note list id; otherwise, lists all notes ordered by pinned status and update time.")]
+	[McpServerTool(Name = "noteitem_list_items", Idempotent = true, ReadOnly = true), Description("List notes. If noteListId is provided, lists notes by note list id; otherwise, lists all notes ordered by pinned status and update time. Content is truncated to a short preview; call noteitem_get for a note's full content.")]
 	public async Task<object> ListNotes(Guid? noteListId = null)
 	{
-		if (noteListId.HasValue)
-		{
-			var list = await _service.ListByNoteListAsync(noteListId.Value);
-			return list;
-		}
-		else
-		{
-			var list = await _service.ListAsync();
-			return list;
-		}
+		var list = noteListId.HasValue
+			? await _service.ListByNoteListAsync(noteListId.Value)
+			: await _service.ListAsync();
+		return list.Select(WithPreviewContent).ToList();
 	}
 
 	[McpServerTool(Name = "noteitem_update"), Description("Update a note. Provide id and the fields to update (title, content, or goalId). Set clearGoalId=true to remove the goal association.")]
@@ -66,11 +70,11 @@ public class NoteItemTools
 		}
 	}
 
-	[McpServerTool(Name = "noteitem_list_by_goal", Idempotent = true, ReadOnly = true), Description("List notes linked to a specific goal, ordered by pinned status then last updated.")]
+	[McpServerTool(Name = "noteitem_list_by_goal", Idempotent = true, ReadOnly = true), Description("List notes linked to a specific goal, ordered by pinned status then last updated. Content is truncated to a short preview; call noteitem_get for a note's full content.")]
 	public async Task<object> ListNotesByGoal(Guid goalId)
 	{
 		var list = await _service.ListByGoalAsync(goalId);
-		return list;
+		return list.Select(WithPreviewContent).ToList();
 	}
 
 	[McpServerTool(Name = "noteitem_assign"), Description("Assign a note to a different note list.")]
@@ -127,6 +131,20 @@ public class NoteItemTools
 		{
 			return new { error = ex.Message };
 		}
+	}
+
+	/// <summary>
+	/// Returns the note with its <see cref="NoteItemDto.Content"/> trimmed to a short preview
+	/// when it exceeds <see cref="ContentPreviewMaxLength"/>, appending a hint to fetch the full
+	/// note via <c>noteitem_get</c>. Notes within the limit are returned unchanged.
+	/// </summary>
+	private static NoteItemDto WithPreviewContent(NoteItemDto note)
+	{
+		var content = note.Content;
+		if (string.IsNullOrEmpty(content) || content.Length <= ContentPreviewMaxLength)
+			return note;
+
+		return note with { Content = content[..ContentPreviewMaxLength] + TruncationSuffix };
 	}
 }
 
