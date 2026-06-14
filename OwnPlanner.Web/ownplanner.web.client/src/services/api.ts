@@ -18,6 +18,22 @@ import type {
   ModeStarterPromptsResponse,
 } from '../types/api.types';
 
+/**
+ * Thrown when the chat endpoint responds with HTTP 429. Carries the quota reset time so the UI can tell
+ * the user when they can retry.
+ */
+export class RateLimitError extends Error {
+  readonly quotaResetAtUtc: string | null;
+  readonly limitKind: string | null;
+
+  constructor(message: string, quotaResetAtUtc: string | null, limitKind: string | null) {
+    super(message);
+    this.name = 'RateLimitError';
+    this.quotaResetAtUtc = quotaResetAtUtc;
+    this.limitKind = limitKind;
+  }
+}
+
 class ApiService {
   private baseUrl = '/api';
 
@@ -178,7 +194,14 @@ class ApiService {
     });
 
     if (!response.ok) {
-      const error = await response.json();
+      const error = await response.json().catch(() => ({}));
+      if (response.status === 429) {
+        throw new RateLimitError(
+          error.message || 'Usage limit reached. Please try again later.',
+          error.quotaResetAtUtc ?? null,
+          error.limitKind ?? null,
+        );
+      }
       throw new Error(error.message || 'Failed to send message');
     }
 

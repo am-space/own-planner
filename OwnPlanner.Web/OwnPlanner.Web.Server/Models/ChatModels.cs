@@ -40,6 +40,16 @@ namespace OwnPlanner.Web.Server.Models
 		/// Maximum allowed model prompt-token context length.
 		/// </summary>
 		public int MaxContextLengthTokens { get; set; }
+
+		/// <summary>
+		/// Remaining chat requests in the user's daily quota after this request.
+		/// </summary>
+		public int? RemainingDailyQuota { get; set; }
+
+		/// <summary>
+		/// When the daily quota resets (next UTC midnight).
+		/// </summary>
+		public DateTimeOffset? QuotaResetAtUtc { get; set; }
 	}
 
 	/// <summary>
@@ -73,5 +83,17 @@ namespace OwnPlanner.Web.Server.Models
        public string? CurrentMode { get; set; }
 		public int? ContextLengthTokens { get; set; }
        public int MaxContextLengthTokens { get; set; }
+
+		/// <summary>The user's effective daily request quota.</summary>
+		public int? DailyQuotaLimit { get; set; }
+
+		/// <summary>Requests the user has made so far today (UTC).</summary>
+		public int? DailyQuotaUsed { get; set; }
+
+		/// <summary>Remaining chat requests in the user's daily quota.</summary>
+		public int? RemainingDailyQuota { get; set; }
+
+		/// <summary>When the daily quota resets (next UTC midnight).</summary>
+		public DateTimeOffset? QuotaResetAtUtc { get; set; }
 	}
 }

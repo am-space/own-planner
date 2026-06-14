@@ -32,7 +32,7 @@ import ContrastIcon from '@mui/icons-material/Contrast';
 import { useAuth } from '../contexts/useAuth';
 import { useThemeContext } from '../contexts/ThemeContext';
 import type { ColorModePreference } from '../contexts/ThemeContext';
-import { apiService } from '../services/api';
+import { apiService, RateLimitError } from '../services/api';
 import type { PlanningMode } from '../types/api.types';
 import AboutDialog from '../components/AboutDialog';
 import PlanningModeSelector from '../components/PlanningModeSelector';
@@ -89,9 +89,19 @@ export default function ChatPage() {
     const [contextLengthTokens, setContextLengthTokens] = useState<number | null>(null);
     const [maxContextLengthTokens, setMaxContextLengthTokens] = useState(64 * 1024);
     const [contextResetLabel, setContextResetLabel] = useState<string | null>(null);
+    const [remainingDailyQuota, setRemainingDailyQuota] = useState<number | null>(null);
 
     const formatTokenCount = (value: number | null) =>
         value === null ? '—' : value.toLocaleString();
+
+    // Format an ISO timestamp to a local HH:MM for "resets at ..." messaging.
+    const formatResetTime = (iso: string | null) => {
+        if (!iso) return null;
+        const date = new Date(iso);
+        return Number.isNaN(date.getTime())
+            ? null
+            : date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    };
     const contextUsageValue = contextLengthTokens ?? 0;
     const contextUsagePercent = Math.min((contextUsageValue / Math.max(maxContextLengthTokens, 1)) * 100, 100);
     const contextIndicatorColor = contextUsagePercent >= 100
@@ -122,6 +132,7 @@ export default function ChatPage() {
                 // Instead of hard-coding, preserve the current configured value
                 setMaxContextLengthTokens(prev => status.maxContextLengthTokens ?? prev);
                 setContextResetLabel(null);
+                setRemainingDailyQuota(status.remainingDailyQuota);
 
                 if (!status.isActive) {
                     try {
@@ -258,8 +269,21 @@ export default function ChatPage() {
             setContextLengthTokens(response.contextLengthTokens);
             setMaxContextLengthTokens(response.maxContextLengthTokens);
             setContextResetLabel(null);
+            setRemainingDailyQuota(response.remainingDailyQuota);
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to send message');
+            if (err instanceof RateLimitError) {
+                const resetAt = formatResetTime(err.quotaResetAtUtc);
+                setError(
+                    err.limitKind === 'Daily' && resetAt
+                        ? `Daily limit reached — resets at ${resetAt}`
+                        : err.message,
+                );
+                if (err.limitKind === 'Daily') {
+                    setRemainingDailyQuota(0);
+                }
+            } else {
+                setError(err instanceof Error ? err.message : 'Failed to send message');
+            }
             console.error('Error sending message:', err);
 
             // Remove the user message if sending failed
@@ -345,6 +369,17 @@ export default function ChatPage() {
 
                     {/* Right group */}
                     <Box sx={{ display: 'flex', alignItems: 'center', flex: 1, justifyContent: 'flex-end', minWidth: 0 }}>
+                        {remainingDailyQuota !== null && (
+                            <Tooltip title={`${formatTokenCount(remainingDailyQuota)} chat requests remaining today`}>
+                                <Chip
+                                    size="small"
+                                    label={`${formatTokenCount(remainingDailyQuota)} left`}
+                                    color={remainingDailyQuota <= 0 ? 'error' : remainingDailyQuota <= 10 ? 'warning' : 'default'}
+                                    sx={{ mr: isMobile ? 1 : 2, color: 'white', borderColor: 'rgba(255,255,255,0.5)' }}
+                                    variant="outlined"
+                                />
+                            </Tooltip>
+                        )}
                         <Tooltip title={contextResetLabel ?? `Context ${formatTokenCount(contextLengthTokens)} / ${formatTokenCount(maxContextLengthTokens)} tokens`}>
                             <Box
                                 sx={{

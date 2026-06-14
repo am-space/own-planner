@@ -66,6 +66,8 @@ export interface ChatResponse {
   timestamp: string;
   contextLengthTokens: number | null;
   maxContextLengthTokens: number;
+  remainingDailyQuota: number | null;
+  quotaResetAtUtc: string | null;
 }
 
 export interface SessionStatusResponse {
@@ -75,6 +77,10 @@ export interface SessionStatusResponse {
   currentMode: PlanningMode | null;
   contextLengthTokens: number | null;
   maxContextLengthTokens: number;
+  dailyQuotaLimit: number | null;
+  dailyQuotaUsed: number | null;
+  remainingDailyQuota: number | null;
+  quotaResetAtUtc: string | null;
 }
 
 export interface ChatHealthResponse {
