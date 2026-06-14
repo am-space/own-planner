@@ -42,7 +42,28 @@ accumulates per turn anymore. (Other options considered: (a) strip the previous
 `[Refreshed context]` block from history each turn — rejected as fragile, depends on the
 Mscc library's internal history shape; (c) an ephemeral-context parameter on the adapter.)
 
-### 2. Full-fidelity JSON DTOs — GUIDs and timestamps dominate
+### 2. Full-fidelity JSON DTOs — GUIDs and timestamps dominate — ✅ DONE (2a)
+
+**2a implemented (keep full GUIDs).** Tool results now serialize through a dedicated
+`ToolResultJson.Options` (`OwnPlanner.Web.Server/Services/ToolResultJson.cs`) used at the result
+boundary in `DirectToolMcpAdapter`:
+- **Null fields omitted** (`DefaultIgnoreCondition = WhenWritingNull`) — empty `description`,
+  `dueAt`, `goalId`, `completedAt`, etc. no longer cost tokens on every row.
+- **Audit timestamps stripped** — a `JsonTypeInfo` modifier drops `CreatedAt`/`UpdatedAt` from all
+  tool output (the model never uses them; ordering is server-side). Functional dates `dueAt` and
+  `focusAt` are kept, in ISO 8601.
+
+Argument binding/schema generation still use plain web options, so only what the model *reads* is
+trimmed; the web/UI path is untouched. **GUIDs are intentionally kept** — id shrinking (handles or
+short-prefix) is deferred to a possible **2b**, to be decided with real token numbers after 2a.
+
+Note: this is applied on the web in-process tool path (the source of the context issue). The stdio
+host serializes via the MCP framework and is not covered by these options; the timestamp/null
+trimming there would need framework-level serializer config (separate, lower priority).
+
+---
+
+#### Original analysis
 
 Each `TaskItemDto` serializes 13 fields including **4 GUIDs** (`Id`, `TaskListId`,
 `GoalId`, ...) and **4 ISO timestamps** (`CreatedAt`, `UpdatedAt`, `DueAt`,
@@ -106,7 +127,7 @@ per turn), but per-mode allow-lists recover a few thousand tokens of fixed overh
 | Priority | Change | Effort | Impact |
 |---|---|---|---|
 | 1 | ✅ Stop DayWork from stacking refreshed context in history (done — model pulls on demand) | Low | Huge — fixes growth-during-use |
-| 2 | Compact projections (drop timestamps, short ids, lines not JSON) | Med | Huge — ~3-5× smaller preloads |
+| 2 | ✅ Compact projections — 2a done (drop nulls + audit timestamps, keep GUIDs); 2b (id shrinking) deferred | Med | Large |
 | 3 | ✅ Truncate note `Content` in list views (done — 200-char preview) | Low | Large for note-heavy modes |
 | 4 | ✅ Filter/limit preloads per mode (done — dropped `taskitem_list_items` from DayWork) | Low | Large |
 | 5 | History trim/summarize instead of throwing | Med | Resilience |

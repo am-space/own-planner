@@ -74,7 +74,7 @@ public sealed class DirectToolMcpAdapter(
 			}
 
 			var result = await invocationTask.ConfigureAwait(false);
-			return JsonSerializer.Serialize(result, JsonSerializerOptions);
+			return JsonSerializer.Serialize(result, ToolResultJson.Options);
 		}
 		catch (TargetInvocationException ex) when (ex.InnerException is not null)
 		{
