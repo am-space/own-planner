@@ -47,6 +47,37 @@ public class BurstRateLimiterTests
 	}
 
 	[Fact]
+	public void Evict_RemovesUsersWhoseWindowHasEmptied_KeepsActiveOnes()
+	{
+		var limiter = new BurstRateLimiter();
+		var idle = Guid.NewGuid();
+		var active = Guid.NewGuid();
+
+		limiter.TryAcquire(idle, 5, T0, out _).Should().BeTrue();
+		limiter.TryAcquire(active, 5, T0.AddSeconds(40), out _).Should().BeTrue();
+		limiter.TrackedUserCount.Should().Be(2);
+
+		// At T0+61: idle's only hit (T0) has aged out of the window; active's (T0+40) has not.
+		limiter.Evict(T0.AddSeconds(61));
+
+		limiter.TrackedUserCount.Should().Be(1);
+	}
+
+	[Fact]
+	public void TryAcquire_AfterEviction_StartsFreshWindow()
+	{
+		var limiter = new BurstRateLimiter();
+		var user = Guid.NewGuid();
+
+		limiter.TryAcquire(user, 1, T0, out _).Should().BeTrue();
+		limiter.Evict(T0.AddSeconds(61));
+		limiter.TrackedUserCount.Should().Be(0);
+
+		// Evicted user gets a clean window: a single hit at limit 1 is allowed again.
+		limiter.TryAcquire(user, 1, T0.AddSeconds(61), out _).Should().BeTrue();
+	}
+
+	[Fact]
 	public void TryAcquire_IsolatesUsers()
 	{
 		var limiter = new BurstRateLimiter();

@@ -162,4 +162,18 @@ public class UsageQuotaServiceTests
 		status.Remaining.Should().Be(48);
 		await _dailyUsage.DidNotReceive().IncrementRequestAsync(Arg.Any<Guid>(), Arg.Any<DateOnly>(), Arg.Any<CancellationToken>());
 	}
+
+	[Fact]
+	public async Task GetStatus_WhenDisabled_ReturnsNullRemaining_WithoutReadingUsage()
+	{
+		// Consistent with CheckAndReserveAsync: when enforcement is off, /chat/status must not imply an
+		// active limit, so remaining is null and no usage row is read.
+		var ct = TestContext.Current.CancellationToken;
+		var service = CreateService(new UsageQuotaOptions { Enabled = false, DailyRequestLimit = 50 });
+
+		var status = await service.GetStatusAsync(_userId, ct);
+
+		status.Remaining.Should().BeNull();
+		await _dailyUsage.DidNotReceive().GetAsync(Arg.Any<Guid>(), Arg.Any<DateOnly>(), Arg.Any<CancellationToken>());
+	}
 }

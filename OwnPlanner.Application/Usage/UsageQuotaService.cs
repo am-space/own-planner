@@ -72,6 +72,13 @@ public sealed class UsageQuotaService(
 		var today = DateOnly.FromDateTime(now.UtcDateTime);
 		var resetAtUtc = NextUtcMidnight(now);
 
+		if (!options.Enabled)
+		{
+			// Mirror CheckAndReserveAsync: not enforced, so report unlimited (null) rather than a finite
+			// remaining that would imply limits are active.
+			return new UsageStatus(options.DailyRequestLimit, 0, null, resetAtUtc);
+		}
+
 		var (dailyLimit, _) = await ResolveLimitsAsync(id, cancellationToken).ConfigureAwait(false);
 		var usage = await dailyUsageRepository.GetAsync(id, today, cancellationToken).ConfigureAwait(false);
 		var used = usage?.RequestCount ?? 0;
