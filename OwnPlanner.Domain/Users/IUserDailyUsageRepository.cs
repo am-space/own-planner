@@ -15,8 +15,9 @@ public interface IUserDailyUsageRepository
 	Task<int> IncrementRequestAsync(Guid userId, DateOnly dateUtc, CancellationToken cancellationToken = default);
 
 	/// <summary>
-	/// Atomically adds token counts to the (user, date) row. The row is expected to already exist
-	/// (created by <see cref="IncrementRequestAsync"/> at request start); if it does not, the call is a no-op.
+	/// Atomically adds token counts to the (user, date) row, creating the row (with a zero request count) if
+	/// it does not already exist. The row is normally created by <see cref="IncrementRequestAsync"/> at request
+	/// start, but the upsert also covers the case where enforcement is disabled and no reservation ran.
 	/// </summary>
 	Task AddTokensAsync(Guid userId, DateOnly dateUtc, long inputTokens, long outputTokens, CancellationToken cancellationToken = default);
 

@@ -83,9 +83,26 @@ public class UsageQuotaServiceTests
 
 		var status = await service.CheckAndReserveAsync(_userId, ct);
 
-		status.Remaining.Should().Be(1);
+		// Not enforced -> no finite remaining to report.
+		status.Remaining.Should().BeNull();
 		await _dailyUsage.DidNotReceive().IncrementRequestAsync(Arg.Any<Guid>(), Arg.Any<DateOnly>(), Arg.Any<CancellationToken>());
 		_burst.DidNotReceive().TryAcquire(Arg.Any<Guid>(), Arg.Any<int>(), Arg.Any<DateTimeOffset>(), out Arg.Any<int>());
+	}
+
+	[Fact]
+	public async Task CheckAndReserve_WithUnlimitedDailyLimit_ReturnsNullRemaining()
+	{
+		// A daily limit <= 0 means "unlimited" — remaining must be null (not int.MaxValue) so the client never
+		// renders something like "2,147,483,647 left".
+		var ct = TestContext.Current.CancellationToken;
+		AllowBurst();
+		_dailyUsage.IncrementRequestAsync(Arg.Any<Guid>(), Arg.Any<DateOnly>(), ct).Returns(42);
+		var service = CreateService(new UsageQuotaOptions { DailyRequestLimit = 0 });
+
+		var status = await service.CheckAndReserveAsync(_userId, ct);
+
+		status.Remaining.Should().BeNull();
+		status.Used.Should().Be(42);
 	}
 
 	[Fact]

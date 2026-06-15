@@ -25,7 +25,8 @@ public sealed class UsageQuotaService(
 
 		if (!options.Enabled)
 		{
-			return new UsageStatus(options.DailyRequestLimit, 0, options.DailyRequestLimit, resetAtUtc);
+			// Not enforced: there is no finite "remaining" to report, so surface it as unlimited (null).
+			return new UsageStatus(options.DailyRequestLimit, 0, null, resetAtUtc);
 		}
 
 		var (dailyLimit, burstLimit) = await ResolveLimitsAsync(id, cancellationToken).ConfigureAwait(false);
@@ -48,7 +49,7 @@ public sealed class UsageQuotaService(
 			throw new UsageQuotaExceededException(UsageLimitKind.Daily, retryAfter, 0, resetAtUtc);
 		}
 
-		var remaining = dailyLimit > 0 ? Math.Max(0, dailyLimit - used) : int.MaxValue;
+		var remaining = dailyLimit > 0 ? Math.Max(0, dailyLimit - used) : (int?)null;
 		return new UsageStatus(dailyLimit, used, remaining, resetAtUtc);
 	}
 
@@ -74,7 +75,7 @@ public sealed class UsageQuotaService(
 		var (dailyLimit, _) = await ResolveLimitsAsync(id, cancellationToken).ConfigureAwait(false);
 		var usage = await dailyUsageRepository.GetAsync(id, today, cancellationToken).ConfigureAwait(false);
 		var used = usage?.RequestCount ?? 0;
-		var remaining = dailyLimit > 0 ? Math.Max(0, dailyLimit - used) : int.MaxValue;
+		var remaining = dailyLimit > 0 ? Math.Max(0, dailyLimit - used) : (int?)null;
 
 		return new UsageStatus(dailyLimit, used, remaining, resetAtUtc);
 	}
