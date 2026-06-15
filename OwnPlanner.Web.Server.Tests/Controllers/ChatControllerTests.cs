@@ -7,6 +7,7 @@ using Microsoft.Extensions.Options;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 using OwnPlanner.Application.Chat;
+using OwnPlanner.Application.Usage;
 using OwnPlanner.Web.Server.Configuration;
 using OwnPlanner.Web.Server.Controllers;
 using OwnPlanner.Web.Server.Models;
@@ -19,7 +20,10 @@ public class ChatControllerTests
 	private const string TestSessionId = "test-session-id";
 	private const string TestUserId = "test-user-id";
 
+	private static readonly DateTimeOffset TestResetAt = new(2026, 6, 15, 0, 0, 0, TimeSpan.Zero);
+
 	private readonly IChatSessionManager _sessionManager = Substitute.For<IChatSessionManager>();
+	private readonly IUsageQuotaService _usageQuotaService = Substitute.For<IUsageQuotaService>();
 	private readonly ILogger<ChatController> _logger = Substitute.For<ILogger<ChatController>>();
 	private readonly IPlanningService _planningService = Substitute.For<IPlanningService>();
 	private readonly IOptions<ChatSettings> _chatSettings = Options.Create(new ChatSettings
@@ -35,13 +39,17 @@ public class ChatControllerTests
 			.Returns(_planningService);
 		_sessionManager.GetSession(Arg.Any<string>()).Returns(_planningService);
      _planningService.MaxContextLengthTokens.Returns(64 * 1024);
+		_usageQuotaService.CheckAndReserveAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+			.Returns(new UsageStatus(200, 1, 199, TestResetAt));
+		_usageQuotaService.GetStatusAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+			.Returns(new UsageStatus(200, 5, 195, TestResetAt));
 
 		_controller = CreateController();
 	}
 
 	private ChatController CreateController()
 	{
-		var controller = new ChatController(_sessionManager, _logger, _chatSettings);
+		var controller = new ChatController(_sessionManager, _usageQuotaService, _logger, _chatSettings);
 		var claims = new[]
 		{
 			new Claim("SessionId", TestSessionId),
@@ -83,7 +91,7 @@ public class ChatControllerTests
 	public async Task SendMessage_ValidMessage_ReturnsOkWithResponse()
 	{
 		var ct = TestContext.Current.CancellationToken;
-     _planningService.GetResponseAsync("hello", ct).Returns(new ChatTurnResult("AI reply", 321));
+     _planningService.GetResponseAsync("hello", ct).Returns(new ChatTurnResult("AI reply", 321, 1500, 450));
 		var request = new ChatRequest { Message = "hello" };
 
 		var result = await _controller.SendMessage(request, ct);
@@ -94,6 +102,39 @@ public class ChatControllerTests
 		response.SessionId.Should().Be(TestSessionId);
        response.ContextLengthTokens.Should().Be(321);
       response.MaxContextLengthTokens.Should().Be(64 * 1024);
+		response.RemainingDailyQuota.Should().Be(199);
+		response.QuotaResetAtUtc.Should().Be(TestResetAt);
+		await _usageQuotaService.Received(1).RecordTokensAsync(TestUserId, 1500, 450, ct);
+	}
+
+	[Fact]
+	public async Task SendMessage_DailyLimitReached_Returns429WithRetryAfter()
+	{
+		var ct = TestContext.Current.CancellationToken;
+		_usageQuotaService.CheckAndReserveAsync(TestUserId, ct)
+			.ThrowsAsync(new UsageQuotaExceededException(UsageLimitKind.Daily, 3600, 0, TestResetAt));
+		var request = new ChatRequest { Message = "hello" };
+
+		var result = await _controller.SendMessage(request, ct);
+
+		result.Should().BeOfType<ObjectResult>().Which.StatusCode.Should().Be(StatusCodes.Status429TooManyRequests);
+		_controller.Response.Headers.RetryAfter.ToString().Should().Be("3600");
+		// A rejected request must never reach the model.
+		await _planningService.DidNotReceive().GetResponseAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+	}
+
+	[Fact]
+	public async Task SendMessage_BurstLimitReached_Returns429()
+	{
+		var ct = TestContext.Current.CancellationToken;
+		_usageQuotaService.CheckAndReserveAsync(TestUserId, ct)
+			.ThrowsAsync(new UsageQuotaExceededException(UsageLimitKind.Burst, 12, null, TestResetAt));
+		var request = new ChatRequest { Message = "hello" };
+
+		var result = await _controller.SendMessage(request, ct);
+
+		result.Should().BeOfType<ObjectResult>().Which.StatusCode.Should().Be(StatusCodes.Status429TooManyRequests);
+		_controller.Response.Headers.RetryAfter.ToString().Should().Be("12");
 	}
 
 	[Fact]
@@ -206,13 +247,14 @@ public class ChatControllerTests
 	// --- GetSessionStatus ---
 
 	[Fact]
-	public void GetSessionStatus_ReturnsOkWithSessionInfo()
+	public async Task GetSessionStatus_ReturnsOkWithSessionInfo()
 	{
+		var ct = TestContext.Current.CancellationToken;
 		_sessionManager.GetActiveSessionCount().Returns(3);
 		_planningService.CurrentMode.Returns(PlanningMode.Reflection);
 		_planningService.CurrentContextLengthTokens.Returns(654);
 
-		var result = _controller.GetSessionStatus();
+		var result = await _controller.GetSessionStatus(ct);
 
 		var ok = result.Should().BeOfType<OkObjectResult>().Subject;
 		var response = ok.Value.Should().BeOfType<SessionStatusResponse>().Subject;
@@ -222,15 +264,20 @@ public class ChatControllerTests
        response.CurrentMode.Should().Be("Reflection");
 		response.ContextLengthTokens.Should().Be(654);
       response.MaxContextLengthTokens.Should().Be(64 * 1024);
+		response.DailyQuotaLimit.Should().Be(200);
+		response.DailyQuotaUsed.Should().Be(5);
+		response.RemainingDailyQuota.Should().Be(195);
+		response.QuotaResetAtUtc.Should().Be(TestResetAt);
 	}
 
 	[Fact]
-	public void GetSessionStatus_WhenSessionMissing_ReturnsInactiveStatus()
+	public async Task GetSessionStatus_WhenSessionMissing_ReturnsInactiveStatus()
 	{
+		var ct = TestContext.Current.CancellationToken;
 		_sessionManager.GetSession(TestSessionId).Returns((IPlanningService?)null);
 		_sessionManager.GetActiveSessionCount().Returns(0);
 
-		var result = _controller.GetSessionStatus();
+		var result = await _controller.GetSessionStatus(ct);
 
 		var ok = result.Should().BeOfType<OkObjectResult>().Subject;
 		var response = ok.Value.Should().BeOfType<SessionStatusResponse>().Subject;

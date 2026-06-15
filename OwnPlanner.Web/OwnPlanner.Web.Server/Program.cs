@@ -17,6 +17,7 @@ using OwnPlanner.Application.Goals;
 using OwnPlanner.Application.Inbox;
 using OwnPlanner.Application.Notes;
 using OwnPlanner.Application.Tasks;
+using OwnPlanner.Application.Usage;
 using OwnPlanner.Mcp.Tools;
 using OwnPlanner.Web.Server.Authentication;
 using OwnPlanner.Web.Server.Configuration;
@@ -91,6 +92,8 @@ namespace OwnPlanner.Web.Server
 				builder.Services.AddScoped<INoteItemRepository, NoteItemRepository>();
 				builder.Services.AddScoped<IGoalRepository, GoalRepository>();
 				builder.Services.AddScoped<IPlanningContextRepository, PlanningContextRepository>();
+				builder.Services.AddScoped<IUserDailyUsageRepository, UserDailyUsageRepository>();
+				builder.Services.AddScoped<IUserQuotaOverrideRepository, UserQuotaOverrideRepository>();
 
 				// Register application services
 				builder.Services.AddScoped<IAuthService, AuthService>();
@@ -101,6 +104,12 @@ namespace OwnPlanner.Web.Server
 				builder.Services.AddScoped<IGoalService, GoalService>();
 				builder.Services.AddScoped<IPlanningContextService, PlanningContextService>();
 				builder.Services.AddScoped<IInboxSeeder, InboxSeeder>();
+				builder.Services.AddScoped<IUsageQuotaService, UsageQuotaService>();
+
+				// Configure usage quota: bound limits (singleton instance) + in-memory burst window (singleton)
+				var usageQuotaOptions = builder.Configuration.GetSection("UsageQuota").Get<UsageQuotaOptions>() ?? new UsageQuotaOptions();
+				builder.Services.AddSingleton(usageQuotaOptions);
+				builder.Services.AddSingleton<IBurstRateLimiter, BurstRateLimiter>();
 
 				// Configure chat settings
 				builder.Services.Configure<ChatSettings>(builder.Configuration.GetSection("Chat"));

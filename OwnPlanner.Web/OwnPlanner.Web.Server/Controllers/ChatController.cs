@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using OwnPlanner.Application.Chat;
+using OwnPlanner.Application.Usage;
 using OwnPlanner.Web.Server.Configuration;
 using OwnPlanner.Web.Server.Models;
 using OwnPlanner.Web.Server.Services;
@@ -18,15 +19,18 @@ namespace OwnPlanner.Web.Server.Controllers
 	public class ChatController : ControllerBase
 	{
 		private readonly IChatSessionManager _sessionManager;
+		private readonly IUsageQuotaService _usageQuotaService;
 		private readonly ILogger<ChatController> _logger;
 		private readonly int _defaultMaxContextLengthTokens;
 
 		public ChatController(
 			IChatSessionManager sessionManager,
+			IUsageQuotaService usageQuotaService,
 			ILogger<ChatController> logger,
 			IOptions<ChatSettings> chatSettings)
 		{
 			_sessionManager = sessionManager;
+			_usageQuotaService = usageQuotaService;
 			_logger = logger;
 			_defaultMaxContextLengthTokens = chatSettings.Value.Gemini.MaxContextLengthTokens;
 		}
@@ -46,12 +50,36 @@ namespace OwnPlanner.Web.Server.Controllers
 			var userId = GetUserId();
 			_logger.LogInformation("Processing chat message for sessionId: {SessionId}, userId: {UserId}", sessionId, userId);
 
+			UsageStatus usage;
+			try
+			{
+				usage = await _usageQuotaService.CheckAndReserveAsync(userId, cancellationToken);
+			}
+			catch (UsageQuotaExceededException ex)
+			{
+				_logger.LogInformation(
+					"Usage quota ({LimitKind}) reached for sessionId: {SessionId}, userId: {UserId}",
+					ex.LimitKind, sessionId, userId);
+				Response.Headers.RetryAfter = ex.RetryAfterSeconds.ToString();
+				return StatusCode(StatusCodes.Status429TooManyRequests, new
+				{
+					message = ex.Message,
+					limitKind = ex.LimitKind.ToString(),
+					remainingDailyQuota = ex.Remaining,
+					quotaResetAtUtc = ex.ResetAtUtc,
+					retryAfterSeconds = ex.RetryAfterSeconds,
+				});
+			}
+
 			try
 			{
 				var chatService = await _sessionManager.GetOrCreateSessionAsync(sessionId, userId, cancellationToken);
 				var response = await chatService.GetResponseAsync(request.Message, cancellationToken);
 
 				_logger.LogInformation("Chat response generated for sessionId: {SessionId}", sessionId);
+
+				// Backstop token accounting: never let a recording failure fail the user's request.
+				await RecordTokenUsageAsync(userId, response.InputTokens, response.OutputTokens, cancellationToken);
 
 				return Ok(new ChatResponse
 				{
@@ -60,6 +88,8 @@ namespace OwnPlanner.Web.Server.Controllers
                  Timestamp = DateTime.UtcNow,
                   ContextLengthTokens = response.ContextLengthTokens,
 					MaxContextLengthTokens = chatService.MaxContextLengthTokens,
+					RemainingDailyQuota = usage.Remaining,
+					QuotaResetAtUtc = usage.ResetAtUtc,
 				});
 			}
             catch (ChatContextLimitExceededException ex)
@@ -151,11 +181,13 @@ namespace OwnPlanner.Web.Server.Controllers
 		/// Get the status of the current user's chat session
 		/// </summary>
 		[HttpGet("status")]
-		public IActionResult GetSessionStatus()
+		public async Task<IActionResult> GetSessionStatus(CancellationToken cancellationToken)
 		{
 			var sessionId = GetSessionId();
+			var userId = GetUserId();
 			var activeSessionsCount = _sessionManager.GetActiveSessionCount();
 			var session = _sessionManager.GetSession(sessionId);
+			var usage = await _usageQuotaService.GetStatusAsync(userId, cancellationToken);
 
 			return Ok(new SessionStatusResponse
 			{
@@ -164,7 +196,11 @@ namespace OwnPlanner.Web.Server.Controllers
 				ActiveSessionsCount = activeSessionsCount,
 				CurrentMode = session?.CurrentMode.ToString(),
 				   ContextLengthTokens = session?.CurrentContextLengthTokens,
-				   MaxContextLengthTokens = session?.MaxContextLengthTokens ?? _defaultMaxContextLengthTokens
+				   MaxContextLengthTokens = session?.MaxContextLengthTokens ?? _defaultMaxContextLengthTokens,
+				DailyQuotaLimit = usage.DailyLimit,
+				DailyQuotaUsed = usage.Used,
+				RemainingDailyQuota = usage.Remaining,
+				QuotaResetAtUtc = usage.ResetAtUtc,
 			   });
 		}
 
@@ -181,6 +217,21 @@ namespace OwnPlanner.Web.Server.Controllers
 				activeSessions = _sessionManager.GetActiveSessionCount(),
 				timestamp = DateTime.UtcNow
 			});
+		}
+
+		/// <summary>
+		/// Records token usage for the completed turn as a backstop; failures are logged, never surfaced.
+		/// </summary>
+		private async Task RecordTokenUsageAsync(string userId, long inputTokens, long outputTokens, CancellationToken cancellationToken)
+		{
+			try
+			{
+				await _usageQuotaService.RecordTokensAsync(userId, inputTokens, outputTokens, cancellationToken);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogWarning(ex, "Failed to record token usage for userId: {UserId}", userId);
+			}
 		}
 
 		/// <summary>

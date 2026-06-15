@@ -11,6 +11,8 @@ public class AuthDbContext(DbContextOptions<AuthDbContext> options) : DbContext(
 {
 	public DbSet<User> Users => Set<User>();
 	public DbSet<PersonalAccessToken> PersonalAccessTokens => Set<PersonalAccessToken>();
+	public DbSet<UserDailyUsage> UserDailyUsages => Set<UserDailyUsage>();
+	public DbSet<UserQuotaOverride> UserQuotaOverrides => Set<UserQuotaOverride>();
 
 	protected override void OnModelCreating(ModelBuilder modelBuilder)
 	{
@@ -42,5 +44,34 @@ public class AuthDbContext(DbContextOptions<AuthDbContext> options) : DbContext(
 			.OnDelete(DeleteBehavior.Cascade);
 		personalAccessToken.HasIndex(t => t.TokenHash).IsUnique();
 		personalAccessToken.HasIndex(t => t.UserId);
+
+		var dailyUsage = modelBuilder.Entity<UserDailyUsage>();
+		dailyUsage.HasKey(u => u.Id);
+		dailyUsage.Property(u => u.UserId).IsRequired();
+		dailyUsage.Property(u => u.Date).IsRequired();
+		dailyUsage.Property(u => u.RequestCount).IsRequired();
+		dailyUsage.Property(u => u.InputTokens).IsRequired();
+		dailyUsage.Property(u => u.OutputTokens).IsRequired();
+		dailyUsage.Property(u => u.CreatedAt).IsRequired();
+		dailyUsage.Property(u => u.UpdatedAt).IsRequired();
+		dailyUsage.HasOne<User>()
+			.WithMany()
+			.HasForeignKey(u => u.UserId)
+			.OnDelete(DeleteBehavior.Cascade);
+		// One row per user per day; also the conflict target for the atomic increment upsert.
+		dailyUsage.HasIndex(u => new { u.UserId, u.Date }).IsUnique();
+
+		var quotaOverride = modelBuilder.Entity<UserQuotaOverride>();
+		quotaOverride.HasKey(o => o.Id);
+		quotaOverride.Property(o => o.UserId).IsRequired();
+		quotaOverride.Property(o => o.DailyRequestLimit);
+		quotaOverride.Property(o => o.BurstRequestsPerMinute);
+		quotaOverride.Property(o => o.CreatedAt).IsRequired();
+		quotaOverride.Property(o => o.UpdatedAt).IsRequired();
+		quotaOverride.HasOne<User>()
+			.WithMany()
+			.HasForeignKey(o => o.UserId)
+			.OnDelete(DeleteBehavior.Cascade);
+		quotaOverride.HasIndex(o => o.UserId).IsUnique();
 	}
 }

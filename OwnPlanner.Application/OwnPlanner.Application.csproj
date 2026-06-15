@@ -15,4 +15,8 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="OwnPlanner.Application.Tests" />
+  </ItemGroup>
+
 </Project>

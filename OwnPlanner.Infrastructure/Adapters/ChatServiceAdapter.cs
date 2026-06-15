@@ -49,6 +49,11 @@ namespace OwnPlanner.Infrastructure.Adapters
 
 		public int? CurrentContextLengthTokens { get; private set; }
 
+		// Per-turn token accumulators, reset at the start of each GetResponse and summed across every model
+		// call in the turn (initial message, tool-result rounds, in-turn search-agent calls).
+		private long _turnInputTokens;
+		private long _turnOutputTokens;
+
 		private void InitializeChatSession(string? systemPrompt = null, IReadOnlyList<string>? allowedTools = null, IReadOnlyList<ChatMessage>? history = null)
 		{
 			CurrentContextLengthTokens = null;
@@ -265,6 +270,9 @@ namespace OwnPlanner.Infrastructure.Adapters
 				return;
 			}
 
+			_turnInputTokens += usage.PromptTokenCount ?? 0;
+			_turnOutputTokens += usage.CandidatesTokenCount ?? 0;
+
 			Log.Debug(
 				"Gemini token usage ({Stage}): prompt={PromptTokens}, candidates={CandidateTokens}, total={TotalTokens}, cachedContent={CachedContentTokens}, toolUsePrompt={ToolUsePromptTokens}, thoughts={ThoughtsTokens}",
 				stage,
@@ -375,6 +383,8 @@ namespace OwnPlanner.Infrastructure.Adapters
 		public async Task<ChatTurnResult> GetResponse(string text)
 		{
 			LastAccessTime = DateTime.UtcNow;
+			_turnInputTokens = 0;
+			_turnOutputTokens = 0;
 
 			Log.Debug("Getting response for prompt: {Prompt}", text);
 			try
@@ -471,7 +481,7 @@ namespace OwnPlanner.Infrastructure.Adapters
 				}
 
 				UpdateCurrentContextLength(response);
-				return new ChatTurnResult(GetSafeResponseText(response), CurrentContextLengthTokens);
+				return new ChatTurnResult(GetSafeResponseText(response), CurrentContextLengthTokens, _turnInputTokens, _turnOutputTokens);
 			}
 			catch (GeminiApiException ex)
 			{
