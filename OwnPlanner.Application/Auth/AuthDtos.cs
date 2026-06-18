@@ -24,3 +24,12 @@ public record AuthResult(
 	string? ErrorMessage = null,
 	UserResponse? User = null
 );
+
+public record ForgotPasswordRequest(
+	string Email
+);
+
+public record ResetPasswordRequest(
+	string Token,
+	string NewPassword
+);

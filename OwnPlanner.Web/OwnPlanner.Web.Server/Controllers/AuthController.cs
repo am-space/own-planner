@@ -71,6 +71,39 @@ public class AuthController : ControllerBase
 	}
 
 	/// <summary>
+	/// Initiates a password reset. Always returns 200 to avoid revealing whether the email is registered.
+	/// </summary>
+	[HttpPost("forgot-password")]
+	[AllowAnonymous]
+	public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request, CancellationToken cancellationToken)
+	{
+		_logger.LogInformation("Password reset requested");
+
+		await _authService.RequestPasswordResetAsync(request.Email, cancellationToken);
+
+		// Anti-enumeration: respond identically regardless of whether the account exists.
+		return Ok(new { message = "If an account exists for that email, a password reset link has been sent." });
+	}
+
+	/// <summary>
+	/// Completes a password reset using a token issued by <see cref="ForgotPassword"/>.
+	/// </summary>
+	[HttpPost("reset-password")]
+	[AllowAnonymous]
+	public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request, CancellationToken cancellationToken)
+	{
+		var result = await _authService.ResetPasswordAsync(request.Token, request.NewPassword, cancellationToken);
+
+		if (!result.Success)
+		{
+			return BadRequest(new { message = result.ErrorMessage });
+		}
+
+		_logger.LogInformation("Password reset completed for user {UserId}", result.User!.Id);
+		return Ok(new { message = "Password has been reset successfully." });
+	}
+
+	/// <summary>
 	/// Logs out the current user and removes the authentication cookie.
 	/// </summary>
 	[HttpPost("logout")]

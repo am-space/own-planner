@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using System.Security.Cryptography;
 using System.Text;
+using OwnPlanner.Application.Email;
 using OwnPlanner.Domain.Users;
 
 namespace OwnPlanner.Application.Auth;
@@ -12,6 +13,9 @@ namespace OwnPlanner.Application.Auth;
 public class AuthService(
 	IUserRepository userRepository,
 	IPersonalAccessTokenRepository personalAccessTokenRepository,
+	IPasswordResetTokenRepository passwordResetTokenRepository,
+	IEmailSender emailSender,
+	EmailOptions emailOptions,
 	ILogger<AuthService> logger)
 	: IAuthService
 {
@@ -120,6 +124,82 @@ public class AuthService(
 	public async Task<int> GetRegisteredUserCountAsync(CancellationToken cancellationToken = default)
 	{
 		return await userRepository.GetRegisteredUserCountAsync(cancellationToken);
+	}
+
+	public async Task RequestPasswordResetAsync(string email, CancellationToken cancellationToken = default)
+	{
+		try
+		{
+			if (string.IsNullOrWhiteSpace(email))
+				return;
+
+			var user = await userRepository.GetByEmailAsync(email, cancellationToken);
+			if (user is null || !user.IsActive)
+			{
+				// Do not reveal whether the account exists (anti-enumeration).
+				logger.LogInformation("Password reset requested for an unknown or inactive account");
+				return;
+			}
+
+			// Only the most recently issued link should remain valid.
+			await passwordResetTokenRepository.InvalidateActiveForUserAsync(user.Id, cancellationToken);
+
+			var plaintextToken = GenerateResetToken();
+			var tokenHash = HashToken(plaintextToken);
+			var expiresAt = DateTime.UtcNow.AddMinutes(emailOptions.ResetTokenLifetimeMinutes);
+
+			var resetToken = new PasswordResetToken(user.Id, tokenHash, expiresAt);
+			await passwordResetTokenRepository.AddAsync(resetToken, cancellationToken);
+
+			var resetLink = BuildResetLink(plaintextToken);
+			var (subject, htmlBody) = EmailTemplates.PasswordReset(resetLink, emailOptions.ResetTokenLifetimeMinutes);
+			await emailSender.SendAsync(user.Email, subject, htmlBody, cancellationToken);
+
+			logger.LogInformation("Password reset email dispatched for user {UserId}", user.Id);
+		}
+		catch (Exception ex)
+		{
+			// Never surface errors to the caller (anti-enumeration); log for diagnostics.
+			logger.LogError(ex, "Error while processing password reset request");
+		}
+	}
+
+	public async Task<AuthResult> ResetPasswordAsync(string token, string newPassword, CancellationToken cancellationToken = default)
+	{
+		try
+		{
+			if (string.IsNullOrWhiteSpace(token))
+				return new AuthResult(false, "Invalid or expired reset token");
+
+			if (string.IsNullOrWhiteSpace(newPassword))
+				return new AuthResult(false, "Password is required");
+
+			if (newPassword.Length < 8)
+				return new AuthResult(false, "Password must be at least 8 characters");
+
+			var tokenHash = HashToken(token);
+			var resetToken = await passwordResetTokenRepository.FindActiveByTokenHashAsync(tokenHash, cancellationToken);
+			if (resetToken is null || !resetToken.IsActive(DateTime.UtcNow))
+				return new AuthResult(false, "Invalid or expired reset token");
+
+			var user = await userRepository.GetByIdAsync(resetToken.UserId, cancellationToken);
+			if (user is null || !user.IsActive)
+				return new AuthResult(false, "Invalid or expired reset token");
+
+			user.SetPasswordHash(HashPassword(newPassword));
+			await userRepository.UpdateAsync(user, cancellationToken);
+
+			resetToken.Consume();
+			await passwordResetTokenRepository.UpdateAsync(resetToken, cancellationToken);
+
+			logger.LogInformation("Password reset completed for user {UserId}", user.Id);
+			return new AuthResult(true, User: MapToUserResponse(user));
+		}
+		catch (Exception ex)
+		{
+			logger.LogError(ex, "Error during password reset");
+			return new AuthResult(false, "An error occurred while resetting the password");
+		}
 	}
 
 	public async Task<PersonalAccessTokenCreatedResponse> CreatePersonalAccessTokenAsync(
@@ -237,6 +317,18 @@ public class AuthService(
 	{
 		var bytes = RandomNumberGenerator.GetBytes(32);
 		return $"opat_{Convert.ToHexString(bytes).ToLowerInvariant()}";
+	}
+
+	private static string GenerateResetToken()
+	{
+		var bytes = RandomNumberGenerator.GetBytes(32);
+		return $"oprt_{Convert.ToHexString(bytes).ToLowerInvariant()}";
+	}
+
+	private string BuildResetLink(string plaintextToken)
+	{
+		var baseUrl = emailOptions.ResetUrlBase.TrimEnd('/');
+		return $"{baseUrl}/reset-password?token={Uri.EscapeDataString(plaintextToken)}";
 	}
 
 	private static string HashToken(string token)

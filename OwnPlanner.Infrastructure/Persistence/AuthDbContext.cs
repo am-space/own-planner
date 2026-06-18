@@ -11,6 +11,7 @@ public class AuthDbContext(DbContextOptions<AuthDbContext> options) : DbContext(
 {
 	public DbSet<User> Users => Set<User>();
 	public DbSet<PersonalAccessToken> PersonalAccessTokens => Set<PersonalAccessToken>();
+	public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
 	public DbSet<UserDailyUsage> UserDailyUsages => Set<UserDailyUsage>();
 	public DbSet<UserQuotaOverride> UserQuotaOverrides => Set<UserQuotaOverride>();
 
@@ -44,6 +45,20 @@ public class AuthDbContext(DbContextOptions<AuthDbContext> options) : DbContext(
 			.OnDelete(DeleteBehavior.Cascade);
 		personalAccessToken.HasIndex(t => t.TokenHash).IsUnique();
 		personalAccessToken.HasIndex(t => t.UserId);
+
+		var passwordResetToken = modelBuilder.Entity<PasswordResetToken>();
+		passwordResetToken.HasKey(t => t.Id);
+		passwordResetToken.Property(t => t.UserId).IsRequired();
+		passwordResetToken.Property(t => t.TokenHash).IsRequired().HasMaxLength(128);
+		passwordResetToken.Property(t => t.ExpiresAt).IsRequired();
+		passwordResetToken.Property(t => t.ConsumedAt);
+		passwordResetToken.Property(t => t.CreatedAt).IsRequired();
+		passwordResetToken.HasOne<User>()
+			.WithMany()
+			.HasForeignKey(t => t.UserId)
+			.OnDelete(DeleteBehavior.Cascade);
+		passwordResetToken.HasIndex(t => t.TokenHash).IsUnique();
+		passwordResetToken.HasIndex(t => t.UserId);
 
 		var dailyUsage = modelBuilder.Entity<UserDailyUsage>();
 		dailyUsage.HasKey(u => u.Id);
