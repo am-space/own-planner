@@ -1,5 +1,10 @@
 # OwnPlanner — Email Sending + Password Reset (v1.5)
 
+> **Archived — implemented.** This is the original implementation plan, kept for historical
+> context. The shipped design and rationale are recorded in
+> [ADR-0003: Outbound Email + Password Reset](../adr/0003-email-sending-password-reset.md).
+> Details below may not reflect later refinements made during review.
+
 ## Context
 
 OwnPlanner currently has custom auth (own `AuthDb`, BCrypt password hashing, PATs with SHA256-hashed

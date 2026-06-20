@@ -48,7 +48,7 @@ Strict clean-architecture layering; dependencies only flow inward toward the Dom
 - **Presentation** (three entry points that wire Application + Infrastructure via DI): `OwnPlanner.Web.Server` (ASP.NET Core API + React SPA, cookie auth), `OwnPlanner.Console` (CLI chat), `OwnPlanner.Mcp.StdioApp` (MCP stdio host).
 - **OwnPlanner.Mcp.Tools** — tool definitions/handlers shared by the web server and the stdio host.
 
-Deeper docs live in `docs/`: `architecture-layers.md`, `ai-integration.md`, `database-schema.md`, `MCP_TOOLS_REFERENCE.md`, plus ADRs in `docs/adr/`.
+Deeper docs live in `docs/`: `architecture-layers.md`, `ai-integration.md`, `database-schema.md`, plus ADRs in `docs/adr/` and superseded planning docs in `docs/archive/`. See [Documentation process](#documentation-process) for how plans and ADRs are managed.
 
 ### Per-user database model
 
@@ -84,6 +84,13 @@ Append `--startup-project <path>` if the startup project can't be inferred.
 - When adding or changing an interface, add/update XML doc comments describing intent and contracts.
 - Keep logging structured. Don't break public contracts unless the task requires it.
 
-## Versioning & release
+## Documentation process
+
+Docs in `docs/` come in three kinds: **plans** (`docs/*-plan.md`, written before building),
+**ADRs** (`docs/adr/NNNN-*.md`, durable records of a decision as shipped — start from
+`docs/adr/template.md`), and **reference docs** (living "how it works now" pages). When a planned
+feature ships, write/update its ADR and `git mv` the plan into `docs/archive/` with a banner linking
+to the ADR — never delete plans, and don't let a finished plan pose as current documentation. Full
+mechanics (numbering, banner format, superseding) are in [`docs/CLAUDE.md`](docs/CLAUDE.md).
 
 `Directory.Build.props` derives assembly/file versions from the `APP_VERSION` / `APP_FILE_VERSION` env vars (default `0.0.0-local`). Releases are cut from git tags `v<major>.<minor>.<patch>`; tagged CI builds push a Docker image to `ghcr.io`.
