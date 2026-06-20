@@ -127,6 +127,14 @@ namespace OwnPlanner.Web.Server
 
 				if (emailProvider.Equals("Smtp", StringComparison.OrdinalIgnoreCase))
 				{
+					// Fail fast rather than silently failing to deliver (or falling back to
+					// a logging sender that would write reset tokens to logs) in production.
+					if (string.IsNullOrWhiteSpace(emailOptions.Host) || string.IsNullOrWhiteSpace(emailOptions.FromAddress))
+					{
+						throw new InvalidOperationException(
+							"Email:Host and Email:FromAddress are required when Email:Provider is 'Smtp'.");
+					}
+
 					builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
 				}
 				else

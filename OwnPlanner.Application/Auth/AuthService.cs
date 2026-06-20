@@ -186,11 +186,13 @@ public class AuthService(
 			if (user is null || !user.IsActive)
 				return new AuthResult(false, "Invalid or expired reset token");
 
-			user.SetPasswordHash(HashPassword(newPassword));
-			await userRepository.UpdateAsync(user, cancellationToken);
-
+			// Consume the token first so a partial failure errs toward "request a new
+			// link" rather than leaving a redeemable token after the password changed.
 			resetToken.Consume();
 			await passwordResetTokenRepository.UpdateAsync(resetToken, cancellationToken);
+
+			user.SetPasswordHash(HashPassword(newPassword));
+			await userRepository.UpdateAsync(user, cancellationToken);
 
 			logger.LogInformation("Password reset completed for user {UserId}", user.Id);
 			return new AuthResult(true, User: MapToUserResponse(user));
