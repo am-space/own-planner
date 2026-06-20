@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
 using OwnPlanner.Application.Contexts;
+using OwnPlanner.Infrastructure.Adapters;
 using OwnPlanner.Infrastructure.Persistence;
 using OwnPlanner.Domain.Contexts;
 using OwnPlanner.Domain.Goals;
@@ -13,6 +14,7 @@ using OwnPlanner.Domain.Tasks;
 using OwnPlanner.Domain.Users;
 using OwnPlanner.Infrastructure.Repositories;
 using OwnPlanner.Application.Auth;
+using OwnPlanner.Application.Email;
 using OwnPlanner.Application.Goals;
 using OwnPlanner.Application.Inbox;
 using OwnPlanner.Application.Notes;
@@ -86,6 +88,7 @@ namespace OwnPlanner.Web.Server
 				// Register repositories
 				builder.Services.AddScoped<IUserRepository, UserRepository>();
 				builder.Services.AddScoped<IPersonalAccessTokenRepository, PersonalAccessTokenRepository>();
+				builder.Services.AddScoped<IPasswordResetTokenRepository, PasswordResetTokenRepository>();
 				builder.Services.AddScoped<ITaskItemRepository, TaskItemRepository>();
 				builder.Services.AddScoped<ITaskListRepository, TaskListRepository>();
 				builder.Services.AddScoped<INoteListRepository, NoteListRepository>();
@@ -110,6 +113,34 @@ namespace OwnPlanner.Web.Server
 				var usageQuotaOptions = builder.Configuration.GetSection("UsageQuota").Get<UsageQuotaOptions>() ?? new UsageQuotaOptions();
 				builder.Services.AddSingleton(usageQuotaOptions);
 				builder.Services.AddSingleton<IBurstRateLimiter, BurstRateLimiter>();
+
+				// Configure email: bound options (singleton instance) + sender chosen by provider.
+				// Provider defaults to "Logging" in Development and "Smtp" otherwise.
+				var emailOptions = builder.Configuration.GetSection("Email").Get<EmailOptions>() ?? new EmailOptions();
+				builder.Services.AddSingleton(emailOptions);
+
+				var emailProvider = builder.Configuration["Email:Provider"];
+				if (string.IsNullOrWhiteSpace(emailProvider))
+				{
+					emailProvider = builder.Environment.IsDevelopment() ? "Logging" : "Smtp";
+				}
+
+				if (emailProvider.Equals("Smtp", StringComparison.OrdinalIgnoreCase))
+				{
+					// Fail fast rather than silently failing to deliver (or falling back to
+					// a logging sender that would write reset tokens to logs) in production.
+					if (string.IsNullOrWhiteSpace(emailOptions.Host) || string.IsNullOrWhiteSpace(emailOptions.FromAddress))
+					{
+						throw new InvalidOperationException(
+							"Email:Host and Email:FromAddress are required when Email:Provider is 'Smtp'.");
+					}
+
+					builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
+				}
+				else
+				{
+					builder.Services.AddScoped<IEmailSender, LoggingEmailSender>();
+				}
 
 				// Configure chat settings
 				builder.Services.Configure<ChatSettings>(builder.Configuration.GetSection("Chat"));

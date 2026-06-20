@@ -56,6 +56,20 @@ public interface IAuthService
 		CancellationToken cancellationToken = default);
 
 	/// <summary>
+	/// Initiates a password reset for the given email. If the email maps to an active account,
+	/// a single-use reset token is stored and a reset link is emailed. Completes silently
+	/// regardless of whether the account exists (anti-enumeration) and never throws.
+	/// </summary>
+	Task RequestPasswordResetAsync(string email, CancellationToken cancellationToken = default);
+
+	/// <summary>
+	/// Completes a password reset using a previously issued token. On success the user's
+	/// password is updated and the token is consumed. Returns a generic failure result for
+	/// invalid, expired, or already-used tokens.
+	/// </summary>
+	Task<AuthResult> ResetPasswordAsync(string token, string newPassword, CancellationToken cancellationToken = default);
+
+	/// <summary>
 	/// Verifies a password against a hash.
 	/// </summary>
 	bool VerifyPassword(string password, string passwordHash);

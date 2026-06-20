@@ -28,9 +28,6 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OwnPlanner.Console", "OwnPlanner.Console\OwnPlanner.Console.csproj", "{EFAE28A0-E91D-42F5-9338-081CADBEB497}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Docs", "Docs", "{6554420F-4B0E-4CE9-9F60-ECBCA6CE3BCC}"
-	ProjectSection(SolutionItems) = preProject
-		docs\MCP_TOOLS_REFERENCE.md = docs\MCP_TOOLS_REFERENCE.md
-	EndProjectSection
 EndProject
 Project("{54A90642-561A-4BB1-A94E-469ADEE60C69}") = "ownplanner.web.client", "OwnPlanner.Web\ownplanner.web.client\ownplanner.web.client.esproj", "{AE42EB23-ABC8-1238-7BB8-CD7248EABBF0}"
 EndProject

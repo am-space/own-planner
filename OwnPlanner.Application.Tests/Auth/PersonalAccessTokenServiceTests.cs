@@ -2,6 +2,7 @@ using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using OwnPlanner.Application.Auth;
+using OwnPlanner.Application.Email;
 using OwnPlanner.Domain;
 using OwnPlanner.Domain.Users;
 
@@ -11,11 +12,19 @@ public sealed class PersonalAccessTokenServiceTests
 {
 	private readonly IUserRepository _userRepository = Substitute.For<IUserRepository>();
 	private readonly IPersonalAccessTokenRepository _tokenRepository = Substitute.For<IPersonalAccessTokenRepository>();
+	private readonly IPasswordResetTokenRepository _resetTokenRepository = Substitute.For<IPasswordResetTokenRepository>();
+	private readonly IEmailSender _emailSender = Substitute.For<IEmailSender>();
 	private readonly AuthService _service;
 
 	public PersonalAccessTokenServiceTests()
 	{
-		_service = new AuthService(_userRepository, _tokenRepository, NullLogger<AuthService>.Instance);
+		_service = new AuthService(
+			_userRepository,
+			_tokenRepository,
+			_resetTokenRepository,
+			_emailSender,
+			new EmailOptions(),
+			NullLogger<AuthService>.Instance);
 	}
 
 	[Fact]
