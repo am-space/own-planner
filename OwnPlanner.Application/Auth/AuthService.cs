@@ -141,6 +141,14 @@ public class AuthService(
 				return;
 			}
 
+			if (string.IsNullOrWhiteSpace(emailOptions.ResetUrlBase))
+			{
+				// Without a base URL the reset link would be relative/unusable, so don't
+				// issue a token (or invalidate existing ones) the user could never redeem.
+				logger.LogError("Email:ResetUrlBase is not configured; cannot issue a usable password reset link.");
+				return;
+			}
+
 			// Only the most recently issued link should remain valid.
 			await passwordResetTokenRepository.InvalidateActiveForUserAsync(user.Id, cancellationToken);
 

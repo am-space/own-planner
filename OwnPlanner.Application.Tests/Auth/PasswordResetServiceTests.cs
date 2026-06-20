@@ -113,6 +113,83 @@ public sealed class PasswordResetServiceTests
 	}
 
 	[Fact]
+	public async Task ResetPasswordAsync_Fails_WhenTokenAlreadyConsumed()
+	{
+		var ct = TestContext.Current.CancellationToken;
+		const string plaintext = "oprt_consumed";
+		var user = new User("user@example.com", "tester", "old-hash");
+		var consumedToken = new PasswordResetToken(user.Id, HashToken(plaintext), DateTime.UtcNow.AddMinutes(15));
+		consumedToken.Consume();
+
+		// Even if the store returned it, a single-use token must not be redeemable twice.
+		_resetTokenRepository.FindActiveByTokenHashAsync(HashToken(plaintext), ct).Returns(consumedToken);
+
+		var result = await _service.ResetPasswordAsync(plaintext, "new-password-123", ct);
+
+		result.Success.Should().BeFalse();
+		result.ErrorMessage.Should().Be("Invalid or expired reset token");
+		await _userRepository.DidNotReceive().UpdateAsync(Arg.Any<User>(), ct);
+	}
+
+	[Fact]
+	public async Task ResetPasswordAsync_Fails_WhenUserMissing()
+	{
+		var ct = TestContext.Current.CancellationToken;
+		const string plaintext = "oprt_orphan";
+		var resetToken = new PasswordResetToken(Guid.NewGuid(), HashToken(plaintext), DateTime.UtcNow.AddMinutes(15));
+
+		_resetTokenRepository.FindActiveByTokenHashAsync(HashToken(plaintext), ct).Returns(resetToken);
+		_userRepository.GetByIdAsync(resetToken.UserId, ct).Returns((User?)null);
+
+		var result = await _service.ResetPasswordAsync(plaintext, "new-password-123", ct);
+
+		result.Success.Should().BeFalse();
+		result.ErrorMessage.Should().Be("Invalid or expired reset token");
+		await _userRepository.DidNotReceive().UpdateAsync(Arg.Any<User>(), ct);
+	}
+
+	[Fact]
+	public async Task ResetPasswordAsync_Fails_WhenUserInactive()
+	{
+		var ct = TestContext.Current.CancellationToken;
+		const string plaintext = "oprt_inactive";
+		var user = new User("user@example.com", "tester", "old-hash");
+		user.Deactivate();
+		var resetToken = new PasswordResetToken(user.Id, HashToken(plaintext), DateTime.UtcNow.AddMinutes(15));
+
+		_resetTokenRepository.FindActiveByTokenHashAsync(HashToken(plaintext), ct).Returns(resetToken);
+		_userRepository.GetByIdAsync(user.Id, ct).Returns(user);
+
+		var result = await _service.ResetPasswordAsync(plaintext, "new-password-123", ct);
+
+		result.Success.Should().BeFalse();
+		result.ErrorMessage.Should().Be("Invalid or expired reset token");
+		await _userRepository.DidNotReceive().UpdateAsync(Arg.Any<User>(), ct);
+	}
+
+	[Fact]
+	public async Task RequestPasswordResetAsync_DoesNotIssueToken_WhenResetUrlBaseMissing()
+	{
+		var ct = TestContext.Current.CancellationToken;
+		var service = new AuthService(
+			_userRepository,
+			_tokenRepository,
+			_resetTokenRepository,
+			_emailSender,
+			new EmailOptions { ResetUrlBase = "", ResetTokenLifetimeMinutes = 30 },
+			NullLogger<AuthService>.Instance);
+		var user = new User("user@example.com", "tester", "existing-hash");
+		_userRepository.GetByEmailAsync("user@example.com", ct).Returns(user);
+
+		await service.RequestPasswordResetAsync("user@example.com", ct);
+
+		await _resetTokenRepository.DidNotReceive().InvalidateActiveForUserAsync(Arg.Any<Guid>(), ct);
+		await _resetTokenRepository.DidNotReceive().AddAsync(Arg.Any<PasswordResetToken>(), ct);
+		await _emailSender.DidNotReceive().SendAsync(
+			Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), ct);
+	}
+
+	[Fact]
 	public async Task ResetPasswordAsync_Fails_WhenPasswordTooShort()
 	{
 		var ct = TestContext.Current.CancellationToken;

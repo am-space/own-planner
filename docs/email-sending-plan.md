@@ -16,7 +16,7 @@ existing PAT token pattern.
 ### Key codebase facts that shape this plan
 - **No `AddInfrastructure` DI extension exists** — all DI is wired directly in `OwnPlanner.Web/OwnPlanner.Web.Server/Program.cs`. We will register email services there to match convention.
 - **Token hashing convention** (`OwnPlanner.Application/Auth/AuthService.cs`): plaintext = `prefix_` + 32 random bytes hex; hash = `Convert.ToBase64String(SHA256.HashData(...))`. Reset tokens reuse this exactly with an `oprt_` prefix.
-- **Options patterns**: `ChatSettings` via `Configure<T>(GetSection("Chat"))`; `UsageQuotaOptions` via direct singleton. We use the `Configure<T>` pattern for `EmailOptions`.
+- **Options patterns**: `ChatSettings` via `Configure<T>(GetSection("Chat"))`; `UsageQuotaOptions` via direct singleton. We follow the `UsageQuotaOptions` approach for `EmailOptions` — bind with `GetSection("Email").Get<EmailOptions>()` and register the resulting instance as a singleton (adapters take `EmailOptions` directly, not `IOptions<EmailOptions>`).
 - **AuthDb entities** live in `OwnPlanner.Domain/Users/`, configured in `OwnPlanner.Infrastructure/Persistence/AuthDbContext.cs`, migrations in `OwnPlanner.Infrastructure/Migrations/AuthDb/`. `User.Email` has a unique index; lookups via `IUserRepository.GetByEmailAsync`.
 
 ---
@@ -49,7 +49,7 @@ existing PAT token pattern.
 
 ### 2. Adapters (Infrastructure layer) + NuGet
 - Add **`MailKit`** PackageReference to `OwnPlanner.Infrastructure/OwnPlanner.Infrastructure.csproj` (alongside existing EF Core / Mscc.GenerativeAI / Serilog refs).
-- `OwnPlanner.Infrastructure/Adapters/SmtpEmailSender.cs` — implements `IEmailSender` using MailKit `SmtpClient` + `MimeMessage`; reads `IOptions<EmailOptions>`; `try/catch` + structured logging around send. Use `SecureSocketOptions.StartTls` for port 587.
+- `OwnPlanner.Infrastructure/Adapters/SmtpEmailSender.cs` — implements `IEmailSender` using MailKit `SmtpClient` + `MimeMessage`; takes `EmailOptions` directly; `try/catch` + structured logging around send. Use `SecureSocketOptions.StartTls` for port 587.
 - `OwnPlanner.Infrastructure/Adapters/LoggingEmailSender.cs` — implements `IEmailSender`; logs `to`, `subject`, and the full body (so the reset link is visible) at Information level. No network.
 
 ### 3. Reset-token storage (Domain + Infrastructure) — mirrors PAT
@@ -84,7 +84,7 @@ existing PAT token pattern.
 
 ### 5. DI wiring (Program.cs)
 In `OwnPlanner.Web/OwnPlanner.Web.Server/Program.cs`:
-- `builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection("Email"));`
+- `var emailOptions = builder.Configuration.GetSection("Email").Get<EmailOptions>() ?? new EmailOptions();` then `builder.Services.AddSingleton(emailOptions);` (mirrors the `UsageQuotaOptions` registration; adapters receive `EmailOptions` directly).
 - Register `IEmailSender` by provider:
   ```csharp
   var emailProvider = builder.Configuration["Email:Provider"]
