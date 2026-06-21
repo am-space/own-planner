@@ -1,11 +1,17 @@
 # OwnPlanner — Task List Token Reduction (pagination, UTF-8, slim projection)
 
+> **Archived — implemented.** This is the original implementation plan, kept for historical context.
+> The shipped design and rationale (including the SDK wire-encoder constraint discovered during
+> implementation) are recorded in
+> [ADR-0004: Task List Token Reduction](../adr/0004-task-list-token-reduction.md). Details below may
+> not reflect later refinements made during implementation.
+
 ## Context
 
 `taskitem_list_*` tools return the full task collection in a single unpaginated response. On a real
 account this produced **113 tasks = 73,293 characters (~20k+ tokens)** as one JSON payload, which
 exceeds the MCP tool-output token limit — the host spilled it to a file and the list never reached
-the model's context. (Source analysis: `docs/improvement.md`.)
+the model's context.
 
 A captured response from the web MCP endpoint (`taskitem_list_items`, 113 objects, single line,
 73,293 chars) confirms all three causes on that surface: **5,313 `\uXXXX` escapes**, **both
@@ -167,7 +173,7 @@ make the transport message serializer configurable, or fork+patch the SDK's tran
 maintenance — not worth it for the marginal size gain here).
 
 A ready-to-file upstream issue (with repro and the full list of verified dead-ends) is drafted at
-[`upstream-issue-mcp-wire-encoder.md`](upstream-issue-mcp-wire-encoder.md) — not yet filed.
+[`upstream-issue-mcp-wire-encoder.md`](../upstream-issue-mcp-wire-encoder.md) — not yet filed.
 
 ## Files to create / modify
 

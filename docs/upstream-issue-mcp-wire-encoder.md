@@ -3,7 +3,7 @@
 > **Not yet filed.** Ready-to-post issue for
 > [modelcontextprotocol/csharp-sdk](https://github.com/modelcontextprotocol/csharp-sdk). Paste the
 > body below into a new issue when ready. Context for *us* is in
-> [`task-list-token-reduction-plan.md`](task-list-token-reduction-plan.md) (step 6); this file is the
+> [`task-list-token-reduction-plan.md`](archive/task-list-token-reduction-plan.md) (step 6); this file is the
 > external-facing report, written to stand alone.
 
 ---
