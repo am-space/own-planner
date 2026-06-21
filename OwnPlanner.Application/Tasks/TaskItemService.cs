@@ -1,9 +1,16 @@
+using OwnPlanner.Application.Common;
 using OwnPlanner.Domain.Tasks;
 
 namespace OwnPlanner.Application.Tasks;
 
 public class TaskItemService(ITaskItemRepository repository, ITaskListRepository taskListRepository) : ITaskItemService
 {
+	/// <summary>Default page size when a caller does not specify a positive limit.</summary>
+	public const int DefaultPageLimit = 25;
+
+	/// <summary>Hard upper bound on page size, so a single page can never grow unbounded.</summary>
+	public const int MaxPageLimit = 100;
+
 	private readonly ITaskItemRepository _repository = repository;
 	private readonly ITaskListRepository _taskListRepository = taskListRepository;
 
@@ -116,6 +123,41 @@ public class TaskItemService(ITaskItemRepository repository, ITaskListRepository
 		var items = await _repository.ListByGoalAsync(goalId, includeCompleted, ct);
 		return items.Select(Map).ToList();
 	}
+
+	public async Task<PagedResult<TaskItemDto>> ListPagedAsync(bool includeCompleted, bool onlyImportant, int offset, int limit, CancellationToken ct = default)
+	{
+		var (o, l) = Normalize(offset, limit);
+		var (items, total) = await _repository.ListPagedAsync(includeCompleted, onlyImportant, o, l, ct);
+		return ToPage(items, total, o, l);
+	}
+
+	public async Task<PagedResult<TaskItemDto>> ListByTaskListPagedAsync(Guid taskListId, bool includeCompleted, bool onlyImportant, int offset, int limit, CancellationToken ct = default)
+	{
+		var (o, l) = Normalize(offset, limit);
+		var (items, total) = await _repository.ListByTaskListPagedAsync(taskListId, includeCompleted, onlyImportant, o, l, ct);
+		return ToPage(items, total, o, l);
+	}
+
+	public async Task<PagedResult<TaskItemDto>> ListByGoalPagedAsync(Guid goalId, bool includeCompleted, int offset, int limit, CancellationToken ct = default)
+	{
+		var (o, l) = Normalize(offset, limit);
+		var (items, total) = await _repository.ListByGoalPagedAsync(goalId, includeCompleted, o, l, ct);
+		return ToPage(items, total, o, l);
+	}
+
+	public async Task<PagedResult<TaskItemDto>> ListByFocusDatePagedAsync(DateTime focusDateUtc, bool includeCompleted, int offset, int limit, CancellationToken ct = default)
+	{
+		var (o, l) = Normalize(offset, limit);
+		var (items, total) = await _repository.ListByFocusDatePagedAsync(focusDateUtc, includeCompleted, o, l, ct);
+		return ToPage(items, total, o, l);
+	}
+
+	private static (int Offset, int Limit) Normalize(int offset, int limit) => (
+		Math.Max(0, offset),
+		Math.Clamp(limit <= 0 ? DefaultPageLimit : limit, 1, MaxPageLimit));
+
+	private static PagedResult<TaskItemDto> ToPage(IReadOnlyList<TaskItem> items, int total, int offset, int limit)
+		=> new(items.Select(Map).ToList(), total, offset, limit);
 
 	private static TaskItemDto Map(TaskItem item) => new(
 		item.Id,

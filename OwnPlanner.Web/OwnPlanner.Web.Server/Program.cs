@@ -187,6 +187,10 @@ namespace OwnPlanner.Web.Server
 					});
 				});
 
+				// Note: the MCP SDK (1.1.0) serializes tool output through a frozen
+				// JsonSerializerOptions singleton that ASCII-escapes non-ASCII, and it cannot be
+				// reconfigured. List payloads are kept small via the slim, paginated projection in
+				// the tool layer rather than via the serializer here.
 				builder.Services
 					.AddMcpServer()
 					.WithHttpTransport()
