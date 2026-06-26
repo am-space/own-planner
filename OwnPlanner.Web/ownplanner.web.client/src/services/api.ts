@@ -2,6 +2,8 @@
 import type {
   RegisterRequest,
   LoginRequest,
+  ForgotPasswordRequest,
+  ResetPasswordRequest,
   UserResponse,
   AuthResult,
   AuthCheckResponse,
@@ -85,6 +87,48 @@ class ApiService {
       success: true,
       user: data.user,
     };
+  }
+
+  async forgotPassword(email: string): Promise<{ success: boolean; errorMessage?: string }> {
+    const response = await fetch(`${this.baseUrl}/auth/forgot-password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email } satisfies ForgotPasswordRequest),
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        errorMessage: error.message || 'Failed to request password reset',
+      };
+    }
+
+    return { success: true };
+  }
+
+  async resetPassword(token: string, newPassword: string): Promise<{ success: boolean; errorMessage?: string }> {
+    const response = await fetch(`${this.baseUrl}/auth/reset-password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ token, newPassword } satisfies ResetPasswordRequest),
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        errorMessage: error.message || 'Failed to reset password',
+      };
+    }
+
+    return { success: true };
   }
 
   async logout(): Promise<void> {

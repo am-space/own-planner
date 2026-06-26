@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, Link as RouterLink } from 'react-router-dom';
+import { Link as RouterLink } from 'react-router-dom';
 import {
   Container,
   Box,
@@ -15,7 +15,7 @@ import {
 import LightModeIcon from '@mui/icons-material/LightMode';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
 import ContrastIcon from '@mui/icons-material/Contrast';
-import { useAuth } from '../contexts/useAuth';
+import { apiService } from '../services/api';
 import { useThemeContext } from '../contexts/ThemeContext';
 import type { ColorModePreference } from '../contexts/ThemeContext';
 import AboutDialog from '../components/AboutDialog';
@@ -34,15 +34,10 @@ const MODE_LABEL: Record<ColorModePreference, string> = {
   system: 'System mode',
 };
 
-export default function LoginPage() {
-  const navigate = useNavigate();
-  const { login } = useAuth();
+export default function ForgotPasswordPage() {
   const { mode: colorMode, setMode: setColorMode } = useThemeContext();
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-  });
-  const [error, setError] = useState('');
+  const [email, setEmail] = useState('');
+  const [submitted, setSubmitted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
 
@@ -51,30 +46,17 @@ export default function LoginPage() {
     setColorMode(next);
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
-    setError('');
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
     setIsLoading(true);
 
     try {
-      const result = await login(formData.email, formData.password);
-      if (result.success) {
-        navigate('/chat');
-      } else {
-        setError(result.error || 'Login failed');
-      }
-    } catch {
-      setError('An unexpected error occurred');
+      // Anti-enumeration: the response is identical regardless of whether the
+      // account exists, so we always show the same confirmation.
+      await apiService.forgotPassword(email);
     } finally {
       setIsLoading(false);
+      setSubmitted(true);
     }
   };
 
@@ -98,64 +80,59 @@ export default function LoginPage() {
         </Box>
         <Paper elevation={3} sx={{ p: 4, width: '100%' }}>
           <Typography component="h1" variant="h5" align="center" gutterBottom>
-            Sign In
+            Reset your password
           </Typography>
 
-          {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
-            </Alert>
-          )}
+          {submitted ? (
+            <>
+              <Alert severity="success" sx={{ mb: 2 }}>
+                If an account exists for that email, a password reset link has been sent.
+              </Alert>
+              <Box sx={{ textAlign: 'center' }}>
+                <Link component={RouterLink} to="/login" variant="body2">
+                  Back to sign in
+                </Link>
+              </Box>
+            </>
+          ) : (
+            <>
+              <Typography variant="body2" color="text.secondary" align="center" sx={{ mb: 2 }}>
+                Enter the email address for your account and we'll send you a link to reset your
+                password.
+              </Typography>
 
-          <Box component="form" onSubmit={handleSubmit} noValidate>
-            <TextField
-              margin="normal"
-              required
-              fullWidth
-              id="email"
-              label="Email Address"
-              name="email"
-              autoComplete="email"
-              autoFocus
-              variant="outlined"
-              value={formData.email}
-              onChange={handleChange}
-              disabled={isLoading}
-            />
-            <TextField
-              margin="normal"
-              required
-              fullWidth
-              name="password"
-              label="Password"
-              type="password"
-              id="password"
-              autoComplete="current-password"
-              variant="outlined"
-              value={formData.password}
-              onChange={handleChange}
-              disabled={isLoading}
-            />
-            <Button
-              type="submit"
-              fullWidth
-              variant="contained"
-              sx={{ mt: 3, mb: 2 }}
-              disabled={isLoading}
-            >
-              {isLoading ? 'Signing in...' : 'Sign In'}
-            </Button>
-            <Box sx={{ textAlign: 'center' }}>
-              <Link component={RouterLink} to="/forgot-password" variant="body2">
-                Forgot password?
-              </Link>
-            </Box>
-            <Box sx={{ mt: 1, textAlign: 'center' }}>
-              <Link component={RouterLink} to="/register" variant="body2">
-                Don't have an account? Sign up
-              </Link>
-            </Box>
-          </Box>
+              <Box component="form" onSubmit={handleSubmit} noValidate>
+                <TextField
+                  margin="normal"
+                  required
+                  fullWidth
+                  id="email"
+                  label="Email Address"
+                  name="email"
+                  autoComplete="email"
+                  autoFocus
+                  variant="outlined"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  disabled={isLoading}
+                />
+                <Button
+                  type="submit"
+                  fullWidth
+                  variant="contained"
+                  sx={{ mt: 3, mb: 2 }}
+                  disabled={isLoading}
+                >
+                  {isLoading ? 'Sending...' : 'Send reset link'}
+                </Button>
+                <Box sx={{ textAlign: 'center' }}>
+                  <Link component={RouterLink} to="/login" variant="body2">
+                    Back to sign in
+                  </Link>
+                </Box>
+              </Box>
+            </>
+          )}
         </Paper>
 
         {/* About Link */}
