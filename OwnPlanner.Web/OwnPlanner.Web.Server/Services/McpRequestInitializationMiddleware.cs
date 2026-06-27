@@ -1,6 +1,3 @@
-using System.Security.Claims;
-using OwnPlanner.Mcp.Tools;
-
 namespace OwnPlanner.Web.Server.Services;
 
 /// <summary>
@@ -13,19 +10,8 @@ public sealed class McpRequestInitializationMiddleware(PerUserAppInitializationS
 	{
 		if (context.User.Identity?.IsAuthenticated == true)
 		{
-			var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
-			if (string.IsNullOrWhiteSpace(userId))
-			{
-				throw new UnauthorizedAccessException("Authenticated user id is required for MCP access.");
-			}
-
-			var sessionId = context.User.FindFirstValue("SessionId");
 			await initializationService.EnsureInitializedAsync(
-				new SessionContext
-				{
-					SessionId = string.IsNullOrWhiteSpace(sessionId) ? $"mcp-{userId}" : sessionId,
-					UserId = userId
-				},
+				context.User.GetRequiredPlannerSessionContext("mcp"),
 				context.RequestAborted).ConfigureAwait(false);
 		}
 

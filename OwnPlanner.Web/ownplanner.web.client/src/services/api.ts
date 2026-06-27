@@ -322,6 +322,55 @@ class ApiService {
 
     return await response.json();
   }
+
+  // Account (GDPR) API methods
+
+  /**
+   * Downloads a ZIP export of the current user's planning data. Streams the response to a Blob and
+   * triggers a browser download, using the filename from the Content-Disposition header when present.
+   */
+  async exportAccountData(): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/account/export`, {
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      let message = 'Failed to export your data';
+      try { message = (JSON.parse(text) as { message?: string }).message || message; } catch { if (text) message = text; }
+      throw new Error(message);
+    }
+
+    const blob = await response.blob();
+    const fileName = parseContentDispositionFilename(response.headers.get('Content-Disposition'))
+      ?? `ownplanner-export-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}.zip`;
+
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = fileName;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    // Defer revoke: revoking synchronously after click() can cancel an in-progress download in
+    // some browsers (notably Firefox/Safari) before the blob has been fully read.
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  }
+}
+
+/** Extracts the filename from a Content-Disposition header value, if one is present. */
+function parseContentDispositionFilename(header: string | null): string | null {
+  if (!header) {
+    return null;
+  }
+
+  const utf8Match = /filename\*=UTF-8''([^;]+)/i.exec(header);
+  if (utf8Match) {
+    return decodeURIComponent(utf8Match[1]);
+  }
+
+  const asciiMatch = /filename="?([^";]+)"?/i.exec(header);
+  return asciiMatch ? asciiMatch[1] : null;
 }
 
 export const apiService = new ApiService();
