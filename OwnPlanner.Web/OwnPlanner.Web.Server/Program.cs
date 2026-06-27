@@ -168,6 +168,10 @@ namespace OwnPlanner.Web.Server
 						options.ExpireTimeSpan = TimeSpan.FromDays(7);
 						options.SlidingExpiration = true;
 						
+						// Reject cookies whose user has been deleted or deactivated, so erasure takes
+						// effect across all of the user's sessions on their next request.
+						options.Events.OnValidatePrincipal = CookiePrincipalValidator.ValidateAsync;
+
 						// Return 401 instead of redirecting to login page for API calls
 						options.Events.OnRedirectToLogin = context =>
 						{

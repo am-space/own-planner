@@ -51,6 +51,14 @@ password:
 history is dropped, signs out the cookie (`HttpContext.SignOutAsync`), and returns
 `200 { message: "Your account and all associated data have been permanently deleted." }`.
 
+`SignOutAsync` only clears the cookie on the requesting browser. To revoke the user's *other*
+sessions, cookie authentication is given an `OnValidatePrincipal` hook
+(`CookiePrincipalValidator.ValidateAsync`) that, on every request, rejects and signs out any cookie
+whose user no longer exists or is inactive. Without it, cookie auth is stateless and a deleted user's
+7-day cookie on another device would keep passing `[Authorize]` until expiry. (The MCP bearer scheme
+already re-validates its token against the DB per request, and the token is cascade-deleted with the
+account.)
+
 ### 3. Frontend
 
 A "Danger zone" section on the Settings page opens a confirmation dialog that states the action is
@@ -86,5 +94,6 @@ posts the request.
 | `OwnPlanner.Infrastructure/Persistence/IPlannerDbContextFactory.cs` | `DeleteUserDatabaseAsync` contract |
 | `OwnPlanner.Web/OwnPlanner.Web.Server/Services/PlannerAppDbContextFactory.cs` | Per-user DB file deletion (incl. WAL/SHM) |
 | `OwnPlanner.Web/OwnPlanner.Web.Server/Controllers/AccountController.cs` | `POST /api/account/delete`, session eviction + sign-out |
+| `OwnPlanner.Web/OwnPlanner.Web.Server/Authentication/CookiePrincipalValidator.cs` | Per-request cookie check that revokes deleted/inactive users across all sessions |
 | `OwnPlanner.Web/ownplanner.web.client/src/services/api.ts` | `deleteAccount()` |
 | `OwnPlanner.Web/ownplanner.web.client/src/pages/SettingsPage.tsx` | "Danger zone" delete dialog |

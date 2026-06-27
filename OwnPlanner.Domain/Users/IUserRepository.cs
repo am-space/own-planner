@@ -12,4 +12,9 @@ public interface IUserRepository
 	Task<User> AddAsync(User user, CancellationToken cancellationToken = default);
 	Task<User> UpdateAsync(User user, CancellationToken cancellationToken = default);
 	Task DeleteAsync(Guid id, CancellationToken cancellationToken = default);
+
+	/// <summary>
+	/// Deletes an already-loaded user, avoiding a redundant lookup when the caller holds the entity.
+	/// </summary>
+	Task DeleteAsync(User user, CancellationToken cancellationToken = default);
 }

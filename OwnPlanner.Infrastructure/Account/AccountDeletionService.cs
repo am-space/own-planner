@@ -39,7 +39,8 @@ public sealed class AccountDeletionService(
 		}
 
 		// Remove the auth record (cascades all dependent auth data) before touching the planner DB.
-		await userRepository.DeleteAsync(userId, cancellationToken);
+		// Pass the already-loaded entity so the repository doesn't re-query it.
+		await userRepository.DeleteAsync(user, cancellationToken);
 		logger.LogInformation("Deleted auth records for user {UserId}", userId);
 
 		// Delete the per-user planner database file. Best-effort: the account is already gone, so a
