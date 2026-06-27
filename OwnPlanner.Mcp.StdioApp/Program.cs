@@ -118,7 +118,12 @@ namespace OwnPlanner.Mcp.StdioApp
 					// Inbox seeder
 					services.AddScoped<IInboxSeeder, InboxSeeder>();
 
-					// MCP server (stdio transport + register tools via DI)
+					// MCP server (stdio transport + register tools via DI).
+					// Note: the MCP SDK serializes the final JSON-RPC message through a frozen
+					// JsonSerializerOptions singleton that ASCII-escapes non-ASCII. Per-tool
+					// WithTools(options) governs only result→content conversion, not the wire encoder,
+					// so it cannot fix escaping (confirmed on 1.1.0 and 1.4.0). List payloads are kept
+					// small via the slim, paginated projection in the tool layer instead.
 					services
 						.AddMcpServer()
 						.WithStdioServerTransport()

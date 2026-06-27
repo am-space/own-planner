@@ -375,4 +375,71 @@ public class TaskItemServiceTests
 		result.Should().HaveCount(2);
 		result.Should().OnlyContain(x => x.GoalId == goalId);
 	}
+
+	[Fact]
+	public async Task ListPagedAsync_MapsItems_AndComputesPaging()
+	{
+		var ct = TestContext.Current.CancellationToken;
+		var listId = Guid.NewGuid();
+		var items = new[] { new TaskItem("a", listId), new TaskItem("b", listId) }.ToList();
+		_repo.ListPagedAsync(false, false, 0, 25, ct).Returns((items, 10));
+
+		var page = await _svc.ListPagedAsync(false, false, 0, 25, ct);
+
+		page.Items.Should().HaveCount(2);
+		page.TotalCount.Should().Be(10);
+		page.Offset.Should().Be(0);
+		page.Limit.Should().Be(25);
+		page.HasMore.Should().BeTrue(); // 0 + 2 < 10
+	}
+
+	[Fact]
+	public async Task ListPagedAsync_HasMoreFalse_WhenPageReachesEnd()
+	{
+		var ct = TestContext.Current.CancellationToken;
+		var listId = Guid.NewGuid();
+		var items = new[] { new TaskItem("a", listId), new TaskItem("b", listId) }.ToList();
+		_repo.ListPagedAsync(false, false, 8, 25, ct).Returns((items, 10));
+
+		var page = await _svc.ListPagedAsync(false, false, 8, 25, ct);
+
+		page.HasMore.Should().BeFalse(); // 8 + 2 == 10
+	}
+
+	[Fact]
+	public async Task ListPagedAsync_ClampsLimitToMax()
+	{
+		var ct = TestContext.Current.CancellationToken;
+		_repo.ListPagedAsync(false, false, 0, TaskItemService.MaxPageLimit, ct)
+			.Returns(([], 0));
+
+		var page = await _svc.ListPagedAsync(false, false, 0, 5000, ct);
+
+		page.Limit.Should().Be(TaskItemService.MaxPageLimit);
+		await _repo.Received(1).ListPagedAsync(false, false, 0, TaskItemService.MaxPageLimit, ct);
+	}
+
+	[Fact]
+	public async Task ListPagedAsync_NonPositiveLimit_FallsBackToDefault()
+	{
+		var ct = TestContext.Current.CancellationToken;
+		_repo.ListPagedAsync(false, false, 0, TaskItemService.DefaultPageLimit, ct)
+			.Returns(([], 0));
+
+		var page = await _svc.ListPagedAsync(false, false, 0, 0, ct);
+
+		page.Limit.Should().Be(TaskItemService.DefaultPageLimit);
+	}
+
+	[Fact]
+	public async Task ListPagedAsync_FloorsNegativeOffsetToZero()
+	{
+		var ct = TestContext.Current.CancellationToken;
+		_repo.ListPagedAsync(false, false, 0, 25, ct).Returns(([], 0));
+
+		var page = await _svc.ListPagedAsync(false, false, -5, 25, ct);
+
+		page.Offset.Should().Be(0);
+		await _repo.Received(1).ListPagedAsync(false, false, 0, 25, ct);
+	}
 }

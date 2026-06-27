@@ -80,4 +80,13 @@ public sealed class ToolResultJsonTests
 			element.TryGetProperty("updatedAt", out _).Should().BeFalse();
 		}
 	}
+
+	[Fact]
+	public void Serialize_EmitsNonAsciiAsUtf8_NotEscaped()
+	{
+		var raw = JsonSerializer.Serialize(SampleTask(description: "Забронировать"), ToolResultJson.Options);
+
+		raw.Should().Contain("Забронировать");
+		raw.Should().NotContain("\\u04");
+	}
 }

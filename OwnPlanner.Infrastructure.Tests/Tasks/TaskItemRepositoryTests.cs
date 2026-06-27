@@ -347,4 +347,120 @@ public class TaskItemRepositoryTests
 
 		result.Should().BeEmpty();
 	}
+
+	[Fact]
+	public async Task ListPagedAsync_OrdersByFocusDateAscending_WithNullsLast()
+	{
+		using var db = CreateDb(out var conn);
+		await using var _ = conn;
+		var ct = TestContext.Current.CancellationToken;
+		var dbContextFactory = new TestPlannerDbContextFactory(conn);
+		var repo = new TaskItemRepository(dbContextFactory);
+		var listRepo = new TaskListRepository(dbContextFactory);
+
+		var list = new TaskList("Test List");
+		await listRepo.AddAsync(list, ct);
+
+		var backlog = new TaskItem("backlog", list.Id);                 // no focus date → last
+		var later = new TaskItem("later", list.Id);
+		later.SetFocusAt(new DateTime(2026, 6, 25, 0, 0, 0, DateTimeKind.Utc));
+		var soon = new TaskItem("soon", list.Id);
+		soon.SetFocusAt(new DateTime(2026, 6, 21, 0, 0, 0, DateTimeKind.Utc));
+		// Insert in non-sorted order to prove ordering is applied, not insertion order.
+		await repo.AddAsync(backlog, ct);
+		await repo.AddAsync(later, ct);
+		await repo.AddAsync(soon, ct);
+
+		var (items, total) = await repo.ListPagedAsync(includeCompleted: true, onlyImportant: false, offset: 0, limit: 25, ct);
+
+		total.Should().Be(3);
+		items.Select(t => t.Title).Should().ContainInOrder("soon", "later", "backlog");
+	}
+
+	[Fact]
+	public async Task ListPagedAsync_SameFocusDate_OrdersByUpdatedAtDescending()
+	{
+		using var db = CreateDb(out var conn);
+		await using var _ = conn;
+		var ct = TestContext.Current.CancellationToken;
+		var dbContextFactory = new TestPlannerDbContextFactory(conn);
+		var repo = new TaskItemRepository(dbContextFactory);
+		var listRepo = new TaskListRepository(dbContextFactory);
+
+		var list = new TaskList("Test List");
+		await listRepo.AddAsync(list, ct);
+
+		var focus = new DateTime(2026, 6, 21, 0, 0, 0, DateTimeKind.Utc);
+		var first = new TaskItem("first", list.Id);
+		var second = new TaskItem("second", list.Id);
+		first.SetFocusAt(focus);
+		second.SetFocusAt(focus);
+		await repo.AddAsync(first, ct);
+		await repo.AddAsync(second, ct);
+
+		// Touch 'first' last so it has the most recent UpdatedAt.
+		first.SetDescription("touched");
+		await repo.UpdateAsync(first, ct);
+
+		var (items, _) = await repo.ListPagedAsync(includeCompleted: true, onlyImportant: false, offset: 0, limit: 25, ct);
+
+		items.Select(t => t.Title).Should().ContainInOrder("first", "second");
+	}
+
+	[Fact]
+	public async Task ListPagedAsync_Paginates_WithoutSkippingOrRepeating()
+	{
+		using var db = CreateDb(out var conn);
+		await using var _ = conn;
+		var ct = TestContext.Current.CancellationToken;
+		var dbContextFactory = new TestPlannerDbContextFactory(conn);
+		var repo = new TaskItemRepository(dbContextFactory);
+		var listRepo = new TaskListRepository(dbContextFactory);
+
+		var list = new TaskList("Test List");
+		await listRepo.AddAsync(list, ct);
+
+		for (var i = 0; i < 10; i++)
+			await repo.AddAsync(new TaskItem($"task-{i}", list.Id), ct);
+
+		var page1 = await repo.ListPagedAsync(true, false, offset: 0, limit: 4, ct);
+		var page2 = await repo.ListPagedAsync(true, false, offset: 4, limit: 4, ct);
+		var page3 = await repo.ListPagedAsync(true, false, offset: 8, limit: 4, ct);
+
+		page1.TotalCount.Should().Be(10);
+		page1.Items.Should().HaveCount(4);
+		page2.Items.Should().HaveCount(4);
+		page3.Items.Should().HaveCount(2);
+
+		var all = page1.Items.Concat(page2.Items).Concat(page3.Items).Select(t => t.Id).ToList();
+		all.Should().OnlyHaveUniqueItems();
+		all.Should().HaveCount(10);
+	}
+
+	[Fact]
+	public async Task ListPagedAsync_FiltersOnlyImportant_AndExcludesCompleted()
+	{
+		using var db = CreateDb(out var conn);
+		await using var _ = conn;
+		var ct = TestContext.Current.CancellationToken;
+		var dbContextFactory = new TestPlannerDbContextFactory(conn);
+		var repo = new TaskItemRepository(dbContextFactory);
+		var listRepo = new TaskListRepository(dbContextFactory);
+
+		var list = new TaskList("Test List");
+		await listRepo.AddAsync(list, ct);
+
+		var important = new TaskItem("important", list.Id, isImportant: true);
+		var normal = new TaskItem("normal", list.Id);
+		var importantDone = new TaskItem("important-done", list.Id, isImportant: true);
+		importantDone.Complete();
+		await repo.AddAsync(important, ct);
+		await repo.AddAsync(normal, ct);
+		await repo.AddAsync(importantDone, ct);
+
+		var (items, total) = await repo.ListPagedAsync(includeCompleted: false, onlyImportant: true, offset: 0, limit: 25, ct);
+
+		total.Should().Be(1);
+		items.Should().ContainSingle(t => t.Title == "important");
+	}
 }
