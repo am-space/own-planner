@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using ModelContextProtocol.Server;
+using OwnPlanner.Application.Common;
 using OwnPlanner.Application.Tasks;
 
 namespace OwnPlanner.Mcp.Tools;
@@ -7,6 +8,14 @@ namespace OwnPlanner.Mcp.Tools;
 [McpServerToolType]
 public class TaskItemTools
 {
+	/// <summary>
+	/// Maximum number of original <see cref="TaskItemDto.Description"/> characters kept by list tools
+	/// before truncation. Full description is available via <c>taskitem_get</c>. Keeps list payloads
+	/// small so they don't dominate the model's context.
+	/// </summary>
+	private const int DescriptionPreviewMaxLength = 200;
+	private const string TruncationSuffix = "… [truncated — call taskitem_get for full description]";
+
 	private readonly ITaskItemService _service;
 
 	public TaskItemTools(ITaskItemService service)
@@ -41,24 +50,14 @@ public class TaskItemTools
 		return dto;
 	}
 
-	[McpServerTool(Name = "taskitem_list_items", Idempotent = true, ReadOnly = true), Description("List tasks. If taskListId is provided, lists tasks by task list id; otherwise, lists all tasks. Set includeCompleted=true to get also completed tasks.")]
-	public async Task<object> ListTasks(Guid? taskListId = null, bool onlyImportant = false, bool includeCompleted = false)
+	[McpServerTool(Name = "taskitem_list_items", Idempotent = true, ReadOnly = true), Description("List tasks (paginated, default 25 per page, max 100). If taskListId is provided, lists tasks by that list; otherwise lists all tasks. Ordered by planned focus date (soonest first, unscheduled last), then most recently updated. Returns { items, totalCount, offset, limit, hasMore }; increase offset to page when hasMore is true. Each item's description is a short preview — call taskitem_get for the full description. Set includeCompleted=true to also include completed tasks.")]
+	public async Task<object> ListTasks(Guid? taskListId = null, bool onlyImportant = false, bool includeCompleted = false, int limit = 25, int offset = 0)
 	{
-		IEnumerable<TaskItemDto> list;
-		if (taskListId.HasValue)
-		{
-			list = await _service.ListByTaskListAsync(taskListId.Value, includeCompleted);
-		}
-		else
-		{
-			list = await _service.ListAsync(includeCompleted);
-		}
+		var page = taskListId.HasValue
+			? await _service.ListByTaskListPagedAsync(taskListId.Value, includeCompleted, onlyImportant, offset, limit)
+			: await _service.ListPagedAsync(includeCompleted, onlyImportant, offset, limit);
 
-		if (onlyImportant)
-		{
-			list = list.Where(x => x.IsImportant);
-		}
-		return list.ToList();
+		return ToEnvelope(page);
 	}
 
 	[McpServerTool(Name = "taskitem_update"), Description("Update a task. Provide id and the fields to update (title, description, dueAt, or goalId). dueAt is for real deadlines only. Set clearGoalId=true to remove the goal association.")]
@@ -84,11 +83,11 @@ public class TaskItemTools
 		}
 	}
 
-	[McpServerTool(Name = "taskitem_list_by_goal", Idempotent = true, ReadOnly = true), Description("List tasks linked to a specific goal. Set includeCompleted=true to also return completed tasks.")]
-	public async Task<object> ListTasksByGoal(Guid goalId, bool includeCompleted = false)
+	[McpServerTool(Name = "taskitem_list_by_goal", Idempotent = true, ReadOnly = true), Description("List tasks linked to a specific goal (paginated, default 25 per page, max 100). Ordered by planned focus date (soonest first, unscheduled last), then most recently updated. Returns { items, totalCount, offset, limit, hasMore }; increase offset to page when hasMore is true. Each item's description is a short preview — call taskitem_get for the full description. Set includeCompleted=true to also return completed tasks.")]
+	public async Task<object> ListTasksByGoal(Guid goalId, bool includeCompleted = false, int limit = 25, int offset = 0)
 	{
-		var list = await _service.ListByGoalAsync(goalId, includeCompleted);
-		return list.ToList();
+		var page = await _service.ListByGoalPagedAsync(goalId, includeCompleted, offset, limit);
+		return ToEnvelope(page);
 	}
 
 	[McpServerTool(Name = "taskitem_assign"), Description("Assign a task to a different list.")]
@@ -161,8 +160,8 @@ public class TaskItemTools
 		}
 	}
 
-	[McpServerTool(Name = "taskitem_list_by_focus_date", Idempotent = true, ReadOnly = true), Description("List tasks by focus date (My Day / planned work date). focusDate represents when you plan to work on the task, not the task deadline. If focusDate is empty, uses current UTC date. Set includeCompleted=true to get also completed tasks.")]
-	public async Task<object> ListTasksByFocusDate(string? focusDate = null, bool includeCompleted = false)
+	[McpServerTool(Name = "taskitem_list_by_focus_date", Idempotent = true, ReadOnly = true), Description("List tasks by focus date (My Day / planned work date), paginated (default 25 per page, max 100). focusDate represents when you plan to work on the task, not the task deadline. If focusDate is empty, uses current UTC date. Returns { items, totalCount, offset, limit, hasMore }; increase offset to page when hasMore is true. Each item's description is a short preview — call taskitem_get for the full description. Set includeCompleted=true to also include completed tasks.")]
+	public async Task<object> ListTasksByFocusDate(string? focusDate = null, bool includeCompleted = false, int limit = 25, int offset = 0)
 	{
 		DateTime date;
 		if (string.IsNullOrWhiteSpace(focusDate))
@@ -173,8 +172,8 @@ public class TaskItemTools
 		{
 			return new { error = "Invalid date format for focusDate" };
 		}
-		var list = await _service.ListByFocusDateAsync(date, includeCompleted);
-		return list.ToList();
+		var page = await _service.ListByFocusDatePagedAsync(date, includeCompleted, offset, limit);
+		return ToEnvelope(page);
 	}
 
 	[McpServerTool(Name = "taskitem_set_focus_date"), Description("Set or clear the focus date (My Day / planned work date) for a task. Use this for weekly planning to decide when to work on a task. This is separate from dueAt, which is for real deadlines. Provide id and focusDate. If focusDate is empty, clears the focus date.")]
@@ -204,5 +203,36 @@ public class TaskItemTools
 			return new { error = ex.Message };
 		}
 	}
+
+	/// <summary>
+	/// Wraps a page in the tool envelope, projecting each task to the slim <see cref="TaskItemListDto"/>
+	/// (no audit timestamps) with a truncated description preview. The shape tells the model the page
+	/// bounds and whether to keep paging.
+	/// </summary>
+	private static object ToEnvelope(PagedResult<TaskItemDto> page) => new
+	{
+		items = page.Items.Select(ToListItem).ToList(),
+		totalCount = page.TotalCount,
+		offset = page.Offset,
+		limit = page.Limit,
+		hasMore = page.HasMore
+	};
+
+	private static TaskItemListDto ToListItem(TaskItemDto dto) => new(
+		dto.Id,
+		dto.Title,
+		TruncateDescription(dto.Description),
+		dto.IsCompleted,
+		dto.IsImportant,
+		dto.DueAt,
+		dto.CompletedAt,
+		dto.TaskListId,
+		dto.FocusAt,
+		dto.GoalId);
+
+	private static string? TruncateDescription(string? description)
+		=> string.IsNullOrEmpty(description) || description.Length <= DescriptionPreviewMaxLength
+			? description
+			: description[..DescriptionPreviewMaxLength] + TruncationSuffix;
 }
 

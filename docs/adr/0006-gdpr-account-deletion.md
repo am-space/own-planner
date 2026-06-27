@@ -1,4 +1,4 @@
-# ADR-0005: GDPR account deletion
+# ADR-0006: GDPR account deletion
 
 **Date:** 2026-06-27  
 **Status:** Accepted  

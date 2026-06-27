@@ -75,6 +75,7 @@ namespace OwnPlanner.Web.Server
 				builder.Services.AddHttpContextAccessor();
 				builder.Services.AddSingleton<IPlannerSessionContextAccessor, PlannerSessionContextAccessor>();
 				builder.Services.AddSingleton<PerUserAppInitializationService>();
+				builder.Services.AddSingleton<IPerUserAppInitializationService>(sp => sp.GetRequiredService<PerUserAppInitializationService>());
 				builder.Services.AddTransient<McpRequestInitializationMiddleware>();
 				builder.Services.AddScoped<SessionContext>(sp =>
 				{
@@ -111,7 +112,9 @@ namespace OwnPlanner.Web.Server
 				builder.Services.AddScoped<IPlanningContextService, PlanningContextService>();
 				builder.Services.AddScoped<IInboxSeeder, InboxSeeder>();
 				builder.Services.AddScoped<IUsageQuotaService, UsageQuotaService>();
+				builder.Services.AddScoped<IAccountExportService, AccountExportService>();
 				builder.Services.AddScoped<IAccountDeletionService, AccountDeletionService>();
+				builder.Services.AddHostedService<ExportTempFileCleanupService>();
 
 				// Configure usage quota: bound limits (singleton instance) + in-memory burst window (singleton)
 				var usageQuotaOptions = builder.Configuration.GetSection("UsageQuota").Get<UsageQuotaOptions>() ?? new UsageQuotaOptions();
@@ -191,6 +194,10 @@ namespace OwnPlanner.Web.Server
 					});
 				});
 
+				// Note: the MCP SDK serializes tool output through a frozen
+				// JsonSerializerOptions singleton that ASCII-escapes non-ASCII, and it cannot be
+				// reconfigured (confirmed on 1.1.0 and 1.4.0). List payloads are kept small via the
+				// slim, paginated projection in the tool layer rather than via the serializer here.
 				builder.Services
 					.AddMcpServer()
 					.WithHttpTransport()

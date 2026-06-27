@@ -24,6 +24,7 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import DeleteForeverIcon from '@mui/icons-material/DeleteForever';
+import DownloadIcon from '@mui/icons-material/Download';
 import { apiService } from '../services/api';
 import type { PersonalAccessTokenCreatedResponse, PersonalAccessTokenResponse } from '../types/api.types';
 
@@ -35,6 +36,7 @@ export default function SettingsPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [copyNotice, setCopyNotice] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletePassword, setDeletePassword] = useState('');
@@ -88,6 +90,18 @@ export default function SettingsPage() {
       setError(err instanceof Error ? err.message : 'Failed to revoke personal access token');
     } finally {
       setBusy(false);
+    }
+  };
+
+  const handleExport = async () => {
+    setExporting(true);
+    setError(null);
+    try {
+      await apiService.exportAccountData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to export your data');
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -267,6 +281,25 @@ export default function SettingsPage() {
             </Box>
           </>
         )}
+      </Paper>
+
+      <Paper sx={{ p: 3, mt: 3 }}>
+        <Typography variant="h6" gutterBottom>
+          Your data
+        </Typography>
+        <Divider sx={{ mb: 2 }} />
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          Download a complete copy of your planning data — contexts, goals, task lists and tasks,
+          and note lists and notes — as a ZIP containing a standard SQLite database file.
+        </Typography>
+        <Button
+          variant="outlined"
+          startIcon={<DownloadIcon />}
+          onClick={handleExport}
+          disabled={exporting}
+        >
+          {exporting ? 'Preparing…' : 'Export your data'}
+        </Button>
       </Paper>
 
       <Paper variant="outlined" sx={{ p: 3, mt: 3, borderColor: 'error.main' }}>

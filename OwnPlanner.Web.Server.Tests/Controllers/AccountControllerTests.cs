@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using OwnPlanner.Application.Account;
+using OwnPlanner.Mcp.Tools;
 using OwnPlanner.Web.Server.Controllers;
 using OwnPlanner.Web.Server.Services;
 
@@ -17,14 +18,17 @@ public class AccountControllerTests
 	private const string TestUserId = "11111111-1111-1111-1111-111111111111";
 	private const string TestSessionId = "test-session-id";
 
+	private readonly IAccountExportService _exportService = Substitute.For<IAccountExportService>();
 	private readonly IAccountDeletionService _deletionService = Substitute.For<IAccountDeletionService>();
+	private readonly IPerUserAppInitializationService _initializationService = Substitute.For<IPerUserAppInitializationService>();
 	private readonly IChatSessionManager _sessionManager = Substitute.For<IChatSessionManager>();
 	private readonly IAuthenticationService _authenticationService = Substitute.For<IAuthenticationService>();
 	private readonly ILogger<AccountController> _logger = Substitute.For<ILogger<AccountController>>();
 
 	private AccountController CreateController(string? userId = TestUserId)
 	{
-		var controller = new AccountController(_deletionService, _sessionManager, _logger);
+		var controller = new AccountController(
+			_exportService, _deletionService, _initializationService, _sessionManager, _logger);
 
 		var claims = new List<Claim> { new("SessionId", TestSessionId) };
 		if (userId is not null)
@@ -46,6 +50,61 @@ public class AccountControllerTests
 		};
 		return controller;
 	}
+
+	// --- ExportData ---
+
+	[Fact]
+	public async Task ExportData_AuthenticatedUser_ReturnsZipFileResult()
+	{
+		var tempFile = Path.Combine(Path.GetTempPath(), $"ownplanner-export-test-{Guid.NewGuid():N}.zip");
+		await File.WriteAllBytesAsync(tempFile, [1, 2, 3], TestContext.Current.CancellationToken);
+		_exportService.CreateExportAsync(Arg.Any<CancellationToken>())
+			.Returns(new AccountExport(tempFile, "ownplanner-export-20260627.zip", "application/zip"));
+
+		var controller = CreateController();
+
+		try
+		{
+			var result = await controller.ExportData(TestContext.Current.CancellationToken);
+
+			var fileResult = result.Should().BeOfType<FileStreamResult>().Subject;
+			fileResult.ContentType.Should().Be("application/zip");
+			fileResult.FileDownloadName.Should().Be("ownplanner-export-20260627.zip");
+
+			// The per-user database must be initialized (migrated/seeded) before it is snapshotted,
+			// so a user who exports before ever chatting doesn't get an empty file.
+			Received.InOrder(() =>
+			{
+				_initializationService.EnsureInitializedAsync(
+					Arg.Is<SessionContext>(c => c.UserId == TestUserId), Arg.Any<CancellationToken>());
+				_exportService.CreateExportAsync(Arg.Any<CancellationToken>());
+			});
+
+			// Dispose the result stream so the FileStream releases its handle before cleanup.
+			await fileResult.FileStream.DisposeAsync();
+		}
+		finally
+		{
+			if (File.Exists(tempFile))
+			{
+				File.Delete(tempFile);
+			}
+		}
+	}
+
+	[Fact]
+	public async Task ExportData_InvalidUserClaim_ReturnsUnauthorized()
+	{
+		var controller = CreateController(userId: null);
+
+		var result = await controller.ExportData(TestContext.Current.CancellationToken);
+
+		result.Should().BeOfType<UnauthorizedObjectResult>();
+		await _initializationService.DidNotReceive().EnsureInitializedAsync(Arg.Any<SessionContext>(), Arg.Any<CancellationToken>());
+		await _exportService.DidNotReceive().CreateExportAsync(Arg.Any<CancellationToken>());
+	}
+
+	// --- DeleteAccount ---
 
 	[Fact]
 	public async Task DeleteAccount_MissingPassword_ReturnsBadRequest()

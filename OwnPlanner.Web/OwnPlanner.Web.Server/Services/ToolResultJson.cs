@@ -1,3 +1,4 @@
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
@@ -13,6 +14,9 @@ namespace OwnPlanner.Web.Server.Services;
 /// <item>the audit timestamps <c>CreatedAt</c>/<c>UpdatedAt</c> are dropped — they are never used by the
 /// model (ordering happens server-side). Functional dates such as <c>dueAt</c>/<c>focusAt</c> are kept,
 /// in ISO 8601.</item>
+/// <item>non-ASCII is emitted as UTF-8 rather than <c>\uXXXX</c> escapes, so Cyrillic and other
+/// scripts cost ~2 bytes per character instead of 6. Output is JSON over MCP, not HTML, so relaxed
+/// escaping is safe (control characters are still escaped).</item>
 /// </list>
 /// This only affects what the model sees; the web/UI path serializes DTOs through its own pipeline.
 /// </summary>
@@ -21,6 +25,7 @@ internal static class ToolResultJson
 	public static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.Web)
 	{
 		DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+		Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
 		TypeInfoResolver = new DefaultJsonTypeInfoResolver
 		{
 			Modifiers = { DropAuditTimestamps }

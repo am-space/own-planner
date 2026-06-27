@@ -22,6 +22,7 @@ public sealed class PerUserAppInitializationService(
 	IServiceScopeFactory scopeFactory,
 	IPlannerSessionContextAccessor sessionContextAccessor,
 	ILogger<PerUserAppInitializationService> logger)
+	: IPerUserAppInitializationService
 {
 	// TODO: _initializations retains a completed entry for every user ever seen by this process.
 	// In a long-running deployment with many users this can grow without bound.
