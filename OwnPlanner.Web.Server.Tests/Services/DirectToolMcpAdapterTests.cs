@@ -274,6 +274,9 @@ public sealed class DirectToolMcpAdapterTests : IDisposable
 				.Options;
 			return ValueTask.FromResult(new AppDbContext(options));
 		}
+
+		public Task DeleteUserDatabaseAsync(string userId, CancellationToken cancellationToken = default)
+			=> Task.CompletedTask;
 	}
 }
 

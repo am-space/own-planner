@@ -86,7 +86,8 @@ namespace OwnPlanner.Web.Server
 					new PlannerAppDbContextFactory(
 						userDbDirectory,
 						serviceProvider.GetRequiredService<IPlannerSessionContextAccessor>(),
-						serviceProvider.GetRequiredService<IHttpContextAccessor>()));
+						serviceProvider.GetRequiredService<IHttpContextAccessor>(),
+						serviceProvider.GetRequiredService<ILogger<PlannerAppDbContextFactory>>()));
 
 				// Register repositories
 				builder.Services.AddScoped<IUserRepository, UserRepository>();
@@ -112,6 +113,7 @@ namespace OwnPlanner.Web.Server
 				builder.Services.AddScoped<IInboxSeeder, InboxSeeder>();
 				builder.Services.AddScoped<IUsageQuotaService, UsageQuotaService>();
 				builder.Services.AddScoped<IAccountExportService, AccountExportService>();
+				builder.Services.AddScoped<IAccountDeletionService, AccountDeletionService>();
 				builder.Services.AddHostedService<ExportTempFileCleanupService>();
 
 				// Configure usage quota: bound limits (singleton instance) + in-memory burst window (singleton)
@@ -166,6 +168,11 @@ namespace OwnPlanner.Web.Server
 						options.ExpireTimeSpan = TimeSpan.FromDays(7);
 						options.SlidingExpiration = true;
 						
+						// Reject cookies whose user has been deleted or deactivated, so erasure takes
+						// effect across all of the user's sessions (re-checked at most once per
+						// validation interval).
+						options.Events.OnValidatePrincipal = CookiePrincipalValidator.ValidateAsync;
+
 						// Return 401 instead of redirecting to login page for API calls
 						options.Events.OnRedirectToLogin = context =>
 						{

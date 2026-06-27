@@ -1,6 +1,8 @@
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using OwnPlanner.Domain.Tasks;
 using OwnPlanner.Infrastructure.Persistence;
 using OwnPlanner.Infrastructure.Repositories;
@@ -77,17 +79,57 @@ public sealed class PlannerAppDbContextFactoryTests : IDisposable
 		File.Exists(Path.Combine(_tempDirectory, "ownplanner-user-user-123.db")).Should().BeTrue();
 	}
 
+	[Fact]
+	public async Task DeleteUserDatabaseAsync_RemovesDatabaseAndWalSidecars()
+	{
+		Directory.CreateDirectory(_tempDirectory);
+		var dbPath = Path.Combine(_tempDirectory, "ownplanner-user-user-123.db");
+		foreach (var path in new[] { dbPath, $"{dbPath}-wal", $"{dbPath}-shm" })
+		{
+			await File.WriteAllTextAsync(path, "x", TestContext.Current.CancellationToken);
+		}
+
+		var factory = new PlannerAppDbContextFactory(
+			_tempDirectory,
+			new PlannerSessionContextAccessor(),
+			new HttpContextAccessor(),
+			NullLogger<PlannerAppDbContextFactory>.Instance);
+
+		await factory.DeleteUserDatabaseAsync("user-123", TestContext.Current.CancellationToken);
+
+		File.Exists(dbPath).Should().BeFalse();
+		File.Exists($"{dbPath}-wal").Should().BeFalse();
+		File.Exists($"{dbPath}-shm").Should().BeFalse();
+	}
+
+	[Fact]
+	public async Task DeleteUserDatabaseAsync_MissingDatabase_DoesNotThrow()
+	{
+		Directory.CreateDirectory(_tempDirectory);
+		var factory = new PlannerAppDbContextFactory(
+			_tempDirectory,
+			new PlannerSessionContextAccessor(),
+			new HttpContextAccessor(),
+			NullLogger<PlannerAppDbContextFactory>.Instance);
+
+		var act = async () => await factory.DeleteUserDatabaseAsync("ghost", TestContext.Current.CancellationToken);
+
+		await act.Should().NotThrowAsync();
+	}
+
 	private ServiceCollection CreateServices()
 	{
 		Directory.CreateDirectory(_tempDirectory);
 		var services = new ServiceCollection();
+		services.AddLogging();
 		services.AddHttpContextAccessor();
 		services.AddSingleton<IPlannerSessionContextAccessor, PlannerSessionContextAccessor>();
 		services.AddScoped<IPlannerDbContextFactory>(serviceProvider =>
 			new PlannerAppDbContextFactory(
 				_tempDirectory,
 				serviceProvider.GetRequiredService<IPlannerSessionContextAccessor>(),
-				serviceProvider.GetRequiredService<IHttpContextAccessor>()));
+				serviceProvider.GetRequiredService<IHttpContextAccessor>(),
+				serviceProvider.GetRequiredService<ILogger<PlannerAppDbContextFactory>>()));
 		services.AddScoped<ITaskItemRepository, TaskItemRepository>();
 		return services;
 	}

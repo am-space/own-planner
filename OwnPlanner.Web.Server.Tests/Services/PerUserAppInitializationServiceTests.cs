@@ -155,6 +155,9 @@ public sealed class PerUserAppInitializationServiceTests : IDisposable
 				.Options;
 			return ValueTask.FromResult(new AppDbContext(options));
 		}
+
+		public Task DeleteUserDatabaseAsync(string userId, CancellationToken cancellationToken = default)
+			=> Task.CompletedTask;
 	}
 
 	private sealed class AttemptCounter
