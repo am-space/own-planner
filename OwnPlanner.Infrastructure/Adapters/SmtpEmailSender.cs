@@ -23,6 +23,13 @@ public class SmtpEmailSender(EmailOptions options, ILogger<SmtpEmailSender> logg
 			message.Body = new BodyBuilder { HtmlBody = htmlBody }.ToMessageBody();
 
 			using var client = new SmtpClient();
+
+			// Don't perform CRL/OCSP revocation checks during the TLS handshake. In minimal
+			// container images the revocation endpoints are typically unreachable, which makes
+			// MailKit reject an otherwise-valid relay certificate ("unable to get certificate CRL").
+			// The connection is still fully TLS-encrypted to the configured host.
+			client.CheckCertificateRevocation = false;
+
 			await client.ConnectAsync(options.Host, options.Port, SecureSocketOptions.StartTls, ct);
 
 			if (!string.IsNullOrWhiteSpace(options.User))
