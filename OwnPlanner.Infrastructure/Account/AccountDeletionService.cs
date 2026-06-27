@@ -42,9 +42,18 @@ public sealed class AccountDeletionService(
 		await userRepository.DeleteAsync(userId, cancellationToken);
 		logger.LogInformation("Deleted auth records for user {UserId}", userId);
 
-		// Delete the per-user planner database file. Best-effort: a leftover file is unreachable.
-		await dbContextFactory.DeleteUserDatabaseAsync(userId.ToString(), cancellationToken);
-		logger.LogInformation("Deleted planner database for user {UserId}", userId);
+		// Delete the per-user planner database file. Best-effort: the account is already gone, so a
+		// leftover file is orphaned and unreachable. Never let a filesystem hiccup here fail an
+		// erasure that has, for all practical purposes, already succeeded.
+		try
+		{
+			await dbContextFactory.DeleteUserDatabaseAsync(userId.ToString(), cancellationToken);
+			logger.LogInformation("Deleted planner database for user {UserId}", userId);
+		}
+		catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+		{
+			logger.LogWarning(ex, "Could not delete planner database for user {UserId}; the orphaned file is unreachable", userId);
+		}
 
 		return new AccountDeletionResult(true);
 	}

@@ -85,7 +85,8 @@ namespace OwnPlanner.Web.Server
 					new PlannerAppDbContextFactory(
 						userDbDirectory,
 						serviceProvider.GetRequiredService<IPlannerSessionContextAccessor>(),
-						serviceProvider.GetRequiredService<IHttpContextAccessor>()));
+						serviceProvider.GetRequiredService<IHttpContextAccessor>(),
+						serviceProvider.GetRequiredService<ILogger<PlannerAppDbContextFactory>>()));
 
 				// Register repositories
 				builder.Services.AddScoped<IUserRepository, UserRepository>();
