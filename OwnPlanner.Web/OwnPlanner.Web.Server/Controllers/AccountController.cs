@@ -2,6 +2,8 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OwnPlanner.Application.Account;
+using OwnPlanner.Mcp.Tools;
+using OwnPlanner.Web.Server.Services;
 
 namespace OwnPlanner.Web.Server.Controllers;
 
@@ -14,11 +16,16 @@ namespace OwnPlanner.Web.Server.Controllers;
 public class AccountController : ControllerBase
 {
 	private readonly IAccountExportService _accountExportService;
+	private readonly IPerUserAppInitializationService _initializationService;
 	private readonly ILogger<AccountController> _logger;
 
-	public AccountController(IAccountExportService accountExportService, ILogger<AccountController> logger)
+	public AccountController(
+		IAccountExportService accountExportService,
+		IPerUserAppInitializationService initializationService,
+		ILogger<AccountController> logger)
 	{
 		_accountExportService = accountExportService;
+		_initializationService = initializationService;
 		_logger = logger;
 	}
 
@@ -37,6 +44,18 @@ public class AccountController : ControllerBase
 		}
 
 		_logger.LogInformation("Building account data export for user {UserId}", userId);
+
+		// The per-user planner database is created/migrated lazily on first tool use, so a user who
+		// exports before ever chatting would otherwise get an empty, schemaless file. Ensure the
+		// database is migrated and seeded before snapshotting it.
+		var sessionId = User.FindFirstValue("SessionId");
+		await _initializationService.EnsureInitializedAsync(
+			new SessionContext
+			{
+				SessionId = string.IsNullOrWhiteSpace(sessionId) ? $"export-{userId}" : sessionId,
+				UserId = userId.ToString()
+			},
+			cancellationToken);
 
 		var export = await _accountExportService.CreateExportAsync(cancellationToken);
 

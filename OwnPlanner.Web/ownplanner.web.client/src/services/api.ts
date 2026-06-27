@@ -302,16 +302,15 @@ class ApiService {
       ?? `ownplanner-export-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}.zip`;
 
     const url = URL.createObjectURL(blob);
-    try {
-      const anchor = document.createElement('a');
-      anchor.href = url;
-      anchor.download = fileName;
-      document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
-    } finally {
-      URL.revokeObjectURL(url);
-    }
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = fileName;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    // Defer revoke: revoking synchronously after click() can cancel an in-progress download in
+    // some browsers (notably Firefox/Safari) before the blob has been fully read.
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
   }
 }
 

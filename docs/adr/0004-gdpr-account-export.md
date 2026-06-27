@@ -52,10 +52,14 @@ the intermediate copy is deleted. The result is a temp `.zip` described by the `
 ### 3. Endpoint and delivery
 
 `GET /api/account/export` on `AccountController` (`[Authorize]`) resolves the authenticated user from
-the `NameIdentifier` claim (the per-user DB is resolved automatically by the factory) and returns the
-archive as a `FileStreamResult`. The stream is opened with `FileOptions.DeleteOnClose`, so the temp
-archive is removed once the response has been sent. Delivery is synchronous: the download itself is
-how the user is "informed when ready", which is appropriate at the current per-user data scale.
+the `NameIdentifier` claim (the per-user DB is resolved automatically by the factory). Because the
+per-user database is created/migrated lazily on first tool use, the endpoint first calls
+`IPerUserAppInitializationService.EnsureInitializedAsync` (extracted from the existing
+`PerUserAppInitializationService`) so a user who exports before ever chatting gets a migrated, seeded
+database rather than an empty, schemaless file. It then returns the archive as a `FileStreamResult`.
+The stream is opened with `FileOptions.DeleteOnClose`, so the temp archive is removed once the
+response has been sent. Delivery is synchronous: the download itself is how the user is "informed when
+ready", which is appropriate at the current per-user data scale.
 
 ### 4. Temp file lifecycle
 

@@ -75,6 +75,7 @@ namespace OwnPlanner.Web.Server
 				builder.Services.AddHttpContextAccessor();
 				builder.Services.AddSingleton<IPlannerSessionContextAccessor, PlannerSessionContextAccessor>();
 				builder.Services.AddSingleton<PerUserAppInitializationService>();
+				builder.Services.AddSingleton<IPerUserAppInitializationService>(sp => sp.GetRequiredService<PerUserAppInitializationService>());
 				builder.Services.AddTransient<McpRequestInitializationMiddleware>();
 				builder.Services.AddScoped<SessionContext>(sp =>
 				{
