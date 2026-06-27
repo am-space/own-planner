@@ -41,13 +41,32 @@ public class AccountController : ControllerBase
 		var export = await _accountExportService.CreateExportAsync(cancellationToken);
 
 		// DeleteOnClose removes the temp archive once the response stream has been fully sent.
-		var stream = new FileStream(
-			export.FilePath,
-			FileMode.Open,
-			FileAccess.Read,
-			FileShare.Read,
-			bufferSize: 64 * 1024,
-			FileOptions.Asynchronous | FileOptions.DeleteOnClose);
+		FileStream stream;
+		try
+		{
+			stream = new FileStream(
+				export.FilePath,
+				FileMode.Open,
+				FileAccess.Read,
+				FileShare.Read,
+				bufferSize: 64 * 1024,
+				FileOptions.Asynchronous | FileOptions.DeleteOnClose);
+		}
+		catch
+		{
+			// Opening failed, so DeleteOnClose never took ownership of the archive. Delete it now;
+			// anything that still slips through is reaped by ExportTempFileCleanupService.
+			try
+			{
+				System.IO.File.Delete(export.FilePath);
+			}
+			catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+			{
+				_logger.LogWarning(ex, "Failed to delete export archive {Path} after stream open failed", export.FilePath);
+			}
+
+			throw;
+		}
 
 		return File(stream, export.ContentType, export.FileName);
 	}

@@ -111,6 +111,7 @@ namespace OwnPlanner.Web.Server
 				builder.Services.AddScoped<IInboxSeeder, InboxSeeder>();
 				builder.Services.AddScoped<IUsageQuotaService, UsageQuotaService>();
 				builder.Services.AddScoped<IAccountExportService, AccountExportService>();
+				builder.Services.AddHostedService<ExportTempFileCleanupService>();
 
 				// Configure usage quota: bound limits (singleton instance) + in-memory burst window (singleton)
 				var usageQuotaOptions = builder.Configuration.GetSection("UsageQuota").Get<UsageQuotaOptions>() ?? new UsageQuotaOptions();

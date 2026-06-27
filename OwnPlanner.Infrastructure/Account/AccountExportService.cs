@@ -17,14 +17,20 @@ public sealed class AccountExportService(IPlannerDbContextFactory dbContextFacto
 	internal const string DatabaseEntryName = "ownplanner-data.db";
 	internal const string ReadmeEntryName = "README.txt";
 
+	/// <summary>
+	/// Prefix shared by every temp artifact this service creates (the working directory and the ZIP).
+	/// A background sweeper keys off this to reap any orphan left by a crash. Keep them in sync.
+	/// </summary>
+	public const string TempEntryPrefix = "ownplanner-export-";
+
 	public async Task<AccountExport> CreateExportAsync(CancellationToken cancellationToken = default)
 	{
 		// Snapshot into a unique working directory so the VACUUM INTO target never pre-exists
 		// (SQLite refuses to overwrite an existing file), then pack and remove it.
-		var workingDirectory = Path.Combine(Path.GetTempPath(), $"ownplanner-export-{Guid.NewGuid():N}");
+		var workingDirectory = Path.Combine(Path.GetTempPath(), $"{TempEntryPrefix}{Guid.NewGuid():N}");
 		Directory.CreateDirectory(workingDirectory);
 		var snapshotPath = Path.Combine(workingDirectory, DatabaseEntryName);
-		var zipPath = Path.Combine(Path.GetTempPath(), $"ownplanner-export-{Guid.NewGuid():N}.zip");
+		var zipPath = Path.Combine(Path.GetTempPath(), $"{TempEntryPrefix}{Guid.NewGuid():N}.zip");
 
 		try
 		{

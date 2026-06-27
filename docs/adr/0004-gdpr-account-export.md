@@ -57,7 +57,19 @@ archive as a `FileStreamResult`. The stream is opened with `FileOptions.DeleteOn
 archive is removed once the response has been sent. Delivery is synchronous: the download itself is
 how the user is "informed when ready", which is appropriate at the current per-user data scale.
 
-### 4. Legal retention
+### 4. Temp file lifecycle
+
+Each export creates two temp artifacts under the system temp dir, both prefixed
+`AccountExportService.TempEntryPrefix` (`ownplanner-export-`): a working directory holding the
+`VACUUM INTO` snapshot, and the final ZIP. The working directory is deleted in a `finally` right
+after packaging. The ZIP is normally removed by `FileOptions.DeleteOnClose` when the response stream
+closes; if opening that stream fails, the controller deletes it explicitly. Because a process crash,
+an aborted request, or an OS-level delete failure can still orphan an artifact, a hosted
+`ExportTempFileCleanupService` sweeps the temp dir every 15 minutes and removes any matching entry
+idle longer than 30 minutes — comfortably above any in-flight export, so a live download is never
+reaped. There is no per-file retry; the periodic sweep is the backstop.
+
+### 5. Legal retention
 
 None. OwnPlanner keeps no billing/accounting records, so there is no retained-data exception to the
 export (or to erasure — see the planned deletion ADR).
@@ -69,7 +81,8 @@ export (or to erasure — see the planned deletion ADR).
 - No serialization layer to build or keep in sync with the schema; the export is exactly the data.
 - `VACUUM INTO` guarantees a consistent point-in-time snapshot even with an active WAL.
 - Strict single-user scoping is inherent — the file only ever contained one user's data.
-- `DeleteOnClose` means no export artifacts accumulate on disk.
+- `DeleteOnClose` handles the normal case, and a periodic sweep backstops crash/abort orphans, so
+  export artifacts don't accumulate on disk.
 
 ### Negative / Trade-offs
 
@@ -85,8 +98,9 @@ export (or to erasure — see the planned deletion ADR).
 |---|---|
 | `OwnPlanner.Application/Account/IAccountExportService.cs` | Export service contract |
 | `OwnPlanner.Application/Account/AccountExport.cs` | Result DTO (temp path, filename, content type) |
-| `OwnPlanner.Infrastructure/Account/AccountExportService.cs` | `VACUUM INTO` snapshot + ZIP packaging + README |
-| `OwnPlanner.Web/OwnPlanner.Web.Server/Controllers/AccountController.cs` | `GET /api/account/export` endpoint |
-| `OwnPlanner.Web/OwnPlanner.Web.Server/Program.cs` | DI registration of `IAccountExportService` |
+| `OwnPlanner.Infrastructure/Account/AccountExportService.cs` | `VACUUM INTO` snapshot + ZIP packaging + README; `TempEntryPrefix` |
+| `OwnPlanner.Web/OwnPlanner.Web.Server/Controllers/AccountController.cs` | `GET /api/account/export` endpoint (+ orphan cleanup on stream-open failure) |
+| `OwnPlanner.Web/OwnPlanner.Web.Server/Services/ExportTempFileCleanupService.cs` | Hosted sweep reaping stale export temp artifacts |
+| `OwnPlanner.Web/OwnPlanner.Web.Server/Program.cs` | DI registration of `IAccountExportService` + cleanup hosted service |
 | `OwnPlanner.Web/ownplanner.web.client/src/services/api.ts` | `exportAccountData()` blob download |
 | `OwnPlanner.Web/ownplanner.web.client/src/pages/SettingsPage.tsx` | "Your data" export section |
