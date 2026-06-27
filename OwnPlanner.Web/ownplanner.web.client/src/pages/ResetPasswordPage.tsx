@@ -80,6 +80,12 @@ export default function ResetPasswordPage() {
       return;
     }
 
+    // Validate password is present and non-whitespace (matches backend IsNullOrWhiteSpace check)
+    if (!formData.password.trim()) {
+      setError('Password is required');
+      return;
+    }
+
     // Validate password length
     if (formData.password.length < 8) {
       setError('Password must be at least 8 characters');

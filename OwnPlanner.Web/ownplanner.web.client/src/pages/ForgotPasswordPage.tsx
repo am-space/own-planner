@@ -54,6 +54,9 @@ export default function ForgotPasswordPage() {
       // Anti-enumeration: the response is identical regardless of whether the
       // account exists, so we always show the same confirmation.
       await apiService.forgotPassword(email);
+    } catch {
+      // Swallow request errors too, so failures don't leak account existence
+      // and don't surface as unhandled errors. The confirmation is shown either way.
     } finally {
       setIsLoading(false);
       setSubmitted(true);
