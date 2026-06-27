@@ -2,7 +2,6 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OwnPlanner.Application.Account;
-using OwnPlanner.Mcp.Tools;
 using OwnPlanner.Web.Server.Services;
 
 namespace OwnPlanner.Web.Server.Controllers;
@@ -48,13 +47,8 @@ public class AccountController : ControllerBase
 		// The per-user planner database is created/migrated lazily on first tool use, so a user who
 		// exports before ever chatting would otherwise get an empty, schemaless file. Ensure the
 		// database is migrated and seeded before snapshotting it.
-		var sessionId = User.FindFirstValue("SessionId");
 		await _initializationService.EnsureInitializedAsync(
-			new SessionContext
-			{
-				SessionId = string.IsNullOrWhiteSpace(sessionId) ? $"export-{userId}" : sessionId,
-				UserId = userId.ToString()
-			},
+			User.GetRequiredPlannerSessionContext("export"),
 			cancellationToken);
 
 		var export = await _accountExportService.CreateExportAsync(cancellationToken);
