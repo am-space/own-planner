@@ -17,5 +17,11 @@ internal sealed class FixedPathPlannerDbContextFactory(string dbPath) : IPlanner
 			.Options;
 		return ValueTask.FromResult(new AppDbContext(options));
 	}
+
+	public Task DeleteUserDatabaseAsync(string userId, CancellationToken cancellationToken = default)
+	{
+		// The stdio host operates on a single fixed database and never performs account deletion.
+		throw new NotSupportedException("Deleting user databases is not supported by the stdio host.");
+	}
 }
 

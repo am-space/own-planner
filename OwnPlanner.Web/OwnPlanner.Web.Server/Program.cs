@@ -4,7 +4,9 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
+using OwnPlanner.Application.Account;
 using OwnPlanner.Application.Contexts;
+using OwnPlanner.Infrastructure.Account;
 using OwnPlanner.Infrastructure.Adapters;
 using OwnPlanner.Infrastructure.Persistence;
 using OwnPlanner.Domain.Contexts;
@@ -108,6 +110,7 @@ namespace OwnPlanner.Web.Server
 				builder.Services.AddScoped<IPlanningContextService, PlanningContextService>();
 				builder.Services.AddScoped<IInboxSeeder, InboxSeeder>();
 				builder.Services.AddScoped<IUsageQuotaService, UsageQuotaService>();
+				builder.Services.AddScoped<IAccountDeletionService, AccountDeletionService>();
 
 				// Configure usage quota: bound limits (singleton instance) + in-memory burst window (singleton)
 				var usageQuotaOptions = builder.Configuration.GetSection("UsageQuota").Get<UsageQuotaOptions>() ?? new UsageQuotaOptions();

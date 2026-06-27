@@ -182,6 +182,28 @@ class ApiService {
     }
   }
 
+  // Account (GDPR) API methods
+
+  /**
+   * Permanently deletes the current user's account and all associated data. Requires the user's
+   * current password as confirmation. This action is irreversible.
+   */
+  async deleteAccount(password: string): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/account/delete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password }),
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      let message = 'Failed to delete account';
+      try { message = (JSON.parse(text) as { message?: string }).message || message; } catch { if (text) message = text; }
+      throw new Error(message);
+    }
+  }
+
   // Chat API methods
   async sendChatMessage(message: string): Promise<ChatResponse> {
     const response = await fetch(`${this.baseUrl}/chat/message`, {

@@ -15,5 +15,9 @@ internal sealed class TestPlannerDbContextFactory(SqliteConnection connection) :
 			.Options;
 		return ValueTask.FromResult(new AppDbContext(options));
 	}
+
+	// Tests share a single in-memory connection with no backing file, so there is nothing to delete.
+	public Task DeleteUserDatabaseAsync(string userId, CancellationToken cancellationToken = default)
+		=> Task.CompletedTask;
 }
 

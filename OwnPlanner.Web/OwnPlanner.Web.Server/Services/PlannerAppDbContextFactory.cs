@@ -24,6 +24,27 @@ internal sealed class PlannerAppDbContextFactory(
 		return ValueTask.FromResult(new AppDbContext(options));
 	}
 
+	public Task DeleteUserDatabaseAsync(string userId, CancellationToken cancellationToken = default)
+	{
+		if (string.IsNullOrWhiteSpace(userId))
+		{
+			throw new ArgumentException("User id is required to delete a planner database.", nameof(userId));
+		}
+
+		var dbPath = Path.Combine(userDbDirectory, $"ownplanner-user-{userId}.db");
+
+		// Remove the database and any SQLite side-car files left by WAL mode.
+		foreach (var path in new[] { dbPath, $"{dbPath}-wal", $"{dbPath}-shm" })
+		{
+			if (File.Exists(path))
+			{
+				File.Delete(path);
+			}
+		}
+
+		return Task.CompletedTask;
+	}
+
 	private static string ResolveAuthenticatedUserId(HttpContext? httpContext)
 	{
 		var userId = httpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier);
