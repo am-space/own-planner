@@ -25,7 +25,10 @@ public class AccountController : ControllerBase
 	/// <summary>
 	/// Builds and streams a ZIP export of the authenticated user's planning data.
 	/// </summary>
+	// The export contains the user's full personal data set; never let a browser or intermediary
+	// proxy cache it.
 	[HttpGet("export")]
+	[ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
 	public async Task<IActionResult> ExportData(CancellationToken cancellationToken)
 	{
 		if (!TryGetAuthenticatedUserId(out var userId))
