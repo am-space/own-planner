@@ -72,13 +72,19 @@ Drive it:
 {"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"Echo","arguments":{}}}
 ```
 
-Observed on the wire (the `text` content is the serialized result):
+Observed on the wire (the `text` content is the serialized result, so its inner quotes are
+escaped and every non-ASCII character is emitted as `\uXXXX`):
 
 ```
-..."text":"{"title":"Задача"}"...
+..."text":"{\"title\":\"\u0417\u0430\u0434\u0430\u0447\u0430\"}"...
 ```
 
-Expected (desired, with a relaxed encoder): literal `"title":"Задача"`.
+Expected (desired, with a relaxed encoder): the inner quotes are still escaped because `text` is a
+JSON string, but non-ASCII is emitted literally instead of as `\uXXXX`:
+
+```
+..."text":"{\"title\":\"Задача\"}"...
+```
 
 ## Things that do *not* work (verified)
 

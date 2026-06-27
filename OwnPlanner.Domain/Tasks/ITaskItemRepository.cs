@@ -14,8 +14,23 @@ public interface ITaskItemRepository
 	/// as a total-order tiebreaker so offset paging never skips or repeats rows.
 	/// </summary>
 	Task<(IReadOnlyList<TaskItem> Items, int TotalCount)> ListPagedAsync(bool includeCompleted, bool onlyImportant, int offset, int limit, CancellationToken ct = default);
+
+	/// <summary>
+	/// Returns a single page of tasks belonging to <paramref name="taskListId"/> plus the total
+	/// matching count, using the same deterministic ordering as <see cref="ListPagedAsync"/>.
+	/// </summary>
 	Task<(IReadOnlyList<TaskItem> Items, int TotalCount)> ListByTaskListPagedAsync(Guid taskListId, bool includeCompleted, bool onlyImportant, int offset, int limit, CancellationToken ct = default);
+
+	/// <summary>
+	/// Returns a single page of tasks planned for <paramref name="focusDateUtc"/> plus the total
+	/// matching count, using the same deterministic ordering as <see cref="ListPagedAsync"/>.
+	/// </summary>
 	Task<(IReadOnlyList<TaskItem> Items, int TotalCount)> ListByFocusDatePagedAsync(DateTime focusDateUtc, bool includeCompleted, int offset, int limit, CancellationToken ct = default);
+
+	/// <summary>
+	/// Returns a single page of tasks linked to <paramref name="goalId"/> plus the total matching
+	/// count, using the same deterministic ordering as <see cref="ListPagedAsync"/>.
+	/// </summary>
 	Task<(IReadOnlyList<TaskItem> Items, int TotalCount)> ListByGoalPagedAsync(Guid goalId, bool includeCompleted, int offset, int limit, CancellationToken ct = default);
 
 	Task AddAsync(TaskItem task, CancellationToken ct = default);
