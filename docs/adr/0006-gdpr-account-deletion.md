@@ -53,11 +53,17 @@ history is dropped, signs out the cookie (`HttpContext.SignOutAsync`), and retur
 
 `SignOutAsync` only clears the cookie on the requesting browser. To revoke the user's *other*
 sessions, cookie authentication is given an `OnValidatePrincipal` hook
-(`CookiePrincipalValidator.ValidateAsync`) that, on every request, rejects and signs out any cookie
-whose user no longer exists or is inactive. Without it, cookie auth is stateless and a deleted user's
-7-day cookie on another device would keep passing `[Authorize]` until expiry. (The MCP bearer scheme
-already re-validates its token against the DB per request, and the token is cascade-deleted with the
-account.)
+(`CookiePrincipalValidator.ValidateAsync`) that rejects and signs out any cookie whose user no longer
+exists or is inactive. Without it, cookie auth is stateless and a deleted user's 7-day cookie on
+another device would keep passing `[Authorize]` until expiry. (The MCP bearer scheme already
+re-validates its token against the DB per request, and the token is cascade-deleted with the account.)
+
+The check is throttled by a validation interval (15 minutes): a successful validation stamps the
+cookie (`ShouldRenew`) and is trusted until the interval elapses, so the DB is read at most once per
+user per interval instead of on every request. The trade-off is that revocation can lag by up to that
+interval. A lookup failure (e.g. a transient DB error) **fails open** — the already-authenticated
+request is allowed and the stamp is left unset so the next request retries — rather than mass-logging
+out active users on a database blip.
 
 ### 3. Frontend
 

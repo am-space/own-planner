@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using FluentAssertions;
+using Microsoft.AspNetCore.Authentication;
 using NSubstitute;
 using OwnPlanner.Domain.Users;
 using OwnPlanner.Web.Server.Authentication;
@@ -64,5 +65,40 @@ public class CookiePrincipalValidatorTests
 
 		valid.Should().BeFalse();
 		await _userRepository.DidNotReceive().GetByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+	}
+
+	[Fact]
+	public void IsRevalidationDue_NoStamp_ReturnsTrue()
+	{
+		CookiePrincipalValidator.IsRevalidationDue(new AuthenticationProperties(), DateTimeOffset.UtcNow)
+			.Should().BeTrue();
+		CookiePrincipalValidator.IsRevalidationDue(null, DateTimeOffset.UtcNow).Should().BeTrue();
+	}
+
+	[Fact]
+	public void IsRevalidationDue_RecentlyStamped_ReturnsFalse_ThenTrueAfterInterval()
+	{
+		var now = DateTimeOffset.UtcNow;
+		var properties = new AuthenticationProperties();
+		CookiePrincipalValidator.StampValidated(properties, now);
+
+		// Within the interval: trusted, no re-check.
+		CookiePrincipalValidator.IsRevalidationDue(properties, now).Should().BeFalse();
+		CookiePrincipalValidator.IsRevalidationDue(
+			properties, now + CookiePrincipalValidator.ValidationInterval - TimeSpan.FromSeconds(1))
+			.Should().BeFalse();
+
+		// At/after the interval: due for a fresh check.
+		CookiePrincipalValidator.IsRevalidationDue(
+			properties, now + CookiePrincipalValidator.ValidationInterval).Should().BeTrue();
+	}
+
+	[Fact]
+	public void IsRevalidationDue_CorruptStamp_ReturnsTrue()
+	{
+		var properties = new AuthenticationProperties();
+		properties.SetString(CookiePrincipalValidator.LastValidatedTicksKey, "not-a-number");
+
+		CookiePrincipalValidator.IsRevalidationDue(properties, DateTimeOffset.UtcNow).Should().BeTrue();
 	}
 }
