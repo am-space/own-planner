@@ -315,7 +315,7 @@ export default function ChatPage() {
         <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
             {/* Header */}
             <AppBar position="static">
-                <Toolbar sx={{ flexWrap: { xs: 'wrap', lg: 'nowrap' }, justifyContent: 'center', py: { xs: 1, lg: 0 } }}>
+                <Toolbar sx={{ flexWrap: { xs: 'wrap', lg: 'nowrap' }, justifyContent: 'center', py: 1 }}>
                     {/* Left group */}
                     <Box sx={{ display: 'flex', alignItems: 'center', flex: '0 0 auto' }}>
                         <Box
