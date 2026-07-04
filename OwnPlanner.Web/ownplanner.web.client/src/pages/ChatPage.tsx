@@ -315,9 +315,9 @@ export default function ChatPage() {
         <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
             {/* Header */}
             <AppBar position="static">
-                <Toolbar>
+                <Toolbar sx={{ flexWrap: { xs: 'wrap', lg: 'nowrap' }, justifyContent: 'center', py: 1 }}>
                     {/* Left group */}
-                    <Box sx={{ display: 'flex', alignItems: 'center', flex: 1, minWidth: 0 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', flex: '0 0 auto' }}>
                         <Box
                             component="img"
                             src={logo}
@@ -351,7 +351,7 @@ export default function ChatPage() {
                     </Box>
 
                     {/* Center: Planning mode selector (desktop) */}
-                    <Box sx={{ display: { xs: 'none', sm: 'flex' }, flex: 1, justifyContent: 'center' }}>
+                    <Box sx={{ display: { xs: 'none', sm: 'flex' }, flex: { xs: '0 0 auto', lg: '1 1 auto' }, minWidth: { xs: 'auto', lg: 0 }, justifyContent: 'center' }}>
                         <PlanningModeSelector
                             currentMode={planningMode}
                             disabled={isLoading || isSwitchingMode}
@@ -368,7 +368,7 @@ export default function ChatPage() {
                     </Box>
 
                     {/* Right group */}
-                    <Box sx={{ display: 'flex', alignItems: 'center', flex: 1, justifyContent: 'flex-end', minWidth: 0 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', flex: '0 0 auto', justifyContent: 'flex-end' }}>
                         {remainingDailyQuota !== null && (
                             <Tooltip title={`${formatTokenCount(remainingDailyQuota)} chat requests remaining today`}>
                                 <Chip
