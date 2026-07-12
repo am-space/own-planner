@@ -166,7 +166,7 @@ export default function ChatPage() {
     // Auto-scroll to bottom when messages change
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [messages]);
+    }, [messages, isLoading]);
 
     const handleLogout = async () => {
         await logout();
@@ -641,6 +641,8 @@ export default function ChatPage() {
                             </Paper>
                         </Box>
                     )}
+
+                    <Box ref={messagesEndRef} />
                 </Box>
             </Container>
 
