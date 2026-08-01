@@ -1,4 +1,4 @@
-# ADR-0004: GDPR account data export
+# ADR-0006: GDPR account data export
 
 **Date:** 2026-06-27  
 **Status:** Accepted  
@@ -76,7 +76,7 @@ reaped. There is no per-file retry; the periodic sweep is the backstop.
 ### 5. Legal retention
 
 None. OwnPlanner keeps no billing/accounting records, so there is no retained-data exception to the
-export (or to erasure — see [ADR-0006: GDPR account deletion](0006-gdpr-account-deletion.md)).
+export (or to erasure — see [ADR-0007: GDPR account deletion](0007-gdpr-account-deletion.md)).
 
 ## Consequences
 

@@ -1,4 +1,4 @@
-# ADR-0006: GDPR account deletion
+# ADR-0007: GDPR account deletion
 
 **Date:** 2026-06-27  
 **Status:** Accepted  
@@ -13,7 +13,7 @@ associated personal data, self-service, with explicit confirmation, and that aft
 longer sign in and none of their data remains accessible in the running product.
 
 OwnPlanner spreads a user's data across two SQLite stores (see `docs/database-schema.md` and
-[ADR-0004](0004-gdpr-account-export.md)): the central `ownplanner-auth.db` (`AuthDbContext`) holds
+[ADR-0006](0006-gdpr-account-export.md)): the central `ownplanner-auth.db` (`AuthDbContext`) holds
 the `User` row plus dependents — `PersonalAccessToken`, `PasswordResetToken`, `UserDailyUsage`,
 `UserQuotaOverride`, all configured with `OnDelete(DeleteBehavior.Cascade)` — and a per-user
 `ownplanner-user-{userId}.db` (`AppDbContext`) holds all planning entities. Chat conversation history

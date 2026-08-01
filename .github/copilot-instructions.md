@@ -1,5 +1,8 @@
 # OwnPlanner Copilot Instructions
 
+`AGENTS.md` is the canonical source for shared repository guidance. Keep this Copilot-specific view
+aligned when repository-wide conventions change.
+
 ## Repository overview
 
 OwnPlanner is a layered `.NET 10` solution with multiple entry points:
@@ -11,7 +14,6 @@ OwnPlanner is a layered `.NET 10` solution with multiple entry points:
 - `OwnPlanner.Web/ownplanner.web.client`: React + TypeScript + Vite frontend
 - `OwnPlanner.Console`: CLI entry point
 - `OwnPlanner.Mcp.StdioApp`: MCP stdio host for tool execution
-- `ownplanner.web.client`: React + TypeScript + Vite frontend
 
 ## Architecture documentation
 
@@ -24,6 +26,8 @@ For more details on the system's design, please refer to the following documents
 
 - Follow existing repository style, naming, and folder conventions.
 - Keep changes minimal and scoped to the requested task.
+- Never commit directly to `master`; create a dedicated task branch first.
+- Keep unrelated staged or working-tree changes out of task commits.
 - Do not introduce placeholder comments, TODO-only implementations, or incomplete code.
 - Avoid breaking public contracts unless explicitly requested.
 - Prefer existing abstractions, helpers, and services over introducing new patterns.

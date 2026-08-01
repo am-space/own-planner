@@ -1,6 +1,6 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Codex (Codex.ai/code) when working with code in this repository.
 
 ## Overview
 
@@ -103,6 +103,6 @@ implementation commitment), **active plans** (`docs/*-plan.md`, approved or acti
 work with `git mv` once it becomes active. When a planned feature ships, write/update its ADR and
 `git mv` the plan into `docs/archive/` with a banner linking to the ADR — never delete plans, and
 don't let a finished plan pose as current documentation. Full mechanics (promotion, numbering,
-banner format, superseding) are in [`docs/CLAUDE.md`](docs/CLAUDE.md).
+banner format, superseding) are in [`docs/AGENTS.md`](docs/AGENTS.md).
 
 `Directory.Build.props` derives assembly/file versions from the `APP_VERSION` / `APP_FILE_VERSION` env vars (default `0.0.0-local`). Releases are cut from git tags `v<major>.<minor>.<patch>`; tagged CI builds push a Docker image to `ghcr.io`.

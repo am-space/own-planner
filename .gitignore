@@ -6,6 +6,9 @@
 # JetBrains IDEs
 .idea/
 
+# macOS Finder metadata
+.DS_Store
+
 # User-specific files
 *.rsuser
 *.suo
