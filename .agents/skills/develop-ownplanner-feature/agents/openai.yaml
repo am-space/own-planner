@@ -1,0 +1,4 @@
+interface:
+  display_name: "Develop OwnPlanner Feature"
+  short_description: "Plan and implement issue-driven features"
+  default_prompt: "Use $develop-ownplanner-feature to plan, review, implement, and verify this OwnPlanner issue."

@@ -63,44 +63,29 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '10.0.x'
+          global-json-file: global.json
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version-file: .node-version
           cache: npm
           cache-dependency-path: OwnPlanner.Web/ownplanner.web.client/package-lock.json
 
-      - name: Install frontend dependencies
-        working-directory: OwnPlanner.Web/ownplanner.web.client
-        run: npm ci
-
-      - name: Lint frontend
-        working-directory: OwnPlanner.Web/ownplanner.web.client
-        run: npm run lint
-
-      - name: Build frontend
-        working-directory: OwnPlanner.Web/ownplanner.web.client
-        run: npm run build
-
-      - name: Restore
+      - name: Install and restore dependencies
         env:
           APP_VERSION: ${{ steps.version.outputs.app_version }}
           APP_FILE_VERSION: ${{ steps.version.outputs.app_file_version }}
-        run: dotnet restore
+        run: ./scripts/setup.sh
 
-      - name: Build
+      - name: Verify frontend
+        run: ./scripts/verify.sh --frontend
+
+      - name: Verify backend
         env:
           APP_VERSION: ${{ steps.version.outputs.app_version }}
           APP_FILE_VERSION: ${{ steps.version.outputs.app_file_version }}
-        run: dotnet build --no-restore -c Release
-
-      - name: Test
-        env:
-          APP_VERSION: ${{ steps.version.outputs.app_version }}
-          APP_FILE_VERSION: ${{ steps.version.outputs.app_file_version }}
-        run: dotnet test --no-build -c Release --verbosity normal
+        run: ./scripts/verify.sh --backend
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3

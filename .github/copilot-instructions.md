@@ -1,7 +1,9 @@
 # OwnPlanner Copilot Instructions
 
 `AGENTS.md` is the canonical source for shared repository guidance. Keep this Copilot-specific view
-aligned when repository-wide conventions change.
+aligned when repository-wide conventions change. Read the closest nested `AGENTS.md` before
+changing Infrastructure, MCP tools, the web server, the web client, or documentation; it contains
+the component's implementation and validation rules.
 
 ## Repository overview
 
@@ -26,7 +28,9 @@ For more details on the system's design, please refer to the following documents
 
 - Follow existing repository style, naming, and folder conventions.
 - Keep changes minimal and scoped to the requested task.
-- Never commit directly to `master`; create a dedicated task branch first.
+- Never commit directly to `master`; create a dedicated task branch first. Unless the user specifies
+  another name, use `feature/<short-description>` for enhancements and `fix/<short-description>`
+  for bug fixes.
 - Keep unrelated staged or working-tree changes out of task commits.
 - Do not introduce placeholder comments, TODO-only implementations, or incomplete code.
 - Avoid breaking public contracts unless explicitly requested.
@@ -41,6 +45,16 @@ For more details on the system's design, please refer to the following documents
   - For `AppDbContext`: `dotnet ef migrations add <MigrationName> --project OwnPlanner.Infrastructure --context AppDbContext`
   - For `AuthDbContext`: `dotnet ef migrations add <MigrationName> --project OwnPlanner.Infrastructure --context AuthDbContext`
   - If the startup project cannot be inferred, append `--startup-project <StartupProjectPath>` as needed.
+
+## Code review rules
+
+- Preserve tenant isolation: resolve planning data from the authenticated session through a
+  user-bound `AppDbContext`, never from a client-supplied user ID, database path, or tool argument.
+- Treat HTTP routes/DTOs and MCP tool names/schemas/results as external contracts. Prefer additive
+  compatibility; intentional breaking changes need migration guidance and affected-transport tests.
+- Never log or return password hashes, reset tokens, personal-access-token material, API keys, or
+  another user's data. Use ownership-scoped queries, explicit response/export allowlists, redaction,
+  and cleanup of temporary export files.
 
 ## Testing and validation
 

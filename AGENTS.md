@@ -11,9 +11,13 @@ OwnPlanner is an AI-powered personal planning assistant: a layered .NET 10 solut
 Run from the repo root unless noted.
 
 ```sh
-# Build / test the whole solution
-dotnet build OwnPlanner.sln -c Release
-dotnet test
+# Install/restore dependencies, then run the full local CI-equivalent verification
+./scripts/setup.sh
+./scripts/verify.sh
+
+# Verify only one stack
+./scripts/verify.sh --backend
+./scripts/verify.sh --frontend
 
 # Single test project, class, or method
 dotnet test OwnPlanner.Application.Tests/OwnPlanner.Application.Tests.csproj
@@ -36,12 +40,15 @@ npm run build    # tsc -b && vite build
 npm run lint     # eslint
 ```
 
-CI (`.github/workflows/ci.yml`) runs, in order: `npm ci` → `npm run lint` → `npm run build` → `dotnet restore` → `dotnet build -c Release` → `dotnet test -c Release`. Match this before pushing.
+CI (`.github/workflows/ci.yml`) uses the same scripts: `scripts/setup.sh`, then frontend and backend
+verification. Run `./scripts/verify.sh` before pushing to match both verification paths locally.
 
 ## Git workflow
 
 - Never commit directly to `master`.
-- Before the first task commit, create or switch to a dedicated branch. Use `codex/<short-description>` by default unless the user specifies another name.
+- Before the first task commit, create or switch to a dedicated branch. Unless the user specifies
+  another name, use `feature/<short-description>` for enhancements and `fix/<short-description>`
+  for bug fixes.
 - Keep unrelated staged or working-tree changes out of task commits.
 - Open a pull request targeting `master` when the work is ready for review.
 
@@ -73,18 +80,15 @@ In the web server, per-user context resolution and DB wiring live in `Services/`
 
 The web server orchestrates the conversation, attaches available tool definitions to each Gemini request, and executes returned `FunctionCall`s **in-process** via `DirectToolMcpAdapter` (resolving tool implementations from DI against the authenticated user's database), then feeds results back to Gemini for the final reply. The console/stdio path uses the same tools over the MCP stdio host instead. See `docs/ai-integration.md`.
 
-**To add a new AI tool:** implement the core logic in `OwnPlanner.Application`, then expose it as a tool definition + handler in `OwnPlanner.Mcp.Tools` so both the web server and stdio host reuse it. The orchestration layer surfaces the new schema to Gemini automatically.
+## Scoped guidance
 
-## EF Core migrations
+Read the closest applicable `AGENTS.md` before changing a component:
 
-Never hand-write migrations — always use the CLI, and specify the context explicitly (there are two):
-
-```sh
-dotnet ef migrations add <Name> --project OwnPlanner.Infrastructure --context AppDbContext
-dotnet ef migrations add <Name> --project OwnPlanner.Infrastructure --context AuthDbContext
-```
-
-Append `--startup-project <path>` if the startup project can't be inferred.
+- `OwnPlanner.Infrastructure/AGENTS.md` — persistence, external adapters, and EF migrations.
+- `OwnPlanner.Mcp.Tools/AGENTS.md` — shared tool schemas and handlers.
+- `OwnPlanner.Web/OwnPlanner.Web.Server/AGENTS.md` — HTTP/authentication and per-user orchestration.
+- `OwnPlanner.Web/ownplanner.web.client/AGENTS.md` — React client conventions and validation.
+- `docs/AGENTS.md` — documentation lifecycle and ADR mechanics.
 
 ## Conventions
 
@@ -93,6 +97,22 @@ Append `--startup-project <path>` if the startup project can't be inferred.
 - Preserve nullability annotations and existing async APIs; keep parameter ordering consistent across similar APIs.
 - When adding or changing an interface, add/update XML doc comments describing intent and contracts.
 - Keep logging structured. Don't break public contracts unless the task requires it.
+
+## Code Review Rules
+
+- **Preserve tenant isolation.** Planning data must be resolved through the authenticated user's
+  session and user-bound `AppDbContext`; never select a user database from a client-supplied user
+  ID, database path, or tool argument. Keep account identity and credentials in the central
+  `AuthDbContext`, and add cross-user isolation tests when changing context resolution or data access.
+- **Treat HTTP and MCP shapes as external contracts.** Routes, DTO fields, status semantics, tool
+  names, argument schemas, and result shapes must remain backward compatible unless an intentional
+  breaking change includes migration/versioning guidance and coverage for every affected transport.
+  Prefer additive changes and reuse the shared MCP tool implementation from both in-process and
+  stdio paths.
+- **Keep secrets and personal data contained.** Never log or return password hashes, reset tokens,
+  personal-access-token material, API keys, or another user's data. Use explicit response/export
+  allowlists, ownership-scoped queries, redacted structured logs, and guaranteed cleanup for
+  temporary export files.
 
 ## Documentation process
 

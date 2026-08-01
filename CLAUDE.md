@@ -2,6 +2,9 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+`AGENTS.md` is the canonical source for shared repository guidance. Read it and the closest nested
+`AGENTS.md` for the component being changed; if duplicated guidance differs, follow `AGENTS.md`.
+
 ## Overview
 
 OwnPlanner is an AI-powered personal planning assistant: a layered .NET 10 solution with a React + TypeScript (Vite, MUI) frontend. Users chat with a Google Gemini LLM that invokes in-process MCP-style tools to manage tasks, notes, goals, and contexts stored in per-user SQLite databases.
@@ -11,9 +14,13 @@ OwnPlanner is an AI-powered personal planning assistant: a layered .NET 10 solut
 Run from the repo root unless noted.
 
 ```sh
-# Build / test the whole solution
-dotnet build OwnPlanner.sln -c Release
-dotnet test
+# Install/restore dependencies, then run the full local CI-equivalent verification
+./scripts/setup.sh
+./scripts/verify.sh
+
+# Verify only one stack
+./scripts/verify.sh --backend
+./scripts/verify.sh --frontend
 
 # Single test project, class, or method
 dotnet test OwnPlanner.Application.Tests/OwnPlanner.Application.Tests.csproj
@@ -36,12 +43,15 @@ npm run build    # tsc -b && vite build
 npm run lint     # eslint
 ```
 
-CI (`.github/workflows/ci.yml`) runs, in order: `npm ci` → `npm run lint` → `npm run build` → `dotnet restore` → `dotnet build -c Release` → `dotnet test -c Release`. Match this before pushing.
+CI (`.github/workflows/ci.yml`) uses the same scripts: `scripts/setup.sh`, then frontend and backend
+verification. Run `./scripts/verify.sh` before pushing to match both verification paths locally.
 
 ## Git workflow
 
 - Never commit directly to `master`.
-- Before the first task commit, create or switch to a dedicated branch. Use `codex/<short-description>` by default unless the user specifies another name.
+- Before the first task commit, create or switch to a dedicated branch. Unless the user specifies
+  another name, use `feature/<short-description>` for enhancements and `fix/<short-description>`
+  for bug fixes.
 - Keep unrelated staged or working-tree changes out of task commits.
 - Open a pull request targeting `master` when the work is ready for review.
 
@@ -93,6 +103,16 @@ Append `--startup-project <path>` if the startup project can't be inferred.
 - Preserve nullability annotations and existing async APIs; keep parameter ordering consistent across similar APIs.
 - When adding or changing an interface, add/update XML doc comments describing intent and contracts.
 - Keep logging structured. Don't break public contracts unless the task requires it.
+
+## Code Review Rules
+
+- Preserve tenant isolation: resolve planning data from the authenticated session through a
+  user-bound `AppDbContext`, never from a client-supplied user ID, database path, or tool argument.
+- Treat HTTP routes/DTOs and MCP tool names/schemas/results as external contracts. Prefer additive
+  compatibility; intentional breaking changes need migration guidance and affected-transport tests.
+- Never log or return password hashes, reset tokens, personal-access-token material, API keys, or
+  another user's data. Use ownership-scoped queries, explicit response/export allowlists, redaction,
+  and cleanup of temporary export files.
 
 ## Documentation process
 
