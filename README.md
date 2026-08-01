@@ -1,6 +1,9 @@
 # OwnPlanner
 
-An AI-powered personal planning assistant that helps you manage tasks, notes, and stay organized with intelligent conversation.
+A personal AI strategist & mentor. Goals-first planning: the assistant helps you
+formulate goals and keeps daily work connected to them — tasks are the execution
+mechanism, not the starting point. Built with .NET 10 and Model Context Protocol,
+so any MCP-capable agent can operate the planner end to end.
 
 ## Demo
 
@@ -14,15 +17,17 @@ The solution is organized as a layered .NET application with multiple entry poin
 
 ```mermaid
 graph LR
-  user["End user"] --> ui["OwnPlanner Web App<br/>React 18 + TypeScript + MUI"]
+  user["End user"] --> ui["OwnPlanner Web App<br/>React 19 + TypeScript + MUI"]
   ui --> web["OwnPlanner Web Server<br/>ASP.NET Core (.NET 10)<br/>Cookie Auth + API"]
 
   web --> llm["Google Gemini API<br/>(LLM)"]
-  web --> mcp["OwnPlanner MCP Stdio App<br/>(MCP tools server)"]
+  web --> tools["OwnPlanner.Mcp.Tools<br/>(in-process tool execution)"]
 
   dev["Developer / Automation"] --> console["OwnPlanner.Console<br/>CLI chat"]
   console --> llm
-  console --> mcp
+  console --> mcp["OwnPlanner MCP Stdio App<br/>(MCP tools server)"]
+
+  client["External MCP client"] -->|"Streamable HTTP + bearer auth"| web
 ```
 
 ### Containers & Data (C4 L2)
@@ -101,6 +106,9 @@ OwnPlanner is a multi-project .NET 10 solution for personal planning and task ma
   - **OwnPlanner.Web.Server**: ASP.NET Core 10 web server with React frontend for user interaction.
   - **OwnPlanner.Mcp.StdioApp**: MCP stdio adapter and developer tools for command-line or protocol-based automation.
   - **OwnPlanner.Console**: Console application for direct CLI usage.
+- Shared MCP tools
+  - **OwnPlanner.Mcp.Tools**: Tool definitions and handlers reused by the web and stdio transports.
+  - **OwnPlanner.Mcp.Tools.Tests**: Contract and behavior tests for shared MCP tools.
 
 Key features include:
 - Layered architecture for maintainability and testability
@@ -110,9 +118,14 @@ Key features include:
 
 ## Built With
 
-- Frontend: React 18 + TypeScript + Material-UI
+- Frontend: React 19 + TypeScript + Material-UI
 - Backend: .NET 10 + ASP.NET Core
 - AI: Google Gemini + Mscc.GenerativeAI SDK
+
+## Documentation
+
+See [`docs/README.md`](docs/README.md) for current architecture and operations references, proposed
+work, ADRs, and archived implementation plans.
 
 ## Release Notes
 

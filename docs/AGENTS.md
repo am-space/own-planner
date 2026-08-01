@@ -1,6 +1,6 @@
 # docs/ — Documentation process
 
-Guidance for working with documentation in this folder. The root `CLAUDE.md` has the short version;
+Guidance for working with documentation in this folder. The root `AGENTS.md` has the short version;
 this file holds the mechanics.
 
 Keep [`README.md`](README.md) current when adding, moving, renaming, or removing documentation.

@@ -27,4 +27,4 @@ These projects references the Application and Infrastructure layers, wiring them
 *   **`OwnPlanner.Console`**: A CLI tool for running chat loops via the terminal.
 
 ## Cross-Cutting Concerns
-*   **Tests**: Test projects mirror the layer they test (`Domain.Tests`, `Application.Tests`, `Infrastructure.Tests`, `Web.Server.Tests`), ensuring boundaries are respected at test time.
+*   **Tests**: Test projects mirror the layer or shared component they test (`Domain.Tests`, `Application.Tests`, `Infrastructure.Tests`, `Web.Server.Tests`, `Mcp.Tools.Tests`), ensuring boundaries are respected at test time.

@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "web-server",
+      "runtimeExecutable": "dotnet",
+      "runtimeArgs": ["run", "--project", "OwnPlanner.Web/OwnPlanner.Web.Server"],
+      "port": 5079
+    }
+  ]
+}
