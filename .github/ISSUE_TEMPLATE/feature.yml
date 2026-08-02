@@ -1,0 +1,67 @@
+name: Feature
+description: Propose implementation-ready OwnPlanner behavior or a use case
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form when an idea is ready to become repository work. Keep early ideas as GitHub Project drafts until the intended outcome is clear.
+
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Outcome
+      description: What should become possible after this feature is delivered?
+      placeholder: Describe the user-visible result, not the implementation.
+    validations:
+      required: true
+
+  - type: textarea
+    id: user_scenario
+    attributes:
+      label: User scenario
+      description: Who needs this behavior, and how will they use it?
+      placeholder: As a user, I want to ... so that ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: Acceptance criteria
+      description: List observable, testable behaviors and important edge cases.
+      placeholder: |
+        - [ ] The user can ...
+        - [ ] When ..., the system ...
+        - [ ] If ..., the user sees ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: out_of_scope
+    attributes:
+      label: Out of scope
+      description: What related behavior should not be included in this issue?
+      placeholder: List explicit exclusions, or write "None identified."
+    validations:
+      required: false
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Add relevant background, dependencies, related issues, plans, ADRs, or prior pull requests.
+      placeholder: Links and supporting context.
+    validations:
+      required: false
+
+  - type: textarea
+    id: technical_notes
+    attributes:
+      label: Technical notes
+      description: Record known constraints or implementation considerations without prescribing unnecessary design.
+      placeholder: Compatibility, persistence, security, transport, UI, or migration considerations.
+    validations:
+      required: false
