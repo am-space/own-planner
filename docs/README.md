@@ -15,6 +15,7 @@ describe.
 | [`database-schema.md`](database-schema.md) | Central authentication and per-user database model |
 | [`email-configuration.md`](email-configuration.md) | Transactional email configuration and deliverability |
 | [`docker.md`](docker.md) | Container build and operating notes |
+| [`testing.md`](testing.md) | Local, CI, and deterministic browser E2E verification |
 
 ## Plans
 
@@ -41,6 +42,7 @@ ADRs describe decisions as actually shipped. Start new records from [`adr/templa
 - [`ADR-0005`](adr/0005-mcp-wire-non-ascii-escaping.md) — MCP non-ASCII wire escaping
 - [`ADR-0006`](adr/0006-gdpr-account-export.md) — GDPR account export
 - [`ADR-0007`](adr/0007-gdpr-account-deletion.md) — GDPR account deletion
+- [`ADR-0008`](adr/0008-deterministic-browser-e2e-testing.md) — deterministic browser E2E testing
 
 ## Historical plans
 
@@ -49,6 +51,7 @@ linked ADR when determining current behavior.
 
 - [`archive/email-sending-plan.md`](archive/email-sending-plan.md)
 - [`archive/task-list-token-reduction-plan.md`](archive/task-list-token-reduction-plan.md)
+- [`archive/e2e-testing-plan.md`](archive/e2e-testing-plan.md)
 
 ## Supporting records
 

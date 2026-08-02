@@ -10,6 +10,11 @@ OwnPlanner integrates with the Google Gemini API to provide an intelligent conve
 4.  **MCP StdioApp**: A separate command-line application (`OwnPlanner.Mcp.StdioApp`) kept for stdio-based hosts such as the console tooling.
 5.  **MCP HTTP endpoint**: The web server also exposes `/mcp` over Streamable HTTP for external MCP clients, authenticated with a dedicated bearer scheme.
 
+The web host constructs its Gemini adapter through `IChatAdapterFactory`. Production resolves
+`GeminiChatAdapterFactory`; deterministic browser tests replace only this composition boundary while
+leaving planning, MCP execution, tenant resolution, and persistence real. See
+[`testing.md`](testing.md) and [ADR-0008](adr/0008-deterministic-browser-e2e-testing.md).
+
 ## The Chat Workflow (Tool Calling)
 
 When a user submits a prompt, the system executes the following loop:

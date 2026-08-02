@@ -153,6 +153,7 @@ namespace OwnPlanner.Web.Server
 				builder.Services.Configure<ChatSettings>(builder.Configuration.GetSection("Chat"));
 				
 				// Register chat services
+				builder.Services.AddSingleton<IChatAdapterFactory, GeminiChatAdapterFactory>();
 				builder.Services.AddSingleton<IChatServiceFactory, ChatServiceFactory>();
 				builder.Services.AddSingleton<IChatSessionManager, ChatSessionManager>();
 

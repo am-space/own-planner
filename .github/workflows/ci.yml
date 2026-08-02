@@ -87,6 +87,17 @@ jobs:
           APP_FILE_VERSION: ${{ steps.version.outputs.app_file_version }}
         run: ./scripts/verify.sh --backend
 
+      - name: Verify E2E
+        run: ./scripts/verify.sh --e2e
+
+      - name: Upload E2E failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-failure-artifacts
+          path: TestResults/E2E
+          if-no-files-found: ignore
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
