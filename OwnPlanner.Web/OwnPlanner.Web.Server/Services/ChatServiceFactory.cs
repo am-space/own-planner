@@ -57,10 +57,10 @@ namespace OwnPlanner.Web.Server.Services
 				}
 			}
 
-			var chatService = chatAdapterFactory.Create(mcpAdapter);
+			var chatAdapter = chatAdapterFactory.Create(mcpAdapter);
 
-			logger.LogDebug("ChatServiceAdapter instance created successfully for session: {SessionId}, user: {UserId}", sessionId, userId);
-			return new PlanningService(chatService, mcpAdapter, planningServiceLogger, _settings.Gemini.MaxContextLengthTokens);
+			logger.LogDebug("Chat adapter instance created successfully for session: {SessionId}, user: {UserId}", sessionId, userId);
+			return new PlanningService(chatAdapter, mcpAdapter, planningServiceLogger, _settings.Gemini.MaxContextLengthTokens);
 		}
 	}
 }

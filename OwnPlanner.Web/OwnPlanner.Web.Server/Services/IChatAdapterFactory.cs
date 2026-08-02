@@ -14,6 +14,8 @@ public interface IChatAdapterFactory
 	/// </summary>
 	/// <param name="mcpAdapter">
 	/// The tool adapter for the current session, or <see langword="null"/> when tool initialization failed.
+	/// On a successful return, ownership transfers to the created chat adapter, which must dispose it
+	/// from <see cref="IAsyncDisposable.DisposeAsync"/>.
 	/// </param>
 	/// <returns>A conversational-model adapter owned by the resulting planning service.</returns>
 	IChatAdapter Create(IMcpAdapter? mcpAdapter);

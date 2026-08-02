@@ -5,7 +5,7 @@
 > [ADR-0008: Deterministic browser E2E testing](../adr/0008-deterministic-browser-e2e-testing.md).
 > Details below may not reflect later refinements made during review.
 
-**Status:** Active
+**Status:** Implemented
 **Date:** 2026-08-02
 
 ## Intended outcome
