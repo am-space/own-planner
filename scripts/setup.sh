@@ -11,3 +11,6 @@ npm --prefix "$FRONTEND_DIR" ci
 
 echo "Restoring .NET dependencies..."
 dotnet restore "$REPO_ROOT/OwnPlanner.sln"
+
+echo "Installing Playwright Chromium..."
+bash "$SCRIPT_DIR/install-playwright.sh"

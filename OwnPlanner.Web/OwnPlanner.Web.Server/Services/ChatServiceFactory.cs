@@ -1,6 +1,5 @@
 using Microsoft.Extensions.Options;
 using OwnPlanner.Application.Chat;
-using OwnPlanner.Infrastructure.Adapters;
 using OwnPlanner.Web.Server.Configuration;
 
 namespace OwnPlanner.Web.Server.Services
@@ -10,6 +9,7 @@ namespace OwnPlanner.Web.Server.Services
 	/// </summary>
 	public class ChatServiceFactory(
 		IOptions<ChatSettings> settings,
+		IChatAdapterFactory chatAdapterFactory,
 		ILogger<ChatServiceFactory> logger,
 		ILogger<DirectToolMcpAdapter> directToolMcpAdapterLogger,
 		ILogger<PlanningService> planningServiceLogger,
@@ -57,15 +57,10 @@ namespace OwnPlanner.Web.Server.Services
 				}
 			}
 
-			var chatService = new ChatServiceAdapter(
-				_settings.Gemini.ApiKey,
-				_settings.Gemini.Model,
-				_settings.Gemini.MaxToolCallRounds,
-				mcpAdapter
-			);
+			var chatAdapter = chatAdapterFactory.Create(mcpAdapter);
 
-			logger.LogDebug("ChatServiceAdapter instance created successfully for session: {SessionId}, user: {UserId}", sessionId, userId);
-			return new PlanningService(chatService, mcpAdapter, planningServiceLogger, _settings.Gemini.MaxContextLengthTokens);
+			logger.LogDebug("Chat adapter instance created successfully for session: {SessionId}, user: {UserId}", sessionId, userId);
+			return new PlanningService(chatAdapter, mcpAdapter, planningServiceLogger, _settings.Gemini.MaxContextLengthTokens);
 		}
 	}
 }
