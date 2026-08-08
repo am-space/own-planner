@@ -8,8 +8,9 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
-import ChatPage from './pages/ChatPage';
 import SettingsPage from './pages/SettingsPage';
+import PlannerPage from './pages/PlannerPage';
+import PlannerShell from './components/PlannerShell';
 
 function ThemedApp() {
   const { theme } = useThemeContext();
@@ -24,22 +25,21 @@ function ThemedApp() {
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route
-              path="/chat"
               element={
                 <ProtectedRoute>
-                  <ChatPage />
+                  <PlannerShell />
                 </ProtectedRoute>
               }
-            />
-            <Route
-              path="/settings"
-              element={
-                <ProtectedRoute>
-                  <SettingsPage />
-                </ProtectedRoute>
-              }
-            />
+            >
+              <Route path="/chat" element={null} />
+              <Route path="/planner" element={<Navigate to="/planner/tasks" replace />} />
+              <Route path="/planner/tasks" element={<PlannerPage section="tasks" />} />
+              <Route path="/planner/goals" element={<PlannerPage section="goals" />} />
+              <Route path="/planner/notes" element={<PlannerPage section="notes" />} />
+              <Route path="/settings" element={<SettingsPage />} />
+            </Route>
             <Route path="/" element={<Navigate to="/chat" replace />} />
+            <Route path="*" element={<Navigate to="/chat" replace />} />
           </Routes>
         </BrowserRouter>
       </AuthProvider>

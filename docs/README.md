@@ -16,6 +16,7 @@ describe.
 | [`email-configuration.md`](email-configuration.md) | Transactional email configuration and deliverability |
 | [`docker.md`](docker.md) | Container build and operating notes |
 | [`testing.md`](testing.md) | Local, CI, and deterministic browser E2E verification |
+| [`planner-workspace.md`](planner-workspace.md) | Read-only planner UI, HTTP contract, and tenant-safe read path |
 
 ## Plans
 
@@ -45,6 +46,7 @@ ADRs describe decisions as actually shipped. Start new records from [`adr/templa
 - [`ADR-0006`](adr/0006-gdpr-account-export.md) — GDPR account export
 - [`ADR-0007`](adr/0007-gdpr-account-deletion.md) — GDPR account deletion
 - [`ADR-0008`](adr/0008-deterministic-browser-e2e-testing.md) — deterministic browser E2E testing
+- [`ADR-0009`](adr/0009-read-only-planner-workspace.md) — read-only planner workspace alongside persistent chat (proposed)
 
 ## Historical plans
 
