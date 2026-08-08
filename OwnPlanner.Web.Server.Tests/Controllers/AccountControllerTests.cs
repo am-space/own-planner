@@ -76,7 +76,7 @@ public class AccountControllerTests
 			Received.InOrder(() =>
 			{
 				_initializationService.EnsureInitializedAsync(
-					Arg.Is<SessionContext>(c => c.UserId == TestUserId), Arg.Any<CancellationToken>());
+					Arg.Is<SessionContext>(c => c != null && c.UserId == TestUserId), Arg.Any<CancellationToken>());
 				_exportService.CreateExportAsync(Arg.Any<CancellationToken>());
 			});
 

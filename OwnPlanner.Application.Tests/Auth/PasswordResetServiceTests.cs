@@ -37,7 +37,7 @@ public sealed class PasswordResetServiceTests
 
 		PasswordResetToken? captured = null;
 		_resetTokenRepository.AddAsync(Arg.Do<PasswordResetToken>(t => captured = t), ct)
-			.Returns(callInfo => Task.FromResult(callInfo.Arg<PasswordResetToken>()));
+			.Returns(callInfo => Task.FromResult(callInfo.Arg<PasswordResetToken>()!));
 
 		await _service.RequestPasswordResetAsync("user@example.com", ct);
 

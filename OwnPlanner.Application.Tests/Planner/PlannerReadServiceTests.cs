@@ -23,7 +23,8 @@ public class PlannerReadServiceTests
 
 		result.Should().BeSameAs(expected);
 		await _store.Received(1).QueryTasksAsync(
-			Arg.Is<PlannerTaskQuery>(query => query.Search == "launch" && query.Offset == 5 && query.Limit == 10),
+			Arg.Is<PlannerTaskQuery>(query =>
+				query != null && query.Search == "launch" && query.Offset == 5 && query.Limit == 10),
 			Arg.Any<CancellationToken>());
 	}
 

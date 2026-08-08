@@ -40,11 +40,12 @@ public class PlannerControllerTests
 		Received.InOrder(() =>
 		{
 			_initializationService.EnsureInitializedAsync(
-				Arg.Is<SessionContext>(context => context.UserId == UserId),
+				Arg.Is<SessionContext>(context => context != null && context.UserId == UserId),
 				Arg.Any<CancellationToken>());
 			_plannerReadService.QueryTasksAsync(
 				Arg.Is<PlannerTaskQuery>(query =>
-					query.Search == "launch"
+					query != null
+					&& query.Search == "launch"
 					&& query.Status == PlannerTaskStatus.All
 					&& query.ImportantOnly
 					&& query.Offset == 10
@@ -76,7 +77,7 @@ public class PlannerControllerTests
 
 		result.Result.Should().BeOfType<OkObjectResult>().Which.Value.Should().BeSameAs(expected);
 		await _initializationService.Received(1).EnsureInitializedAsync(
-			Arg.Is<SessionContext>(context => context.UserId == UserId),
+			Arg.Is<SessionContext>(context => context != null && context.UserId == UserId),
 			Arg.Any<CancellationToken>());
 	}
 
