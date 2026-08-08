@@ -1,7 +1,7 @@
 # ADR-0009: Read-only planner workspace alongside persistent chat
 
 **Date:** 2026-08-08
-**Status:** Proposed
+**Status:** Accepted
 **Deciders:** OwnPlanner maintainers
 
 ---
@@ -14,9 +14,8 @@ open an item's full details. A conventional dashboard or detached browser would 
 chat-centric interaction model, while rendering MCP tool output directly in React would couple the UI
 to an AI-facing transport and its payload constraints.
 
-The originating implementation plan is
-[`read-only-planner-workspace-plan.md`](../read-only-planner-workspace-plan.md). It remains active until
-the feature merges and is then archived according to the documentation process.
+The originating implementation plan is archived at
+[`docs/archive/read-only-planner-workspace-plan.md`](../archive/read-only-planner-workspace-plan.md).
 
 ## Decision
 

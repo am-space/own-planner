@@ -22,8 +22,7 @@ describe.
 
 Active implementation plans live directly in `docs/` as `*-plan.md`:
 
-- [`read-only-planner-workspace-plan.md`](read-only-planner-workspace-plan.md) — direct browsing of
-  tasks, goals, and notes with a horizontal assistant panel
+No implementation plans are currently active.
 
 Potential work without an implementation commitment lives in `backlog/`:
 
@@ -46,7 +45,7 @@ ADRs describe decisions as actually shipped. Start new records from [`adr/templa
 - [`ADR-0006`](adr/0006-gdpr-account-export.md) — GDPR account export
 - [`ADR-0007`](adr/0007-gdpr-account-deletion.md) — GDPR account deletion
 - [`ADR-0008`](adr/0008-deterministic-browser-e2e-testing.md) — deterministic browser E2E testing
-- [`ADR-0009`](adr/0009-read-only-planner-workspace.md) — read-only planner workspace alongside persistent chat (proposed)
+- [`ADR-0009`](adr/0009-read-only-planner-workspace.md) — read-only planner workspace alongside persistent chat
 
 ## Historical plans
 
@@ -56,6 +55,7 @@ linked ADR when determining current behavior.
 - [`archive/email-sending-plan.md`](archive/email-sending-plan.md)
 - [`archive/task-list-token-reduction-plan.md`](archive/task-list-token-reduction-plan.md)
 - [`archive/e2e-testing-plan.md`](archive/e2e-testing-plan.md)
+- [`archive/read-only-planner-workspace-plan.md`](archive/read-only-planner-workspace-plan.md)
 
 ## Supporting records
 

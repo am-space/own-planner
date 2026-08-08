@@ -1,6 +1,11 @@
 # Read-only planner workspace plan
 
-**Status:** Active
+> **Archived — implemented.** This is the original implementation plan, kept for historical
+> context. The shipped design and rationale are recorded in
+> [ADR-0009: Read-only planner workspace alongside persistent chat](../adr/0009-read-only-planner-workspace.md).
+> Details below may not reflect later refinements made during review.
+
+**Status:** Implemented
 **Date:** 2026-08-07
 
 ## Intended outcome
