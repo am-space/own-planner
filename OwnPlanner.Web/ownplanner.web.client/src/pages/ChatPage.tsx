@@ -300,42 +300,54 @@ export default function ChatPage({ compact = false }: ChatPageProps) {
         <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
             {/* Header */}
             {compact ? (
-                <Toolbar
-                    variant="dense"
-                    sx={{
-                        minHeight: 48,
-                        gap: 1.5,
-                        borderBottom: 1,
-                        borderColor: 'divider',
-                        bgcolor: 'background.paper',
-                    }}
-                >
-                    <Typography variant="subtitle1" component="h2" sx={{ fontWeight: 600, flexShrink: 0 }}>
-                        Assistant
-                    </Typography>
-                    <PlanningModeSelector
-                        currentMode={planningMode}
-                        disabled={isLoading || isSwitchingMode}
-                        loading={isSwitchingMode}
-                        onChange={handleSwitchMode}
-                        sx={{ minWidth: 180, ml: 'auto' }}
-                    />
-                    <Tooltip title="Clear chat session">
-                        <span>
-                            <IconButton
-                                aria-label="Clear chat session"
-                                size="small"
-                                onClick={handleClearSession}
-                                disabled={isLoading}
-                            >
-                                <DeleteIcon fontSize="small" />
+                <AppBar position="static">
+                    <Toolbar variant="dense" sx={{ minHeight: 48, gap: 1.5 }}>
+                        <Tooltip title="About OwnPlanner">
+                            <IconButton aria-label="About OwnPlanner" color="inherit" size="small" onClick={() => setAboutOpen(true)}>
+                                <InfoIcon fontSize="small" />
                             </IconButton>
-                        </span>
-                    </Tooltip>
-                </Toolbar>
+                        </Tooltip>
+                        <Typography variant="subtitle1" component="h2" sx={{ fontWeight: 600, flexShrink: 0 }}>
+                            Assistant
+                        </Typography>
+                        <PlanningModeSelector
+                            currentMode={planningMode}
+                            disabled={isLoading || isSwitchingMode}
+                            loading={isSwitchingMode}
+                            onChange={handleSwitchMode}
+                            sx={{
+                                minWidth: 180,
+                                ml: 'auto',
+                                color: 'white',
+                                '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.5)' },
+                                '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'white' },
+                                '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: 'white' },
+                                '& .MuiSvgIcon-root': { color: 'white' },
+                            }}
+                        />
+                        <Tooltip title="Clear chat session">
+                            <span>
+                                <IconButton
+                                    aria-label="Clear chat session"
+                                    size="small"
+                                    color="inherit"
+                                    onClick={handleClearSession}
+                                    disabled={isLoading}
+                                >
+                                    <DeleteIcon fontSize="small" />
+                                </IconButton>
+                            </span>
+                        </Tooltip>
+                    </Toolbar>
+                </AppBar>
             ) : (
             <AppBar position="static">
                 <Toolbar sx={{ gap: 1, minHeight: 56 }}>
+                    <Tooltip title="About OwnPlanner">
+                        <IconButton aria-label="About OwnPlanner" color="inherit" onClick={() => setAboutOpen(true)}>
+                            <InfoIcon />
+                        </IconButton>
+                    </Tooltip>
                     <Typography variant="h6" component="div" sx={{ flexShrink: 0 }}>
                         Chat
                     </Typography>
@@ -405,11 +417,6 @@ export default function ChatPage({ compact = false }: ChatPageProps) {
                         <Tooltip title={MODE_LABEL[colorMode]}>
                             <IconButton aria-label={MODE_LABEL[colorMode]} color="inherit" onClick={handleCycleColorMode}>
                                 {MODE_ICON[colorMode]}
-                            </IconButton>
-                        </Tooltip>
-                        <Tooltip title="About OwnPlanner">
-                            <IconButton aria-label="About OwnPlanner" color="inherit" onClick={() => setAboutOpen(true)}>
-                                <InfoIcon />
                             </IconButton>
                         </Tooltip>
                         <Button

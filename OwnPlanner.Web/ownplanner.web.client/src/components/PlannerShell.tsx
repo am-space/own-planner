@@ -36,6 +36,10 @@ const expandedNavigationWidth = 232;
 const collapsedNavigationWidth = 72;
 const assistantPreferenceKey = 'ownplanner.assistant.collapsed';
 
+export interface PlannerShellOutletContext {
+  inspectorHost: HTMLDivElement | null;
+}
+
 const navigationItems = [
   { label: 'Chat', path: '/chat', icon: <ChatBubbleOutlineIcon /> },
   { label: 'Tasks', path: '/planner/tasks', icon: <ChecklistIcon /> },
@@ -52,6 +56,7 @@ export default function PlannerShell() {
   const { user, logout } = useAuth();
   const [mobileNavigationOpen, setMobileNavigationOpen] = useState(false);
   const [navigationCollapsed, setNavigationCollapsed] = useState(false);
+  const [inspectorHost, setInspectorHost] = useState<HTMLDivElement | null>(null);
   const [assistantCollapsed, setAssistantCollapsed] = useState(
     () => sessionStorage.getItem(assistantPreferenceKey) === 'true',
   );
@@ -60,7 +65,8 @@ export default function PlannerShell() {
   const isPlanner = location.pathname.startsWith('/planner/');
   const isChat = location.pathname === '/chat';
   const isSettings = location.pathname === '/settings';
-  const navigationWidth = navigationCollapsed ? collapsedNavigationWidth : expandedNavigationWidth;
+  const isNavigationCollapsed = navigationCollapsed && !isMobile;
+  const navigationWidth = isNavigationCollapsed ? collapsedNavigationWidth : expandedNavigationWidth;
   const currentItem = navigationItems.find(item => item.path === location.pathname) ?? navigationItems[0];
 
   const handleNavigate = (path: string) => {
@@ -81,60 +87,66 @@ export default function PlannerShell() {
 
   const navigation = (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <Toolbar sx={{ gap: 1.5, px: navigationCollapsed ? 2 : 2.5 }}>
-        <Box component="img" src={logo} alt="OwnPlanner" sx={{ width: 34, height: 34 }} />
-        {!navigationCollapsed && (
-          <Typography variant="subtitle1" sx={{ fontWeight: 700, whiteSpace: 'nowrap' }}>
-            OwnPlanner
-          </Typography>
+      <Toolbar sx={{ gap: 1.5, px: isNavigationCollapsed ? 1 : 2.5, justifyContent: isNavigationCollapsed ? 'center' : 'flex-start' }}>
+        {isNavigationCollapsed ? (
+          <Tooltip title="Expand navigation" placement="right">
+            <IconButton aria-label="Expand navigation" onClick={() => setNavigationCollapsed(false)}>
+              <ChevronRightIcon />
+            </IconButton>
+          </Tooltip>
+        ) : (
+          <>
+            <Box component="img" src={logo} alt="OwnPlanner" sx={{ width: 34, height: 34 }} />
+            <Typography variant="subtitle1" sx={{ flex: 1, fontWeight: 700, whiteSpace: 'nowrap' }}>
+              OwnPlanner
+            </Typography>
+            {!isMobile && (
+              <Tooltip title="Collapse navigation">
+                <IconButton aria-label="Collapse navigation" edge="end" onClick={() => setNavigationCollapsed(true)}>
+                  <ChevronLeftIcon />
+                </IconButton>
+              </Tooltip>
+            )}
+          </>
         )}
       </Toolbar>
       <Divider />
       <List component="nav" aria-label="Primary navigation" sx={{ px: 1, py: 1.5 }}>
         {navigationItems.map(item => (
-          <Tooltip key={item.path} title={navigationCollapsed ? item.label : ''} placement="right">
+          <Tooltip key={item.path} title={isNavigationCollapsed ? item.label : ''} placement="right">
             <ListItemButton
               selected={location.pathname === item.path}
               onClick={() => handleNavigate(item.path)}
               aria-current={location.pathname === item.path ? 'page' : undefined}
-              sx={{ borderRadius: 2, mb: 0.5, minHeight: 44, justifyContent: navigationCollapsed ? 'center' : 'flex-start' }}
+              aria-label={isNavigationCollapsed ? item.label : undefined}
+              sx={{ borderRadius: 2, mb: 0.5, minHeight: 44, justifyContent: isNavigationCollapsed ? 'center' : 'flex-start' }}
             >
-              <ListItemIcon sx={{ minWidth: navigationCollapsed ? 0 : 40, justifyContent: 'center' }}>
+              <ListItemIcon sx={{ minWidth: isNavigationCollapsed ? 0 : 40, justifyContent: 'center' }}>
                 {item.icon}
               </ListItemIcon>
-              {!navigationCollapsed && <ListItemText primary={item.label} />}
+              {!isNavigationCollapsed && <ListItemText primary={item.label} />}
             </ListItemButton>
           </Tooltip>
         ))}
       </List>
       <Box sx={{ mt: 'auto', p: 1 }}>
-        {user && !navigationCollapsed && (
+        {user && !isNavigationCollapsed && (
           <Typography variant="body2" color="text.secondary" noWrap sx={{ px: 2, py: 1 }}>
             {user.username}
           </Typography>
         )}
-        <Tooltip title={navigationCollapsed ? 'Logout' : ''} placement="right">
+        <Tooltip title={isNavigationCollapsed ? 'Logout' : ''} placement="right">
           <ListItemButton
             onClick={handleLogout}
-            sx={{ borderRadius: 2, justifyContent: navigationCollapsed ? 'center' : 'flex-start' }}
+            aria-label={isNavigationCollapsed ? 'Logout' : undefined}
+            sx={{ borderRadius: 2, justifyContent: isNavigationCollapsed ? 'center' : 'flex-start' }}
           >
-            <ListItemIcon sx={{ minWidth: navigationCollapsed ? 0 : 40, justifyContent: 'center' }}>
+            <ListItemIcon sx={{ minWidth: isNavigationCollapsed ? 0 : 40, justifyContent: 'center' }}>
               <LogoutIcon />
             </ListItemIcon>
-            {!navigationCollapsed && <ListItemText primary="Logout" />}
+            {!isNavigationCollapsed && <ListItemText primary="Logout" />}
           </ListItemButton>
         </Tooltip>
-        {!isMobile && (
-          <Tooltip title={navigationCollapsed ? 'Expand navigation' : 'Collapse navigation'} placement="right">
-            <IconButton
-              aria-label={navigationCollapsed ? 'Expand navigation' : 'Collapse navigation'}
-              onClick={() => setNavigationCollapsed(value => !value)}
-              sx={{ mt: 1, width: '100%', borderRadius: 2 }}
-            >
-              {navigationCollapsed ? <ChevronRightIcon /> : <ChevronLeftIcon />}
-            </IconButton>
-          </Tooltip>
-        )}
       </Box>
     </Box>
   );
@@ -186,7 +198,7 @@ export default function PlannerShell() {
         )}
 
         <Box sx={{ display: (isPlanner && (!isMobile || mobileSurface === 'planner')) || isSettings ? 'flex' : 'none', flex: 1, minHeight: 0, overflow: isSettings ? 'auto' : 'hidden' }}>
-          <Outlet />
+          <Outlet context={{ inspectorHost } satisfies PlannerShellOutletContext} />
         </Box>
 
         <Box
@@ -232,6 +244,11 @@ export default function PlannerShell() {
           </Button>
         )}
       </Box>
+
+      <Box
+        ref={setInspectorHost}
+        sx={{ display: { xs: 'none', lg: 'block' }, flex: '0 0 auto', minWidth: 0, height: '100%' }}
+      />
     </Box>
   );
 }

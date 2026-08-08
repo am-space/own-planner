@@ -12,9 +12,15 @@ The protected React routes share one `PlannerShell`:
 - Tasks, Goals, and Notes use the upper workspace with the same mounted chat session in a horizontal
   assistant panel below;
 - the assistant can be collapsed for more vertical planner space;
-- selecting an item opens complete read-only details in a right-side inspector;
+- selecting an item opens complete read-only details in a full-height right-side inspector, making
+  navigation, planner/chat, and inspector three sibling desktop columns;
 - narrow screens show planner data and chat as mutually exclusive surfaces and use drawers for
   navigation and item details.
+
+The navigation collapse control sits in the navigation header: the expanded panel shows a collapse
+chevron beside the product name, while the icon rail shows a centered expand chevron. Task and note
+rows use `Context · List` as consistent secondary metadata and reserve right-side adornments for
+state. Goal rows use `Horizon · Target` because goals have no context or list relationship.
 
 `ChatPage` remains mounted while protected routes change. Its visible messages, draft, planning mode,
 quota, context, loading, and error state therefore survive navigation during the current browser

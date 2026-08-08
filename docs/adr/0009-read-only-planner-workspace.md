@@ -26,7 +26,14 @@ The protected React application uses `PlannerShell` for left navigation and work
 Chat occupies the full center when selected. Task, goal, and note routes render a read-only collection
 above the same mounted `ChatPage` in a collapsible horizontal assistant region. On narrow screens,
 planner and chat are mutually exclusive surfaces. The route query string owns planner filters,
-offset, and selected item; a right inspector owns complete item presentation.
+offset, and selected item. On sufficiently wide screens, the right inspector is a full-height sibling
+of the central planner/chat column; at narrower widths it becomes an overlay drawer. The planner
+route still owns detail retrieval and renders the inspector through a shell-provided host.
+
+Task and note rows consistently present relationships as `Context · List` secondary metadata. Goal
+rows use `Horizon · Target`, since goals have no context or list relationship. Right-side row
+adornments are reserved for item state rather than repeating relationships. The navigation
+collapse/expand control lives in the navigation header, where the changed width is visually anchored.
 
 Keeping one `ChatPage` instance mounted preserves its existing local conversation and composer state
 without adding a client state-management dependency or changing the chat response contract.
@@ -52,6 +59,7 @@ MCP, Gemini, console, and stdio contracts remain unchanged.
 
 - Users can inspect complete, paged planner data without model interpretation while continuing the
   same chat.
+- A full-height inspector keeps chat visually between the left navigation and right context panel.
 - URL-addressable view state supports refresh, sharing within an authenticated session, and a future
   allowlisted UI-action contract.
 - Database-side projection and bounded previews keep collection payloads and server memory bounded.
@@ -61,6 +69,8 @@ MCP, Gemini, console, and stdio contracts remain unchanged.
 ### Negative / Trade-offs
 
 - The horizontal split creates two independent scroll regions and requires fixed minimum sizes.
+- The persistent three-column arrangement is limited to wide screens; the inspector must overlay the
+  center at narrower desktop and tablet widths.
 - The first MVP uses offset pagination and SQLite substring search; it does not provide saved views,
   fuzzy/full-text search, custom sorting, or real-time synchronization.
 - Chat presentation state survives route navigation but is not persisted across a full browser reload.

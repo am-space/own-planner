@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { createPortal } from 'react-dom';
+import { useOutletContext, useSearchParams } from 'react-router-dom';
 import {
   Alert,
   Box,
@@ -40,6 +41,7 @@ import type {
   PlannerTaskStatus,
   PlannerTaskSummary,
 } from '../types/api.types';
+import type { PlannerShellOutletContext } from '../components/PlannerShell';
 
 type PlannerSection = 'tasks' | 'goals' | 'notes';
 
@@ -199,12 +201,11 @@ function TaskBrowser({
         <>
           <ListItemText
             primary={<Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>{item.title}{item.isImportant && <StarIcon color="warning" fontSize="small" />}</Box>}
-            secondary={item.descriptionPreview || `${item.taskListName}${item.contextName ? ` · ${item.contextName}` : ''}`}
+            secondary={joinMetadata(item.contextName, item.taskListName)}
             secondaryTypographyProps={{ noWrap: true }}
           />
           <Stack direction="row" spacing={0.75} sx={{ ml: 2, alignItems: 'center' }}>
-            {item.goalName && <Chip size="small" label={item.goalName} variant="outlined" />}
-            <Chip size="small" label={item.isCompleted ? 'Completed' : item.taskListName} color={item.isCompleted ? 'success' : 'default'} />
+            {item.isCompleted && <Chip size="small" label="Completed" color="success" />}
           </Stack>
         </>
       )}
@@ -320,9 +321,12 @@ function GoalBrowser() {
       }
       renderRow={item => (
         <>
-          <ListItemText primary={item.title} secondary={item.descriptionPreview || item.metric || 'No description'} secondaryTypographyProps={{ noWrap: true }} />
+          <ListItemText
+            primary={item.title}
+            secondary={joinMetadata(splitLabel(item.horizon), formatGoalTarget(item))}
+            secondaryTypographyProps={{ noWrap: true }}
+          />
           <Stack direction="row" spacing={0.75} sx={{ ml: 2 }}>
-            <Chip size="small" label={splitLabel(item.horizon)} variant="outlined" />
             <Chip size="small" label={item.status} color={item.status === 'Active' ? 'primary' : item.status === 'Achieved' ? 'success' : 'default'} />
           </Stack>
         </>
@@ -457,13 +461,9 @@ function NoteBrowser({
         <>
           <ListItemText
             primary={<Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>{item.title}{item.isPinned && <PushPinIcon color="primary" fontSize="small" />}</Box>}
-            secondary={item.contentPreview || `${item.noteListName}${item.contextName ? ` · ${item.contextName}` : ''}`}
+            secondary={joinMetadata(item.contextName, item.noteListName)}
             secondaryTypographyProps={{ noWrap: true }}
           />
-          <Stack direction="row" spacing={0.75} sx={{ ml: 2 }}>
-            {item.goalName && <Chip size="small" label={item.goalName} variant="outlined" />}
-            <Chip size="small" label={item.noteListName} />
-          </Stack>
         </>
       )}
       detailTitle={detail?.title ?? 'Note details'}
@@ -532,12 +532,13 @@ function CollectionWithInspector<T extends { id: string }>({
   detail,
 }: CollectionWithInspectorProps<T>) {
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const useOverlayInspector = useMediaQuery(theme.breakpoints.down('lg'));
+  const { inspectorHost } = useOutletContext<PlannerShellOutletContext>();
   const headingRef = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
-    if (selected) headingRef.current?.focus();
-  }, [selected]);
+    if (selected && (useOverlayInspector || inspectorHost)) headingRef.current?.focus();
+  }, [selected, useOverlayInspector, inspectorHost]);
 
   const handleClose = () => {
     const originatingRow = selected ? document.getElementById(`planner-row-${selected}`) : null;
@@ -546,6 +547,24 @@ function CollectionWithInspector<T extends { id: string }>({
   };
   const firstIndex = result && result.totalCount > 0 ? result.offset + 1 : 0;
   const lastIndex = result ? result.offset + result.items.length : 0;
+  const inspector = (
+    <Box
+      component="aside"
+      aria-label={`${title} details inspector`}
+      sx={{ display: 'flex', flexDirection: 'column', width: useOverlayInspector ? '100%' : inspectorWidth, maxWidth: '100%', height: '100%', overflow: 'hidden', bgcolor: 'background.paper', borderLeft: useOverlayInspector ? 0 : 1, borderColor: 'divider' }}
+    >
+      <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, p: 2 }}>
+        <Typography ref={headingRef} tabIndex={-1} variant="h6" component="h2" sx={{ flex: 1, outline: 'none' }}>
+          {detailTitle}
+        </Typography>
+        <IconButton aria-label="Close details" onClick={handleClose}><CloseIcon /></IconButton>
+      </Box>
+      <Divider />
+      <Box sx={{ flex: 1, overflow: 'auto', p: 2.5 }} aria-busy={detailLoading}>
+        {detailLoading ? <CircularProgress size={28} /> : detailError ? <Alert severity="error">{detailError}</Alert> : detail}
+      </Box>
+    </Box>
+  );
 
   return (
     <>
@@ -598,35 +617,17 @@ function CollectionWithInspector<T extends { id: string }>({
         </Box>
       </Box>
 
-      <Drawer
-        anchor="right"
-        variant={isMobile ? 'temporary' : 'persistent'}
-        open={Boolean(selected)}
-        onClose={handleClose}
-        sx={{
-          width: selected && !isMobile ? inspectorWidth : 0,
-          flexShrink: 0,
-          '& .MuiDrawer-paper': {
-            width: isMobile ? '100%' : inspectorWidth,
-            maxWidth: '100%',
-            position: isMobile ? 'fixed' : 'relative',
-            boxSizing: 'border-box',
-          },
-        }}
-      >
-        <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-          <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, p: 2 }}>
-            <Typography ref={headingRef} tabIndex={-1} variant="h6" component="h2" sx={{ flex: 1, outline: 'none' }}>
-              {detailTitle}
-            </Typography>
-            <IconButton aria-label="Close details" onClick={handleClose}><CloseIcon /></IconButton>
-          </Box>
-          <Divider />
-          <Box sx={{ flex: 1, overflow: 'auto', p: 2.5 }} aria-busy={detailLoading}>
-            {detailLoading ? <CircularProgress size={28} /> : detailError ? <Alert severity="error">{detailError}</Alert> : detail}
-          </Box>
-        </Box>
-      </Drawer>
+      {selected && useOverlayInspector && (
+        <Drawer
+          anchor="right"
+          open
+          onClose={handleClose}
+          PaperProps={{ sx: { width: { xs: '100%', sm: inspectorWidth }, maxWidth: '100%' } }}
+        >
+          {inspector}
+        </Drawer>
+      )}
+      {selected && !useOverlayInspector && inspectorHost && createPortal(inspector, inspectorHost)}
     </>
   );
 }
@@ -695,4 +696,12 @@ function formatDate(value: string | null, includeTime = false) {
 
 function splitLabel(value: string) {
   return value.replace(/([a-z])([A-Z])/g, '$1 $2');
+}
+
+function joinMetadata(...values: Array<string | null | undefined>) {
+  return values.filter((value): value is string => Boolean(value)).join(' · ') || undefined;
+}
+
+function formatGoalTarget(goal: PlannerGoalSummary) {
+  return goal.targetDate ? formatDate(goal.targetDate) : goal.targetPeriod;
 }

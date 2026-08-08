@@ -12,6 +12,7 @@ public sealed class PlannerWorkspaceE2eTests(E2eWebApplicationFactory applicatio
 	[Fact]
 	public async Task TaskWorkspace_PreservesChatAndUrlState_WhileInspectingReadOnlyDetails()
 	{
+		await Page.SetViewportSizeAsync(1440, 900);
 		await RegisterAsync(Page, CreateUser());
 		var taskTitle = $"Planner workspace task {Guid.NewGuid():N}";
 		var prompt = Application.Scenarios.Register(async mcpAdapter =>
@@ -30,7 +31,10 @@ public sealed class PlannerWorkspaceE2eTests(E2eWebApplicationFactory applicatio
 		await SendPromptAsync(Page, prompt);
 		await Expect(Page.GetByText($"Created {taskTitle}", new() { Exact = true })).ToBeVisibleAsync();
 
+		await Page.GetByRole(AriaRole.Button, new() { Name = "Collapse navigation", Exact = true }).ClickAsync();
+		await Expect(Page.GetByRole(AriaRole.Button, new() { Name = "Expand navigation", Exact = true })).ToBeVisibleAsync();
 		await Page.GetByRole(AriaRole.Button, new() { Name = "Tasks", Exact = true }).ClickAsync();
+		await Page.GetByRole(AriaRole.Button, new() { Name = "Expand navigation", Exact = true }).ClickAsync();
 		await Expect(Page).ToHaveURLAsync(new Regex("/planner/tasks"));
 		await Expect(Page.GetByRole(AriaRole.Heading, new() { Name = "Tasks", Exact = true })).ToBeVisibleAsync();
 		await Expect(Page.GetByText($"Created {taskTitle}", new() { Exact = true })).ToBeVisibleAsync();
@@ -38,9 +42,15 @@ public sealed class PlannerWorkspaceE2eTests(E2eWebApplicationFactory applicatio
 		await Page.GetByLabel("Search tasks").FillAsync(taskTitle);
 		await Expect(Page).ToHaveURLAsync(new Regex("search="));
 		await Expect(Page.GetByText(taskTitle, new() { Exact = true }).First).ToBeVisibleAsync();
+		await Expect(Page.GetByText("Inbox", new() { Exact = true })).ToHaveCountAsync(1);
+		await Expect(Page.GetByText("A complete private description for the workspace inspector.", new() { Exact = true })).ToHaveCountAsync(0);
 		await Page.GetByText(taskTitle, new() { Exact = true }).First.ClickAsync();
 		await Expect(Page.GetByRole(AriaRole.Heading, new() { Name = taskTitle, Exact = true })).ToBeVisibleAsync();
 		await Expect(Page.GetByText("A complete private description for the workspace inspector.", new() { Exact = true }).Last).ToBeVisibleAsync();
+		var inspectorBounds = await Page.GetByLabel("Tasks details inspector", new() { Exact = true }).BoundingBoxAsync();
+		Assert.NotNull(inspectorBounds);
+		Assert.True(Math.Abs(inspectorBounds.Y) < 1);
+		Assert.True(Math.Abs(inspectorBounds.Height - 900) < 2);
 
 		await Page.GetByRole(AriaRole.Button, new() { Name = "Collapse assistant", Exact = true }).ClickAsync();
 		await Expect(Page.GetByLabel("Search tasks")).ToHaveValueAsync(taskTitle);
