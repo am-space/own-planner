@@ -33,7 +33,7 @@ public sealed class PersonalAccessTokenServiceTests
 		var ct = TestContext.Current.CancellationToken;
 		PersonalAccessToken? captured = null;
 		_tokenRepository.AddAsync(Arg.Do<PersonalAccessToken>(token => captured = token), ct)
-			.Returns(callInfo => Task.FromResult(callInfo.Arg<PersonalAccessToken>()));
+			.Returns(callInfo => Task.FromResult(callInfo.Arg<PersonalAccessToken>()!));
 
 		var result = await _service.CreatePersonalAccessTokenAsync(
 			Guid.NewGuid(),

@@ -9,22 +9,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    checkAuth();
-  }, []);
-
-  const checkAuth = async () => {
-    try {
-      const authCheck = await apiService.checkAuth();
-      if (authCheck.isAuthenticated) {
-        const userData = await apiService.getCurrentUser();
-        setUser(userData);
+    const checkAuth = async () => {
+      try {
+        const authCheck = await apiService.checkAuth();
+        if (authCheck.isAuthenticated) {
+          const userData = await apiService.getCurrentUser();
+          setUser(userData);
+        }
+      } catch (error) {
+        console.error('Auth check failed:', error);
+      } finally {
+        setIsLoading(false);
       }
-    } catch (error) {
-      console.error('Auth check failed:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    };
+
+    void checkAuth();
+  }, []);
 
   const login = async (email: string, password: string) => {
     try {

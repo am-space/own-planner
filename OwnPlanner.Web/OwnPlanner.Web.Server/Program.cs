@@ -9,6 +9,7 @@ using OwnPlanner.Application.Contexts;
 using OwnPlanner.Infrastructure.Account;
 using OwnPlanner.Infrastructure.Adapters;
 using OwnPlanner.Infrastructure.Persistence;
+using OwnPlanner.Infrastructure.Planner;
 using OwnPlanner.Domain.Contexts;
 using OwnPlanner.Domain.Goals;
 using OwnPlanner.Domain.Notes;
@@ -20,6 +21,7 @@ using OwnPlanner.Application.Email;
 using OwnPlanner.Application.Goals;
 using OwnPlanner.Application.Inbox;
 using OwnPlanner.Application.Notes;
+using OwnPlanner.Application.Planner;
 using OwnPlanner.Application.Tasks;
 using OwnPlanner.Application.Usage;
 using OwnPlanner.Mcp.Tools;
@@ -101,6 +103,7 @@ namespace OwnPlanner.Web.Server
 				builder.Services.AddScoped<IPlanningContextRepository, PlanningContextRepository>();
 				builder.Services.AddScoped<IUserDailyUsageRepository, UserDailyUsageRepository>();
 				builder.Services.AddScoped<IUserQuotaOverrideRepository, UserQuotaOverrideRepository>();
+				builder.Services.AddScoped<IPlannerReadStore, PlannerReadStore>();
 
 				// Register application services
 				builder.Services.AddScoped<IAuthService, AuthService>();
@@ -114,6 +117,7 @@ namespace OwnPlanner.Web.Server
 				builder.Services.AddScoped<IUsageQuotaService, UsageQuotaService>();
 				builder.Services.AddScoped<IAccountExportService, AccountExportService>();
 				builder.Services.AddScoped<IAccountDeletionService, AccountDeletionService>();
+				builder.Services.AddScoped<IPlannerReadService, PlannerReadService>();
 				builder.Services.AddHostedService<ExportTempFileCleanupService>();
 
 				// Configure usage quota: bound limits (singleton instance) + in-memory burst window (singleton)

@@ -18,6 +18,17 @@ import type {
   PlanningMode,
   SwitchModeResponse,
   ModeStarterPromptsResponse,
+  PagedResult,
+  PlannerTaskQuery,
+  PlannerGoalQuery,
+  PlannerNoteQuery,
+  PlannerTaskSummary,
+  PlannerTaskDetail,
+  PlannerGoalSummary,
+  PlannerGoalDetail,
+  PlannerNoteSummary,
+  PlannerNoteDetail,
+  PlannerFilterOptions,
 } from '../types/api.types';
 
 /**
@@ -36,8 +47,72 @@ export class RateLimitError extends Error {
   }
 }
 
+export class ApiError extends Error {
+  readonly status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+  }
+}
+
 class ApiService {
   private baseUrl = '/api';
+
+  private async getPlannerJson<T>(
+    path: string,
+    query?: object,
+  ): Promise<T> {
+    const searchParams = new URLSearchParams();
+    Object.entries(query ?? {}).forEach(([key, value]) => {
+      if (value !== undefined && value !== '') {
+        searchParams.set(key, String(value));
+      }
+    });
+    const suffix = searchParams.size > 0 ? `?${searchParams.toString()}` : '';
+    const response = await fetch(`${this.baseUrl}/planner/${path}${suffix}`, {
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({})) as { detail?: string; message?: string; title?: string };
+      throw new ApiError(
+        error.message || error.detail || error.title || 'Failed to load planner data',
+        response.status,
+      );
+    }
+
+    return await response.json() as T;
+  }
+
+  async getPlannerTasks(query: PlannerTaskQuery): Promise<PagedResult<PlannerTaskSummary>> {
+    return this.getPlannerJson('tasks', query);
+  }
+
+  async getPlannerTask(id: string): Promise<PlannerTaskDetail> {
+    return this.getPlannerJson(`tasks/${encodeURIComponent(id)}`);
+  }
+
+  async getPlannerGoals(query: PlannerGoalQuery): Promise<PagedResult<PlannerGoalSummary>> {
+    return this.getPlannerJson('goals', query);
+  }
+
+  async getPlannerGoal(id: string): Promise<PlannerGoalDetail> {
+    return this.getPlannerJson(`goals/${encodeURIComponent(id)}`);
+  }
+
+  async getPlannerNotes(query: PlannerNoteQuery): Promise<PagedResult<PlannerNoteSummary>> {
+    return this.getPlannerJson('notes', query);
+  }
+
+  async getPlannerNote(id: string): Promise<PlannerNoteDetail> {
+    return this.getPlannerJson(`notes/${encodeURIComponent(id)}`);
+  }
+
+  async getPlannerFilterOptions(): Promise<PlannerFilterOptions> {
+    return this.getPlannerJson('filter-options');
+  }
 
   async register(request: RegisterRequest): Promise<AuthResult> {
     const response = await fetch(`${this.baseUrl}/auth/register`, {

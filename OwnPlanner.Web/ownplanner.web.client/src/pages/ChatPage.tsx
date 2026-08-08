@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
     Box,
     Container,
@@ -10,26 +9,21 @@ import {
     AppBar,
     Toolbar,
     Button,
-    Avatar,
     Chip,
     CircularProgress,
     Alert,
     Snackbar,
     Tooltip,
     Divider,
-    useMediaQuery,
     useTheme,
 } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
-import LogoutIcon from '@mui/icons-material/Logout';
 import DeleteIcon from '@mui/icons-material/Delete';
-import SettingsIcon from '@mui/icons-material/Settings';
 import InfoIcon from '@mui/icons-material/Info';
 import LightbulbOutlinedIcon from '@mui/icons-material/LightbulbOutlined';
 import LightModeIcon from '@mui/icons-material/LightMode';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
 import ContrastIcon from '@mui/icons-material/Contrast';
-import { useAuth } from '../contexts/useAuth';
 import { useThemeContext } from '../contexts/ThemeContext';
 import type { ColorModePreference } from '../contexts/ThemeContext';
 import { apiService, RateLimitError } from '../services/api';
@@ -38,7 +32,6 @@ import AboutDialog from '../components/AboutDialog';
 import PlanningModeSelector from '../components/PlanningModeSelector';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import logo from '../assets/logo.svg';
 
 interface Message {
     id: string;
@@ -69,12 +62,13 @@ const MODE_LABEL: Record<ColorModePreference, string> = {
     system: 'System mode',
 };
 
-export default function ChatPage() {
-    const { user, logout } = useAuth();
-    const navigate = useNavigate();
+interface ChatPageProps {
+    compact?: boolean;
+}
+
+export default function ChatPage({ compact = false }: ChatPageProps) {
     const theme = useTheme();
     const { mode: colorMode, setMode: setColorMode } = useThemeContext();
-    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const [messages, setMessages] = useState<Message[]>([]);
     const [inputText, setInputText] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -167,15 +161,6 @@ export default function ChatPage() {
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages, isLoading]);
-
-    const handleLogout = async () => {
-        await logout();
-        navigate('/login');
-    };
-
-    const handleOpenSettings = () => {
-        navigate('/settings');
-    };
 
     const handleClearSession = async () => {
         try {
@@ -312,46 +297,61 @@ export default function ChatPage() {
     };
 
     return (
-        <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
             {/* Header */}
-            <AppBar position="static">
-                <Toolbar sx={{ flexWrap: { xs: 'wrap', lg: 'nowrap' }, justifyContent: 'center', py: 1 }}>
-                    {/* Left group */}
-                    <Box sx={{ display: 'flex', alignItems: 'center', flex: '0 0 auto' }}>
-                        <Box
-                            component="img"
-                            src={logo}
-                            alt="OwnPlanner Logo"
+            {compact ? (
+                <AppBar position="static">
+                    <Toolbar variant="dense" sx={{ minHeight: 48, gap: 1.5 }}>
+                        <Tooltip title="About OwnPlanner">
+                            <IconButton aria-label="About OwnPlanner" color="inherit" size="small" onClick={() => setAboutOpen(true)}>
+                                <InfoIcon fontSize="small" />
+                            </IconButton>
+                        </Tooltip>
+                        <Typography variant="subtitle1" component="h2" sx={{ fontWeight: 600, flexShrink: 0 }}>
+                            Assistant
+                        </Typography>
+                        <PlanningModeSelector
+                            currentMode={planningMode}
+                            disabled={isLoading || isSwitchingMode}
+                            loading={isSwitchingMode}
+                            onChange={handleSwitchMode}
                             sx={{
-                                height: 40,
-                                mr: 2,
+                                minWidth: 180,
+                                ml: 'auto',
+                                color: 'white',
+                                '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.5)' },
+                                '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'white' },
+                                '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: 'white' },
+                                '& .MuiSvgIcon-root': { color: 'white' },
                             }}
                         />
-                        <Typography variant="h6" component="div" sx={{ mr: 2 }}>
-                            OwnPlanner Chat
-                        </Typography>
-
-                        {/* About Button */}
-                        {isMobile ? (
-                            <IconButton
-                                color="inherit"
-                                onClick={() => setAboutOpen(true)}
-                            >
-                                <InfoIcon />
-                            </IconButton>
-                        ) : (
-                            <Button
-                                color="inherit"
-                                startIcon={<InfoIcon />}
-                                onClick={() => setAboutOpen(true)}
-                            >
-                                About
-                            </Button>
-                        )}
-                    </Box>
-
-                    {/* Center: Planning mode selector (desktop) */}
-                    <Box sx={{ display: { xs: 'none', sm: 'flex' }, flex: { xs: '0 0 auto', lg: '1 1 auto' }, minWidth: { xs: 'auto', lg: 0 }, justifyContent: 'center' }}>
+                        <Tooltip title="Clear chat session">
+                            <span>
+                                <IconButton
+                                    aria-label="Clear chat session"
+                                    size="small"
+                                    color="inherit"
+                                    onClick={handleClearSession}
+                                    disabled={isLoading}
+                                >
+                                    <DeleteIcon fontSize="small" />
+                                </IconButton>
+                            </span>
+                        </Tooltip>
+                    </Toolbar>
+                </AppBar>
+            ) : (
+            <AppBar position="static">
+                <Toolbar sx={{ gap: 1, minHeight: 56 }}>
+                    <Tooltip title="About OwnPlanner">
+                        <IconButton aria-label="About OwnPlanner" color="inherit" onClick={() => setAboutOpen(true)}>
+                            <InfoIcon />
+                        </IconButton>
+                    </Tooltip>
+                    <Typography variant="h6" component="div" sx={{ flexShrink: 0 }}>
+                        Chat
+                    </Typography>
+                    <Box sx={{ display: { xs: 'none', sm: 'flex' }, ml: 1 }}>
                         <PlanningModeSelector
                             currentMode={planningMode}
                             disabled={isLoading || isSwitchingMode}
@@ -367,15 +367,14 @@ export default function ChatPage() {
                         />
                     </Box>
 
-                    {/* Right group */}
-                    <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', flex: '0 0 auto', justifyContent: 'flex-end' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, ml: 'auto', minWidth: 0 }}>
                         {remainingDailyQuota !== null && (
                             <Tooltip title={`${formatTokenCount(remainingDailyQuota)} chat requests remaining today`}>
                                 <Chip
                                     size="small"
                                     label={`${formatTokenCount(remainingDailyQuota)} left`}
                                     color={remainingDailyQuota <= 0 ? 'error' : remainingDailyQuota <= 10 ? 'warning' : 'default'}
-                                    sx={{ mr: isMobile ? 1 : 2, color: 'white', borderColor: 'rgba(255,255,255,0.5)' }}
+                                    sx={{ color: 'white', borderColor: 'rgba(255,255,255,0.5)', display: { xs: 'none', md: 'flex' } }}
                                     variant="outlined"
                                 />
                             </Tooltip>
@@ -386,7 +385,6 @@ export default function ChatPage() {
                                     display: 'flex',
                                     alignItems: 'center',
                                     gap: 1,
-                                    mr: isMobile ? 1 : 2,
                                     px: 1,
                                     py: 0.5,
                                     borderRadius: 5,
@@ -417,76 +415,36 @@ export default function ChatPage() {
 
                         {/* Theme toggle */}
                         <Tooltip title={MODE_LABEL[colorMode]}>
-                            <IconButton color="inherit" onClick={handleCycleColorMode} sx={{ mr: 1 }}>
+                            <IconButton aria-label={MODE_LABEL[colorMode]} color="inherit" onClick={handleCycleColorMode}>
                                 {MODE_ICON[colorMode]}
                             </IconButton>
                         </Tooltip>
-
-                        {user && (
-                            <>
-                                <Chip
-                                    avatar={<Avatar>{user.username[0].toUpperCase()}</Avatar>}
-                                    label={user.username}
-                                    sx={{
-                                        mr: isMobile ? 1 : 2,
-                                        bgcolor: 'rgba(255,255,255,0.2)',
-                                        color: 'white',
-                                        display: isMobile ? 'none' : 'flex'
-                                    }}
-                                />
-                                {isMobile ? (
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                        <IconButton
-                                            color="inherit"
-                                            onClick={handleOpenSettings}
-                                        >
-                                            <SettingsIcon />
-                                        </IconButton>
-                                        <IconButton
-                                            color="inherit"
-                                            onClick={handleClearSession}
-                                            disabled={isLoading}
-                                        >
-                                            <DeleteIcon />
-                                        </IconButton>
-                                        <IconButton
-                                            color="inherit"
-                                            onClick={handleLogout}
-                                        >
-                                            <LogoutIcon />
-                                        </IconButton>
-                                    </Box>
-                                ) : (
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                                        <Button
-                                            color="inherit"
-                                            startIcon={<SettingsIcon />}
-                                            onClick={handleOpenSettings}
-                                        >
-                                            Settings
-                                        </Button>
-                                        <Button
-                                            color="inherit"
-                                            startIcon={<DeleteIcon />}
-                                            onClick={handleClearSession}
-                                            disabled={isLoading}
-                                        >
-                                            Clear
-                                        </Button>
-                                        <Button
-                                            color="inherit"
-                                            startIcon={<LogoutIcon />}
-                                            onClick={handleLogout}
-                                        >
-                                            Logout
-                                        </Button>
-                                    </Box>
-                                )}
-                            </>
-                        )}
+                        <Button
+                            color="inherit"
+                            startIcon={<DeleteIcon />}
+                            onClick={handleClearSession}
+                            disabled={isLoading}
+                            sx={{ display: { xs: 'none', sm: 'inline-flex' } }}
+                        >
+                            Clear
+                        </Button>
+                        <Tooltip title="Clear chat session">
+                            <span>
+                                <IconButton
+                                    aria-label="Clear chat session"
+                                    color="inherit"
+                                    onClick={handleClearSession}
+                                    disabled={isLoading}
+                                    sx={{ display: { xs: 'inline-flex', sm: 'none' } }}
+                                >
+                                    <DeleteIcon />
+                                </IconButton>
+                            </span>
+                        </Tooltip>
                     </Box>
                 </Toolbar>
             </AppBar>
+            )}
 
             {/* About Dialog */}
             <AboutDialog open={aboutOpen} onClose={() => setAboutOpen(false)} />
@@ -504,13 +462,13 @@ export default function ChatPage() {
             </Snackbar>
 
             {/* Chat Messages */}
-            <Container maxWidth="md" sx={{ flexGrow: 1, overflow: 'auto', py: 3 }}>
+            <Container maxWidth="md" sx={{ flexGrow: 1, minHeight: 0, overflow: 'auto', py: compact ? 1.5 : 3 }}>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                     {messages.length === 0 && (
                         <Paper
                             elevation={0}
                             sx={{
-                                p: 3,
+                                p: compact ? 2 : 3,
                                 textAlign: 'center',
                                 bgcolor: 'background.default',
                                 border: '1px dashed',
@@ -647,7 +605,7 @@ export default function ChatPage() {
             </Container>
 
             {/* Starter Prompts — fixed above input */}
-            {showStarterPrompts && starterPrompts.length > 0 && (
+            {!compact && showStarterPrompts && starterPrompts.length > 0 && (
                 <Box
                     sx={{
                         px: 2,
@@ -710,7 +668,7 @@ export default function ChatPage() {
             {/* Planning mode selector (mobile) */}
             <Box
                 sx={{
-                    display: { xs: 'flex', sm: 'none' },
+                    display: compact ? 'none' : { xs: 'flex', sm: 'none' },
                     px: 2,
                     py: 1,
                     bgcolor: 'background.paper',
@@ -732,7 +690,7 @@ export default function ChatPage() {
             <Paper
                 elevation={3}
                 sx={{
-                    p: 2,
+                    p: compact ? 1 : 2,
                     borderRadius: 0,
                 }}
             >
@@ -755,6 +713,7 @@ export default function ChatPage() {
                             }}
                         />
                         <IconButton
+                            aria-label="Send message"
                             color="primary"
                             onClick={handleSendMessage}
                             disabled={!inputText.trim() || isLoading}
