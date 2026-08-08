@@ -19,8 +19,10 @@ describe.
 
 ## Plans
 
-Active implementation plans live directly in `docs/` as `*-plan.md`. There are currently no active
-plans.
+Active implementation plans live directly in `docs/` as `*-plan.md`:
+
+- [`read-only-planner-workspace-plan.md`](read-only-planner-workspace-plan.md) — direct browsing of
+  tasks, goals, and notes with a horizontal assistant panel
 
 Potential work without an implementation commitment lives in `backlog/`:
 
