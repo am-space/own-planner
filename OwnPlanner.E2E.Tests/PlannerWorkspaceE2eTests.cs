@@ -52,9 +52,13 @@ public sealed class PlannerWorkspaceE2eTests(E2eWebApplicationFactory applicatio
 		Assert.True(Math.Abs(inspectorBounds.Y) < 1);
 		Assert.True(Math.Abs(inspectorBounds.Height - 900) < 2);
 
-		await Page.GetByRole(AriaRole.Button, new() { Name = "Collapse assistant", Exact = true }).ClickAsync();
+		var collapseAssistant = Page.GetByRole(AriaRole.Button, new() { Name = "Collapse assistant", Exact = true });
+		await Expect(collapseAssistant).ToHaveAttributeAsync("aria-expanded", "true");
+		await collapseAssistant.ClickAsync();
 		await Expect(Page.GetByLabel("Search tasks")).ToHaveValueAsync(taskTitle);
-		await Page.GetByRole(AriaRole.Button, new() { Name = "Ask OwnPlanner…", Exact = true }).ClickAsync();
+		var expandAssistant = Page.GetByRole(AriaRole.Button, new() { Name = "Ask OwnPlanner…", Exact = true });
+		await Expect(expandAssistant).ToHaveAttributeAsync("aria-expanded", "false");
+		await expandAssistant.ClickAsync();
 		await Expect(Page.GetByText($"Created {taskTitle}", new() { Exact = true })).ToBeVisibleAsync();
 
 		var taskDeepLink = Page.Url;
@@ -69,6 +73,19 @@ public sealed class PlannerWorkspaceE2eTests(E2eWebApplicationFactory applicatio
 		await Page.ReloadAsync();
 		await Expect(Page.GetByLabel("Search tasks")).ToHaveValueAsync(taskTitle);
 		await Expect(Page.GetByRole(AriaRole.Heading, new() { Name = taskTitle, Exact = true })).ToBeVisibleAsync();
+	}
+
+	[Fact]
+	public async Task LowercasePlannerDeepLinks_RestoreCanonicalFilterControls()
+	{
+		await RegisterAsync(Page, CreateUser());
+
+		await Page.GotoAsync("/planner/tasks?status=all");
+		await Expect(Page.GetByLabel("Status")).ToHaveTextAsync("All");
+
+		await Page.GotoAsync("/planner/goals?status=active&horizon=quarterly");
+		await Expect(Page.GetByLabel("Status")).ToHaveTextAsync("Active");
+		await Expect(Page.GetByLabel("Horizon")).ToHaveTextAsync("Quarterly");
 	}
 
 	[Fact]

@@ -51,6 +51,9 @@ interface PlannerPageProps {
 
 const pageSize = 25;
 const inspectorWidth = 380;
+const taskStatusOptions: readonly PlannerTaskStatus[] = ['Open', 'Completed', 'All'];
+const goalStatusOptions: readonly PlannerGoalStatus[] = ['Active', 'Achieved', 'Dropped', 'All'];
+const goalHorizonOptions: readonly GoalHorizon[] = ['Monthly', 'Quarterly', 'Yearly', 'TargetDate'];
 
 export default function PlannerPage({ section }: PlannerPageProps) {
   const [filterOptions, setFilterOptions] = useState<PlannerFilterOptions | null>(null);
@@ -86,7 +89,7 @@ function TaskBrowser({
 }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const search = searchParams.get('search') ?? '';
-  const status = (searchParams.get('status') ?? 'Open') as PlannerTaskStatus;
+  const status = readCanonicalQueryValue(searchParams, 'status', taskStatusOptions, 'Open');
   const important = searchParams.get('important') === 'true';
   const taskListId = searchParams.get('taskListId') ?? '';
   const contextId = searchParams.get('contextId') ?? '';
@@ -185,7 +188,7 @@ function TaskBrowser({
             sx={{ minWidth: 220, flex: 1 }}
           />
           <TextField select label="Status" value={status} onChange={event => updateParams({ status: event.target.value })} size="small" sx={{ minWidth: 130 }}>
-            {['Open', 'Completed', 'All'].map(value => <MenuItem key={value} value={value}>{value}</MenuItem>)}
+            {taskStatusOptions.map(value => <MenuItem key={value} value={value}>{value}</MenuItem>)}
           </TextField>
           <OptionSelect label="Task list" value={taskListId} onChange={value => updateParams({ taskListId: value })} options={filterOptions?.taskLists ?? []} />
           <OptionSelect label="Context" value={contextId} onChange={value => updateParams({ contextId: value })} options={filterOptions?.contexts ?? []} />
@@ -233,8 +236,8 @@ function TaskBrowser({
 function GoalBrowser() {
   const [searchParams, setSearchParams] = useSearchParams();
   const search = searchParams.get('search') ?? '';
-  const status = (searchParams.get('status') ?? 'Active') as PlannerGoalStatus;
-  const horizon = (searchParams.get('horizon') ?? '') as GoalHorizon | '';
+  const status = readCanonicalQueryValue(searchParams, 'status', goalStatusOptions, 'Active');
+  const horizon = readCanonicalQueryValue<GoalHorizon | ''>(searchParams, 'horizon', goalHorizonOptions, '');
   const selected = searchParams.get('selected');
   const offset = readOffset(searchParams);
   const [result, setResult] = useState<PagedResult<PlannerGoalSummary> | null>(null);
@@ -311,11 +314,11 @@ function GoalBrowser() {
         <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} useFlexGap flexWrap="wrap">
           <TextField label="Search goals" value={search} onChange={event => updateParams({ search: event.target.value })} size="small" sx={{ minWidth: 220, flex: 1 }} />
           <TextField select label="Status" value={status} onChange={event => updateParams({ status: event.target.value })} size="small" sx={{ minWidth: 130 }}>
-            {['Active', 'Achieved', 'Dropped', 'All'].map(value => <MenuItem key={value} value={value}>{value}</MenuItem>)}
+            {goalStatusOptions.map(value => <MenuItem key={value} value={value}>{value}</MenuItem>)}
           </TextField>
           <TextField select label="Horizon" value={horizon} onChange={event => updateParams({ horizon: event.target.value })} size="small" sx={{ minWidth: 150 }}>
             <MenuItem value="">All horizons</MenuItem>
-            {['Monthly', 'Quarterly', 'Yearly', 'TargetDate'].map(value => <MenuItem key={value} value={value}>{splitLabel(value)}</MenuItem>)}
+            {goalHorizonOptions.map(value => <MenuItem key={value} value={value}>{splitLabel(value)}</MenuItem>)}
           </TextField>
         </Stack>
       }
@@ -678,6 +681,17 @@ function readOffset(params: URLSearchParams) {
   if (!raw) return 0;
   const parsed = Number(raw);
   return Number.isInteger(parsed) ? parsed : -1;
+}
+
+function readCanonicalQueryValue<T extends string>(
+  params: URLSearchParams,
+  key: string,
+  options: readonly T[],
+  fallback: T,
+) {
+  const raw = params.get(key);
+  if (!raw) return fallback;
+  return options.find(option => option.toLowerCase() === raw.toLowerCase()) ?? raw as T;
 }
 
 function getErrorMessage(error: unknown) {

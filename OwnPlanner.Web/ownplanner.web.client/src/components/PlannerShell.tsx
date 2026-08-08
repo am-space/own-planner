@@ -222,6 +222,7 @@ export default function PlannerShell() {
             <Tooltip title="Collapse assistant">
               <IconButton
                 aria-label="Collapse assistant"
+                aria-expanded="true"
                 size="small"
                 onClick={() => handleAssistantCollapsed(true)}
                 sx={{ position: 'absolute', right: 12, mt: 0.75, zIndex: 2 }}
