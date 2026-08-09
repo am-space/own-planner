@@ -53,7 +53,8 @@ Keep business invariants on the backend. Treat frontend validation as user feedb
 ## Documentation Decisions
 
 - Update living reference docs when shipped behavior or architecture changes.
-- Create an ADR from `docs/adr/template.md` for a durable architectural decision.
+- Create an ADR from `docs/adr/template.md` for a durable architectural decision and make it land with `Status: Accepted` when the implementation pull request merges.
+- When a new ADR replaces an earlier decision, mark the earlier ADR as `Superseded by ADR-NNNN` and link the two records.
 - Keep speculative or inactive knowledge in `docs/backlog/`.
-- Archive completed plans through `git mv` and add the banner required by `docs/AGENTS.md`.
+- Archive completed plans in the implementation pull request through `git mv` and add the banner and ADR link required by `docs/AGENTS.md`; never leave a shipped plan active on `master`.
 - Avoid a documentation change when existing reference docs already describe the resulting behavior accurately.

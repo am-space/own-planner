@@ -120,9 +120,11 @@ Docs in `docs/` include **backlog proposals** (`docs/backlog/*-plan.md`, potenti
 implementation commitment), **active plans** (`docs/*-plan.md`, approved or actively pursued work),
 **ADRs** (`docs/adr/NNNN-*.md`, durable records of a decision as shipped — start from
 `docs/adr/template.md`), and **reference docs** (living "how it works now" pages). Promote backlog
-work with `git mv` once it becomes active. When a planned feature ships, write/update its ADR and
-`git mv` the plan into `docs/archive/` with a banner linking to the ADR — never delete plans, and
-don't let a finished plan pose as current documentation. Full mechanics (promotion, numbering,
-banner format, superseding) are in [`docs/AGENTS.md`](docs/AGENTS.md).
+work with `git mv` once it becomes active. In the implementation pull request for a planned feature,
+write/update its ADR so it lands with `Status: Accepted` when merged; mark a replaced ADR as
+`Superseded by ADR-NNNN`. Also `git mv` the completed plan into `docs/archive/` with a banner linking
+to the ADR — never delete plans, and don't let a shipped plan remain active on `master`. Full
+mechanics (promotion, numbering, banner format, and superseding) are in
+[`docs/AGENTS.md`](docs/AGENTS.md).
 
 `Directory.Build.props` derives assembly/file versions from the `APP_VERSION` / `APP_FILE_VERSION` env vars (default `0.0.0-local`). Releases are cut from git tags `v<major>.<minor>.<patch>`; tagged CI builds push a Docker image to `ghcr.io`.

@@ -25,7 +25,9 @@ Keep [`README.md`](README.md) current when adding, moving, renaming, or removing
 
 1. Copy `docs/adr/template.md` to `docs/adr/NNNN-<kebab-title>.md`, where `NNNN` is the next unused
    zero-padded number.
-2. Fill in the header (`Date` = today, `Status` = `Accepted` once the work merges, `Deciders`).
+2. Fill in the header (`Date` = today, `Deciders`). Set `Status: Accepted` in the implementation
+   pull request so the ADR lands as accepted when that pull request merges; do not leave a shipped
+   decision as `Proposed` on `master`.
 3. Describe the decision **as actually built**, not as originally planned — fold in any refinements
    made during review. The `Decision` section should match the code; the `Related Files` table
    points at the implementation.
@@ -33,6 +35,10 @@ Keep [`README.md`](README.md) current when adding, moving, renaming, or removing
    the new one's `Context` should link back.
 
 ## Archiving a plan when its feature ships
+
+Perform the ADR update and plan archive in the implementation pull request. They describe the
+result that the pull request will ship and become canonical when it merges. If the pull request does
+not merge, the active plan on `master` remains active.
 
 1. Write or update the corresponding ADR first.
 2. `git mv docs/<feature>-plan.md docs/archive/<feature>-plan.md`.
