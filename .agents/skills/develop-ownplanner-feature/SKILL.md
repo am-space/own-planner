@@ -100,8 +100,8 @@ Before handoff:
 1. Compare the behavior and tests with every acceptance criterion.
 2. Inspect the complete diff for accidental files, unrelated cleanup, generated artifacts, secrets, and contract changes.
 3. Confirm relevant docs describe the shipped behavior rather than the original plan.
-4. Create or update an ADR for a durable architectural decision.
-5. Archive a completed `docs/*-plan.md` according to `docs/AGENTS.md`; never delete the historical plan.
+4. For a durable architectural decision, create or update an ADR that describes the implementation as built. Make the ADR land with `Status: Accepted` when the implementation pull request merges. If it replaces an earlier ADR, set the earlier ADR's status to `Superseded by ADR-NNNN` and link the decisions.
+5. Archive a completed `docs/*-plan.md` in the implementation pull request according to `docs/AGENTS.md`, including the required banner and ADR link. Use `git mv` and never delete the historical plan. These changes become canonical when the pull request merges; do not leave a shipped plan active on `master`.
 6. Re-run affected verification after review fixes.
 
 ### 8. Hand Off Through the Issue Lifecycle
@@ -118,4 +118,4 @@ Commit, push, create a pull request, or change GitHub Project state only when au
 
 ## Definition of Done
 
-Consider the feature complete only when the reviewed issue scope is implemented, affected tests and full verification pass, documentation reflects the resulting behavior, the final diff is clean and scoped, and any unverified or deferred work is explicitly reported.
+Consider the feature complete only when the reviewed issue scope is implemented, affected tests and full verification pass, documentation reflects the resulting behavior, every required ADR lands with the correct shipped status, every completed active plan is archived, the final diff is clean and scoped, and any unverified or deferred work is explicitly reported.
