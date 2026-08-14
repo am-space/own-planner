@@ -36,3 +36,35 @@ To add a new skill to the AI:
 1. Define the core logic in `OwnPlanner.Application`.
 2. Wrap it as a tool definition and handler in `OwnPlanner.Mcp.Tools` so the web server and stdio host can both reuse it.
 3. The orchestration layer will automatically expose this new tool schema to Gemini on the next chat session.
+
+## Strategic Report Preloading
+
+Global Planning and System Analysis preload `strategic_report_get` rather than retrieving broad
+goal, context, list, task, and note collections. The additive, read-only tool is also available for
+an explicit refresh; existing entity tools remain available for targeted drill-down and mutations
+allowed by the active mode.
+
+The report captures one `asOfUtc` instant and returns:
+
+- overall totals for non-archived contexts, active goals, non-archived task and note lists,
+  incomplete tasks, important incomplete tasks, overdue incomplete tasks, and notes;
+- a summary for every non-archived context and active goal;
+- deterministic structural signals for goals and contexts without active tasks, tasks without a
+  goal, and contexts without task or note lists; and
+- compact task and note samples containing exact identifiers for subsequent tool calls.
+
+An overdue task is incomplete and has `dueAt < asOfUtc`. Important counts include only incomplete
+tasks. Tasks in archived task lists, notes in archived note lists, and completed tasks do not
+contribute to active metrics. Task samples sort overdue first, then important, then by the nearest
+due/focus instant and a stable identifier. Note samples sort pinned first, then most recently
+updated and a stable identifier.
+
+`taskSampleLimit` defaults to 3 and `noteSampleLimit` defaults to 2; both accept values from 0 through
+5. Text previews contain at most 200 characters and carry a separate truncation flag. Counts remain
+complete when a sample limit is zero. The report does not perform LLM analysis, infer note types, or
+replace detail tools.
+
+`IStrategicReportReader` defines the Application contract. `StrategicReportReader` executes the
+cross-entity projections through the host-provided `IPlannerDbContextFactory`, so web calls use the
+authenticated user's database and stdio calls use that host's configured database. The tool accepts
+no user ID, database path, or other tenant selector.

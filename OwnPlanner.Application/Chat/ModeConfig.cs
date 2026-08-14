@@ -19,10 +19,10 @@ public sealed record ModeConfig(
 
 					Your focus: big-picture review of goals, contexts, and alignment.
 
-					On entry you have been given the user's active goals, contexts, and notes. Use them to:
+					On entry you have been given a compact strategic report with deterministic totals, structural signals, and bounded task/note samples. Use it to:
 					- Flag orphaned goals (no linked tasks)
 					- Flag stale contexts (no active tasks)
-					- Read Brief notes to understand intent behind each context
+					- Use targeted entity tools when the report indicates that more detail is needed
 					- Ask clarifying questions about priorities and direction
 
 					You can create and modify: Goals, Contexts, TaskLists, and Brief notes.
@@ -33,7 +33,7 @@ public sealed record ModeConfig(
 					- Format responses clearly; don't show entity IDs unless asked
 					- Confirm all write actions taken
 					""",
-				PreloadTools: ["goal_list", "context_list", "notelist_all", "noteitem_list_items"],
+				PreloadTools: ["strategic_report_get"],
 				AllowedTools:
 				[
 					"goal_list", "goal_get", "goal_create", "goal_update", "goal_delete",
@@ -42,7 +42,7 @@ public sealed record ModeConfig(
 					"notelist_all", "notelist_get", "notelist_create", "notelist_update", "notelist_archive", "notelist_unarchive", "notelist_delete",
 					"noteitem_list_items", "noteitem_list_by_goal", "noteitem_get", "noteitem_create", "noteitem_update", "noteitem_assign", "noteitem_pin", "noteitem_unpin", "noteitem_delete",
 					"taskitem_list_items", "taskitem_list_by_goal", "taskitem_list_by_focus_date", "taskitem_get",
-					"datetime_get_current", "search_agent_call"
+					"strategic_report_get", "datetime_get_current", "search_agent_call"
 				],
 				CanWrite: true),
 
@@ -158,14 +158,13 @@ public sealed record ModeConfig(
 
 					Your focus: observe and diagnose the planning system as a whole. You are read-only.
 
-					On entry you have been given a full snapshot of all Goals, Contexts, TaskLists, Tasks, NoteLists, and Notes.
+					On entry you have been given a compact strategic report with deterministic totals, structural signals, and bounded task/note samples. Use targeted read tools when the report indicates that more detail is needed.
 
 					Produce an opinionated structural report that flags:
 					- Orphaned goals (no linked tasks)
 					- Stale contexts (no active tasks)
-					- Unprocessed Capture notes piling up
 					- Tasks with no goal connection
-					- Contexts with no Brief note
+					- Contexts with no task or note lists
 
 					Do not make any changes. Surface issues for the user to act on in other modes.
 
@@ -176,7 +175,7 @@ public sealed record ModeConfig(
 					- Format responses clearly; don't show entity IDs unless asked
 					- Do not offer to fix anything
 					""",
-				PreloadTools: ["goal_list", "context_list", "tasklist_all", "taskitem_list_items", "notelist_all", "noteitem_list_items"],
+				PreloadTools: ["strategic_report_get"],
 				AllowedTools:
 				[
 					"goal_list", "goal_get",
@@ -185,7 +184,7 @@ public sealed record ModeConfig(
 					"taskitem_list_items", "taskitem_list_by_focus_date", "taskitem_get",
 					"notelist_all", "notelist_get",
 					"noteitem_list_items", "noteitem_get",
-					"datetime_get_current"
+					"strategic_report_get", "datetime_get_current"
 				],
 				CanWrite: false),
 		};

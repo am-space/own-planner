@@ -39,4 +39,12 @@ public class ModeConfigTests
 		var config = ModeConfig.All[mode];
 		config.AllowedTools.Should().Contain(config.PreloadTools);
 	}
+
+	[Theory]
+	[InlineData(PlanningMode.GlobalPlanning)]
+	[InlineData(PlanningMode.SystemAnalysis)]
+	public void StrategicModes_PreloadOnlyStrategicReport(PlanningMode mode)
+	{
+		ModeConfig.All[mode].PreloadTools.Should().Equal("strategic_report_get");
+	}
 }

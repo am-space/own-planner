@@ -6,7 +6,10 @@ using Microsoft.Extensions.Logging;
 using NSubstitute;
 using OwnPlanner.Application.Inbox;
 using OwnPlanner.Application.Tasks;
+using OwnPlanner.Application.Reporting;
+using OwnPlanner.Domain.Tasks;
 using OwnPlanner.Infrastructure.Persistence;
+using OwnPlanner.Infrastructure.Reporting;
 using OwnPlanner.Web.Server.Services;
 
 namespace OwnPlanner.Web.Server.Tests.Services;
@@ -26,10 +29,17 @@ public sealed class DirectToolMcpAdapterTests : IDisposable
 
 		toolDetails.Should().Contain(tool => tool.Name == "datetime_get_current");
 		toolDetails.Should().Contain(tool => tool.Name == "taskitem_get");
+		toolDetails.Should().Contain(tool => tool.Name == "strategic_report_get");
 
 		var taskGetTool = toolDetails.Single(tool => tool.Name == "taskitem_get");
 		taskGetTool.JsonSchema.Should().NotBeNull();
 		taskGetTool.JsonSchema!.Value.GetProperty("required").EnumerateArray().Select(item => item.GetString()).Should().Contain("id");
+
+		var reportTool = toolDetails.Single(tool => tool.Name == "strategic_report_get");
+		var reportProperties = reportTool.JsonSchema!.Value.GetProperty("properties");
+		reportProperties.TryGetProperty("taskSampleLimit", out _).Should().BeTrue();
+		reportProperties.TryGetProperty("noteSampleLimit", out _).Should().BeTrue();
+		reportProperties.TryGetProperty("cancellationToken", out _).Should().BeFalse();
 	}
 
 	[Fact]
@@ -109,6 +119,23 @@ public sealed class DirectToolMcpAdapterTests : IDisposable
 
 		document.RootElement.GetProperty("title").GetString().Should().Be("Review planning");
 		await taskService.Received(1).GetAsync(taskId, Arg.Any<CancellationToken>());
+	}
+
+	[Fact]
+	public async Task CallToolAsync_StrategicReport_IsIsolatedByAdapterUser()
+	{
+		var ct = TestContext.Current.CancellationToken;
+		await using var serviceProvider = BuildTenantServiceProvider();
+		await SeedUserTaskAsync("user-a", "User A private task", ct);
+		await SeedUserTaskAsync("user-b", "User B private task", ct);
+		await using var adapterA = CreateAdapter(serviceProvider, "user-a");
+		await using var adapterB = CreateAdapter(serviceProvider, "user-b");
+
+		var reportA = await adapterA.CallToolAsync("strategic_report_get", cancellationToken: ct);
+		var reportB = await adapterB.CallToolAsync("strategic_report_get", cancellationToken: ct);
+
+		reportA.Should().Contain("User A private task").And.NotContain("User B private task");
+		reportB.Should().Contain("User B private task").And.NotContain("User A private task");
 	}
 
 	[Fact]
@@ -247,14 +274,45 @@ public sealed class DirectToolMcpAdapterTests : IDisposable
 	}
 
 	private static DirectToolMcpAdapter CreateAdapter(ServiceProvider serviceProvider)
+		=> CreateAdapter(serviceProvider, "user-456");
+
+	private static DirectToolMcpAdapter CreateAdapter(ServiceProvider serviceProvider, string userId)
 	{
 		return new DirectToolMcpAdapter(
 			"session-123",
-			"user-456",
+			userId,
 			serviceProvider.GetRequiredService<IServiceScopeFactory>(),
 			serviceProvider.GetRequiredService<IPlannerSessionContextAccessor>(),
 			serviceProvider.GetRequiredService<PerUserAppInitializationService>(),
 			serviceProvider.GetRequiredService<ILogger<DirectToolMcpAdapter>>());
+	}
+
+	private ServiceProvider BuildTenantServiceProvider()
+	{
+		Directory.CreateDirectory(_tempDirectory);
+		var inboxSeeder = Substitute.For<IInboxSeeder>();
+		inboxSeeder.SeedAsync(Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
+		var services = new ServiceCollection();
+		services.AddLogging();
+		services.AddHttpContextAccessor();
+		services.AddSingleton<IPlannerSessionContextAccessor, PlannerSessionContextAccessor>();
+		services.AddSingleton<PerUserAppInitializationService>();
+		services.AddScoped<IPlannerDbContextFactory, SessionBoundTestPlannerDbContextFactory>();
+		services.AddScoped(_ => inboxSeeder);
+		services.AddSingleton(TimeProvider.System);
+		services.AddScoped<IStrategicReportReader, StrategicReportReader>();
+		services.AddSingleton(new TenantTestDirectory(_tempDirectory));
+		return services.BuildServiceProvider();
+	}
+
+	private async Task SeedUserTaskAsync(string userId, string title, CancellationToken cancellationToken)
+	{
+		var path = Path.Combine(_tempDirectory, $"ownplanner-user-{userId}.db");
+		await using var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseSqlite($"Data Source={path}").Options);
+		await db.Database.MigrateAsync(cancellationToken);
+		var list = new TaskList("Tasks");
+		db.AddRange(list, new TaskItem(title, list.Id));
+		await db.SaveChangesAsync(cancellationToken);
 	}
 
 	private static JsonElement ParseJsonElement(string json)
@@ -278,6 +336,22 @@ public sealed class DirectToolMcpAdapterTests : IDisposable
 		public Task DeleteUserDatabaseAsync(string userId, CancellationToken cancellationToken = default)
 			=> Task.CompletedTask;
 	}
-}
 
+	private sealed record TenantTestDirectory(string Path);
+
+	private sealed class SessionBoundTestPlannerDbContextFactory(
+		TenantTestDirectory directory,
+		IPlannerSessionContextAccessor sessionContextAccessor) : IPlannerDbContextFactory
+	{
+		public ValueTask<AppDbContext> CreateAsync(CancellationToken cancellationToken = default)
+		{
+			var userId = sessionContextAccessor.Current?.UserId ?? throw new UnauthorizedAccessException();
+			var path = System.IO.Path.Combine(directory.Path, $"ownplanner-user-{userId}.db");
+			return ValueTask.FromResult(new AppDbContext(
+				new DbContextOptionsBuilder<AppDbContext>().UseSqlite($"Data Source={path}").Options));
+		}
+
+		public Task DeleteUserDatabaseAsync(string userId, CancellationToken cancellationToken = default) => Task.CompletedTask;
+	}
+}
 
