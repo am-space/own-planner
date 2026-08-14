@@ -61,7 +61,7 @@ public sealed class DirectToolMcpAdapter(
 		using var _ = sessionContextAccessor.BeginScope(_sessionContext);
 		using var scope = scopeFactory.CreateScope();
 		var toolInstance = CreateToolInstance(scope.ServiceProvider, registration.ToolType);
-		var parameterValues = BindArguments(registration.Method, arguments);
+		var parameterValues = BindArguments(registration.Method, arguments, cancellationToken);
 
 		logger.LogDebug("Executing direct tool {ToolName} for session {SessionId} and user {UserId}", toolName, _sessionContext.SessionId, _sessionContext.UserId);
 
@@ -92,7 +92,7 @@ public sealed class DirectToolMcpAdapter(
 			: ActivatorUtilities.CreateInstance(serviceProvider, toolType);
 	}
 
-	private static object?[] BindArguments(MethodInfo method, IReadOnlyDictionary<string, object?>? arguments)
+	private static object?[] BindArguments(MethodInfo method, IReadOnlyDictionary<string, object?>? arguments, CancellationToken cancellationToken)
 	{
 		var parameters = method.GetParameters();
 		var values = new object?[parameters.Length];
@@ -100,6 +100,11 @@ public sealed class DirectToolMcpAdapter(
 		for (var index = 0; index < parameters.Length; index++)
 		{
 			var parameter = parameters[index];
+			if (parameter.ParameterType == typeof(CancellationToken))
+			{
+				values[index] = cancellationToken;
+				continue;
+			}
 			if (arguments is not null && arguments.TryGetValue(parameter.Name!, out var rawValue))
 			{
 				values[index] = ConvertArgument(rawValue, parameter);
@@ -226,6 +231,7 @@ public sealed class DirectToolMcpAdapter(
 			typeof(NoteItemTools),
 			typeof(GoalTools),
 			typeof(PlanningContextTools),
+			typeof(StrategicReportTools),
 			typeof(DateTimeTools)
 		};
 
@@ -257,6 +263,10 @@ public sealed class DirectToolMcpAdapter(
 
 		foreach (var parameter in method.GetParameters())
 		{
+			if (parameter.ParameterType == typeof(CancellationToken))
+			{
+				continue;
+			}
 			properties[parameter.Name!] = BuildParameterSchema(parameter.ParameterType);
 			if (!parameter.HasDefaultValue && !IsNullable(parameter))
 			{
@@ -352,4 +362,3 @@ public sealed class DirectToolMcpAdapter(
 
 	private sealed record ToolRegistration(Type ToolType, MethodInfo Method, McpToolDefinition Definition);
 }
-

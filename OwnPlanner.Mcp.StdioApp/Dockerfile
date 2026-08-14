@@ -7,7 +7,7 @@ WORKDIR /app
 
 
 # This stage is used to build the service project
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0.300 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 COPY ["OwnPlanner.Mcp.StdioApp/OwnPlanner.Mcp.StdioApp.csproj", "OwnPlanner.Mcp.StdioApp/"]

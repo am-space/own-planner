@@ -46,6 +46,7 @@ ADRs describe decisions as actually shipped. Start new records from [`adr/templa
 - [`ADR-0007`](adr/0007-gdpr-account-deletion.md) — GDPR account deletion
 - [`ADR-0008`](adr/0008-deterministic-browser-e2e-testing.md) — deterministic browser E2E testing
 - [`ADR-0009`](adr/0009-read-only-planner-workspace.md) — read-only planner workspace alongside persistent chat
+- [`ADR-0010`](adr/0010-deterministic-strategic-reporting.md) — deterministic strategic reporting through focused read models
 
 ## Historical plans
 

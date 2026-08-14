@@ -3,7 +3,7 @@
 # Build context: Repository root directory
 
 # Stage 1: Setup Node.js for React frontend
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS with-node
+FROM mcr.microsoft.com/dotnet/sdk:10.0.300 AS with-node
 WORKDIR /src
 
 # Install Node.js 20.x (optimized commands)

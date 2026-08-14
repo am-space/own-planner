@@ -104,6 +104,8 @@ namespace OwnPlanner.Web.Server
 				builder.Services.AddScoped<IUserDailyUsageRepository, UserDailyUsageRepository>();
 				builder.Services.AddScoped<IUserQuotaOverrideRepository, UserQuotaOverrideRepository>();
 				builder.Services.AddScoped<IPlannerReadStore, PlannerReadStore>();
+				builder.Services.AddSingleton(TimeProvider.System);
+				builder.Services.AddScoped<OwnPlanner.Application.Reporting.IStrategicReportReader, OwnPlanner.Infrastructure.Reporting.StrategicReportReader>();
 
 				// Register application services
 				builder.Services.AddScoped<IAuthService, AuthService>();
@@ -217,6 +219,7 @@ namespace OwnPlanner.Web.Server
 					.WithTools<NoteItemTools>()
 					.WithTools<GoalTools>()
 					.WithTools<PlanningContextTools>()
+					.WithTools<StrategicReportTools>()
 					.WithTools<DateTimeTools>();
 
 				// Register global exception handler

@@ -9,12 +9,14 @@ using OwnPlanner.Application.Goals;
 using OwnPlanner.Application.Inbox;
 using OwnPlanner.Application.Tasks;
 using OwnPlanner.Application.Notes;
+using OwnPlanner.Application.Reporting;
 using OwnPlanner.Domain.Contexts;
 using OwnPlanner.Domain.Goals;
 using OwnPlanner.Domain.Notes;
 using OwnPlanner.Domain.Tasks;
 using OwnPlanner.Infrastructure.Persistence;
 using OwnPlanner.Infrastructure.Repositories;
+using OwnPlanner.Infrastructure.Reporting;
 using OwnPlanner.Mcp.Tools;
 
 namespace OwnPlanner.Mcp.StdioApp
@@ -114,6 +116,8 @@ namespace OwnPlanner.Mcp.StdioApp
 
 					services.AddScoped<IGoalService, GoalService>();
 					services.AddScoped<IPlanningContextService, PlanningContextService>();
+					services.AddSingleton(TimeProvider.System);
+					services.AddScoped<IStrategicReportReader, StrategicReportReader>();
 
 					// Inbox seeder
 					services.AddScoped<IInboxSeeder, InboxSeeder>();
@@ -133,6 +137,7 @@ namespace OwnPlanner.Mcp.StdioApp
 						.WithTools<NoteItemTools>()
 						.WithTools<GoalTools>()
 						.WithTools<PlanningContextTools>()
+						.WithTools<StrategicReportTools>()
 						.WithTools<DateTimeTools>();
 				});
 
