@@ -84,7 +84,7 @@ public sealed record StrategicNoteSample(
 	string? ContentPreview,
 	bool ContentTruncated,
 	bool IsPinned,
-	DateTime UpdatedAt,
+	DateTime LastUpdatedAt,
 	Guid NoteListId,
 	Guid? ContextId,
 	Guid? GoalId);

@@ -43,29 +43,33 @@ public class StrategicReportReaderTests
 		var activeGoal = new Goal("Ship", GoalHorizon.Quarterly, targetPeriod: "2026-Q3", metric: "Release");
 		activeGoal.SetMetricCurrent("Beta");
 		var orphanGoal = new Goal("Orphan", GoalHorizon.Yearly, targetPeriod: "2026");
+		var inactiveGoal = new Goal("Achieved", GoalHorizon.Yearly, targetPeriod: "2026");
+		inactiveGoal.SetStatus(GoalStatus.Achieved);
 		var taskList = new TaskList("Delivery", contextId: work.Id);
 		var noteList = new NoteList("Briefs", contextId: work.Id);
-		db.AddRange(work, empty, activeGoal, orphanGoal, taskList, noteList);
+		db.AddRange(work, empty, activeGoal, orphanGoal, inactiveGoal, taskList, noteList);
 		await db.SaveChangesAsync(ct);
 
 		var overdue = new TaskItem("Overdue", taskList.Id, dueAt: AsOfUtc.AddMinutes(-1), isImportant: true, goalId: activeGoal.Id);
 		var boundary = new TaskItem("Boundary", taskList.Id, dueAt: AsOfUtc);
 		var unassigned = new TaskItem("No goal", taskList.Id);
+		var staleGoal = new TaskItem("Deleted goal", taskList.Id, goalId: Guid.NewGuid());
+		var inactiveGoalTask = new TaskItem("Achieved goal", taskList.Id, goalId: inactiveGoal.Id);
 		var completed = new TaskItem("Done", taskList.Id, isImportant: true, goalId: activeGoal.Id);
 		completed.Complete();
 		var note = new NoteItem("Decision", noteList.Id, "Ship it", activeGoal.Id);
-		db.AddRange(overdue, boundary, unassigned, completed, note);
+		db.AddRange(overdue, boundary, unassigned, staleGoal, inactiveGoalTask, completed, note);
 		await db.SaveChangesAsync(ct);
 
 		var report = await CreateReader(connection).GetAsync(new StrategicReportOptions(), ct);
 
 		report.AsOfUtc.Should().Be(AsOfUtc);
-		report.Totals.Should().Be(new StrategicOverallTotals(2, 2, 1, 1, 3, 1, 1, 1));
+		report.Totals.Should().Be(new StrategicOverallTotals(2, 2, 1, 1, 5, 1, 1, 1));
 		var context = report.Contexts.Single(item => item.Id == work.Id);
 		context.Should().Match<StrategicContextSummary>(item =>
-			item.TaskListCount == 1 && item.NoteListCount == 1 && item.IncompleteTaskCount == 3 &&
+			item.TaskListCount == 1 && item.NoteListCount == 1 && item.IncompleteTaskCount == 5 &&
 			item.ImportantIncompleteTaskCount == 1 && item.OverdueIncompleteTaskCount == 1 &&
-			item.GoalLinkedTaskCount == 1 && item.NoteCount == 1);
+			item.GoalLinkedTaskCount == 2 && item.NoteCount == 1);
 		var goal = report.Goals.Single(item => item.Id == activeGoal.Id);
 		goal.IncompleteTaskCount.Should().Be(1);
 		goal.LinkedNoteCount.Should().Be(1);
@@ -74,7 +78,28 @@ public class StrategicReportReaderTests
 		report.Signals.ActiveGoalsWithoutActiveTasks.Should().ContainSingle(item => item.Id == orphanGoal.Id);
 		report.Signals.ContextsWithoutActiveTasks.Should().ContainSingle(item => item.Id == empty.Id);
 		report.Signals.ContextsWithoutTaskOrNoteLists.Should().ContainSingle(item => item.Id == empty.Id);
-		report.Signals.TasksWithoutGoalCount.Should().Be(2);
+		report.Signals.TasksWithoutGoalCount.Should().Be(3);
+		report.Signals.TasksWithoutGoal.Should().Contain(task => task.Id == staleGoal.Id);
+	}
+
+	[Fact]
+	public async Task GetAsync_StructuralSignalsHaveDeterministicNameOrdering()
+	{
+		using var db = CreateDb(out var connection);
+		await using var _ = connection;
+		var ct = TestContext.Current.CancellationToken;
+		db.AddRange(
+			new PlanningContext("Zulu", ContextType.Area),
+			new PlanningContext("alpha", ContextType.Area),
+			new Goal("Zulu", GoalHorizon.Yearly, targetPeriod: "2026"),
+			new Goal("alpha", GoalHorizon.Yearly, targetPeriod: "2026"));
+		await db.SaveChangesAsync(ct);
+
+		var report = await CreateReader(connection).GetAsync(new StrategicReportOptions(), ct);
+
+		report.Signals.ActiveGoalsWithoutActiveTasks.Select(item => item.Name).Should().Equal("alpha", "Zulu");
+		report.Signals.ContextsWithoutActiveTasks.Select(item => item.Name).Should().Equal("alpha", "Zulu");
+		report.Signals.ContextsWithoutTaskOrNoteLists.Select(item => item.Name).Should().Equal("alpha", "Zulu");
 	}
 
 	[Fact]

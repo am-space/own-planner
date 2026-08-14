@@ -19,15 +19,16 @@ public sealed class StrategicReportReader(
 		options.Validate();
 		var asOfUtc = timeProvider.GetUtcNow().UtcDateTime;
 		await using var db = await dbContextFactory.CreateAsync(cancellationToken);
+		await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
 
 		var contexts = await db.PlanningContexts.AsNoTracking()
 			.Where(context => context.Status != ContextStatus.Archived)
 			.Select(context => new ContextRow(context.Id, context.Name, context.Type, context.Status))
 			.ToListAsync(cancellationToken);
-		var goals = await db.Goals.AsNoTracking()
-			.Where(goal => goal.Status == GoalStatus.Active)
-			.Select(goal => new GoalRow(goal.Id, goal.Title, goal.Horizon, goal.TargetPeriod, goal.TargetDate, goal.Metric, goal.MetricCurrent))
+		var allGoals = await db.Goals.AsNoTracking()
+			.Select(goal => new GoalRow(goal.Id, goal.Title, goal.Horizon, goal.TargetPeriod, goal.TargetDate, goal.Metric, goal.MetricCurrent, goal.Status))
 			.ToListAsync(cancellationToken);
+		var goals = allGoals.Where(goal => goal.Status == GoalStatus.Active).ToList();
 		var taskLists = await db.TaskLists.AsNoTracking()
 			.Where(list => !list.IsArchived)
 			.Select(list => new ListRow(list.Id, list.ContextId))
@@ -50,20 +51,29 @@ public sealed class StrategicReportReader(
 
 		var taskListContexts = taskLists.ToDictionary(list => list.Id, list => list.ContextId);
 		var noteListContexts = noteLists.ToDictionary(list => list.Id, list => list.ContextId);
-		var tasksWithoutGoal = tasks.Where(task => task.GoalId is null).ToList();
-		var taskSampleIds = SelectTaskSampleIds(contexts, goals, tasks, tasksWithoutGoal, taskListContexts, asOfUtc, options.TaskSampleLimit);
-		var noteSampleIds = SelectNoteSampleIds(contexts, goals, notes, noteListContexts, options.NoteSampleLimit);
+		var orderedTasks = OrderTasks(tasks, asOfUtc).ToList();
+		var orderedNotes = OrderNotes(notes).ToList();
+		var tasksByContext = GroupById(orderedTasks, task => ContextId(task, taskListContexts));
+		var notesByContext = GroupById(orderedNotes, note => ContextId(note, noteListContexts));
+		var tasksByGoal = GroupById(orderedTasks, task => task.GoalId);
+		var notesByGoal = GroupById(orderedNotes, note => note.GoalId);
+		var taskListCountsByContext = CountById(taskLists, list => list.ContextId);
+		var noteListCountsByContext = CountById(noteLists, list => list.ContextId);
+		var allGoalIds = allGoals.Select(goal => goal.Id).ToHashSet();
+		var tasksWithoutGoal = orderedTasks.Where(task => task.GoalId is null || !allGoalIds.Contains(task.GoalId.Value)).ToList();
+		var taskSampleIds = SelectTaskSampleIds(contexts, goals, tasksByContext, tasksByGoal, tasksWithoutGoal, options.TaskSampleLimit);
+		var noteSampleIds = SelectNoteSampleIds(contexts, goals, notesByContext, notesByGoal, options.NoteSampleLimit);
 		var taskPreviews = await LoadTaskPreviewsAsync(db, taskSampleIds, cancellationToken);
 		var notePreviews = await LoadNotePreviewsAsync(db, noteSampleIds, cancellationToken);
 		var contextSummaries = contexts
 			.OrderBy(context => context.Name, StringComparer.OrdinalIgnoreCase)
 			.ThenBy(context => context.Id)
-			.Select(context => BuildContextSummary(context, taskLists, noteLists, tasks, notes, taskListContexts, noteListContexts, taskPreviews, notePreviews, asOfUtc, options))
+			.Select(context => BuildContextSummary(context, tasksByContext, notesByContext, taskListCountsByContext, noteListCountsByContext, allGoalIds, taskListContexts, noteListContexts, taskPreviews, notePreviews, asOfUtc, options))
 			.ToList();
 		var goalSummaries = goals
 			.OrderBy(goal => goal.Title, StringComparer.OrdinalIgnoreCase)
 			.ThenBy(goal => goal.Id)
-			.Select(goal => BuildGoalSummary(goal, tasks, notes, taskListContexts, noteListContexts, taskPreviews, notePreviews, asOfUtc, options))
+			.Select(goal => BuildGoalSummary(goal, tasksByGoal, notesByGoal, taskListContexts, noteListContexts, taskPreviews, notePreviews, asOfUtc, options))
 			.ToList();
 
 		return new StrategicReport(
@@ -80,19 +90,20 @@ public sealed class StrategicReportReader(
 			contextSummaries,
 			goalSummaries,
 			new StrategicStructuralSignals(
-				goals.Where(goal => tasks.All(task => task.GoalId != goal.Id)).Select(goal => new StrategicEntityReference(goal.Id, goal.Title)).ToList(),
-				contexts.Where(context => tasks.All(task => ContextId(task, taskListContexts) != context.Id)).Select(context => new StrategicEntityReference(context.Id, context.Name)).ToList(),
-				OrderTasks(tasksWithoutGoal, asOfUtc).Take(options.TaskSampleLimit).Select(task => ToSample(task, taskListContexts, taskPreviews)).ToList(),
+				goals.Where(goal => !tasksByGoal.ContainsKey(goal.Id)).OrderBy(goal => goal.Title, StringComparer.OrdinalIgnoreCase).ThenBy(goal => goal.Id).Select(goal => new StrategicEntityReference(goal.Id, goal.Title)).ToList(),
+				contexts.Where(context => !tasksByContext.ContainsKey(context.Id)).OrderBy(context => context.Name, StringComparer.OrdinalIgnoreCase).ThenBy(context => context.Id).Select(context => new StrategicEntityReference(context.Id, context.Name)).ToList(),
+				tasksWithoutGoal.Take(options.TaskSampleLimit).Select(task => ToSample(task, taskListContexts, taskPreviews)).ToList(),
 				tasksWithoutGoal.Count,
-				contexts.Where(context => taskLists.All(list => list.ContextId != context.Id) && noteLists.All(list => list.ContextId != context.Id)).Select(context => new StrategicEntityReference(context.Id, context.Name)).ToList()));
+				contexts.Where(context => !taskListCountsByContext.ContainsKey(context.Id) && !noteListCountsByContext.ContainsKey(context.Id)).OrderBy(context => context.Name, StringComparer.OrdinalIgnoreCase).ThenBy(context => context.Id).Select(context => new StrategicEntityReference(context.Id, context.Name)).ToList()));
 	}
 
 	private static StrategicContextSummary BuildContextSummary(
 		ContextRow context,
-		IReadOnlyList<ListRow> taskLists,
-		IReadOnlyList<ListRow> noteLists,
-		IReadOnlyList<TaskRow> tasks,
-		IReadOnlyList<NoteRow> notes,
+		IReadOnlyDictionary<Guid, IReadOnlyList<TaskRow>> tasksByContext,
+		IReadOnlyDictionary<Guid, IReadOnlyList<NoteRow>> notesByContext,
+		IReadOnlyDictionary<Guid, int> taskListCountsByContext,
+		IReadOnlyDictionary<Guid, int> noteListCountsByContext,
+		IReadOnlySet<Guid> allGoalIds,
 		IReadOnlyDictionary<Guid, Guid?> taskListContexts,
 		IReadOnlyDictionary<Guid, Guid?> noteListContexts,
 		IReadOnlyDictionary<Guid, PreviewRow> taskPreviews,
@@ -100,25 +111,25 @@ public sealed class StrategicReportReader(
 		DateTime asOfUtc,
 		StrategicReportOptions options)
 	{
-		var contextTasks = tasks.Where(task => ContextId(task, taskListContexts) == context.Id).ToList();
-		var contextNotes = notes.Where(note => ContextId(note, noteListContexts) == context.Id).ToList();
+		var contextTasks = tasksByContext.GetValueOrDefault(context.Id) ?? [];
+		var contextNotes = notesByContext.GetValueOrDefault(context.Id) ?? [];
 		return new StrategicContextSummary(
 			context.Id, context.Name, context.Type, context.Status,
-			taskLists.Count(list => list.ContextId == context.Id),
-			noteLists.Count(list => list.ContextId == context.Id),
+			taskListCountsByContext.GetValueOrDefault(context.Id),
+			noteListCountsByContext.GetValueOrDefault(context.Id),
 			contextTasks.Count,
 			contextTasks.Count(task => task.IsImportant),
 			contextTasks.Count(task => IsOverdue(task, asOfUtc)),
-			contextTasks.Count(task => task.GoalId is not null),
+			contextTasks.Count(task => task.GoalId.HasValue && allGoalIds.Contains(task.GoalId.Value)),
 			contextNotes.Count,
-			OrderTasks(contextTasks, asOfUtc).Take(options.TaskSampleLimit).Select(task => ToSample(task, taskListContexts, taskPreviews)).ToList(),
-			OrderNotes(contextNotes).Take(options.NoteSampleLimit).Select(note => ToSample(note, noteListContexts, notePreviews)).ToList());
+			contextTasks.Take(options.TaskSampleLimit).Select(task => ToSample(task, taskListContexts, taskPreviews)).ToList(),
+			contextNotes.Take(options.NoteSampleLimit).Select(note => ToSample(note, noteListContexts, notePreviews)).ToList());
 	}
 
 	private static StrategicGoalSummary BuildGoalSummary(
 		GoalRow goal,
-		IReadOnlyList<TaskRow> tasks,
-		IReadOnlyList<NoteRow> notes,
+		IReadOnlyDictionary<Guid, IReadOnlyList<TaskRow>> tasksByGoal,
+		IReadOnlyDictionary<Guid, IReadOnlyList<NoteRow>> notesByGoal,
 		IReadOnlyDictionary<Guid, Guid?> taskListContexts,
 		IReadOnlyDictionary<Guid, Guid?> noteListContexts,
 		IReadOnlyDictionary<Guid, PreviewRow> taskPreviews,
@@ -126,8 +137,8 @@ public sealed class StrategicReportReader(
 		DateTime asOfUtc,
 		StrategicReportOptions options)
 	{
-		var goalTasks = tasks.Where(task => task.GoalId == goal.Id).ToList();
-		var goalNotes = notes.Where(note => note.GoalId == goal.Id).ToList();
+		var goalTasks = tasksByGoal.GetValueOrDefault(goal.Id) ?? [];
+		var goalNotes = notesByGoal.GetValueOrDefault(goal.Id) ?? [];
 		var contextIds = goalTasks.Select(task => ContextId(task, taskListContexts))
 			.Concat(goalNotes.Select(note => ContextId(note, noteListContexts)))
 			.Where(id => id.HasValue).Distinct().Count();
@@ -139,17 +150,16 @@ public sealed class StrategicReportReader(
 			contextIds,
 			goalTasks.Select(task => task.TaskListId).Distinct().Count(),
 			goalNotes.Count,
-			OrderTasks(goalTasks, asOfUtc).Take(options.TaskSampleLimit).Select(task => ToSample(task, taskListContexts, taskPreviews)).ToList(),
-			OrderNotes(goalNotes).Take(options.NoteSampleLimit).Select(note => ToSample(note, noteListContexts, notePreviews)).ToList());
+			goalTasks.Take(options.TaskSampleLimit).Select(task => ToSample(task, taskListContexts, taskPreviews)).ToList(),
+			goalNotes.Take(options.NoteSampleLimit).Select(note => ToSample(note, noteListContexts, notePreviews)).ToList());
 	}
 
 	private static HashSet<Guid> SelectTaskSampleIds(
 		IReadOnlyList<ContextRow> contexts,
 		IReadOnlyList<GoalRow> goals,
-		IReadOnlyList<TaskRow> tasks,
+		IReadOnlyDictionary<Guid, IReadOnlyList<TaskRow>> tasksByContext,
+		IReadOnlyDictionary<Guid, IReadOnlyList<TaskRow>> tasksByGoal,
 		IReadOnlyList<TaskRow> tasksWithoutGoal,
-		IReadOnlyDictionary<Guid, Guid?> taskListContexts,
-		DateTime asOfUtc,
 		int limit)
 	{
 		if (limit == 0)
@@ -157,18 +167,18 @@ public sealed class StrategicReportReader(
 
 		var ids = new HashSet<Guid>();
 		foreach (var context in contexts)
-			ids.UnionWith(OrderTasks(tasks.Where(task => ContextId(task, taskListContexts) == context.Id), asOfUtc).Take(limit).Select(task => task.Id));
+			ids.UnionWith((tasksByContext.GetValueOrDefault(context.Id) ?? []).Take(limit).Select(task => task.Id));
 		foreach (var goal in goals)
-			ids.UnionWith(OrderTasks(tasks.Where(task => task.GoalId == goal.Id), asOfUtc).Take(limit).Select(task => task.Id));
-		ids.UnionWith(OrderTasks(tasksWithoutGoal, asOfUtc).Take(limit).Select(task => task.Id));
+			ids.UnionWith((tasksByGoal.GetValueOrDefault(goal.Id) ?? []).Take(limit).Select(task => task.Id));
+		ids.UnionWith(tasksWithoutGoal.Take(limit).Select(task => task.Id));
 		return ids;
 	}
 
 	private static HashSet<Guid> SelectNoteSampleIds(
 		IReadOnlyList<ContextRow> contexts,
 		IReadOnlyList<GoalRow> goals,
-		IReadOnlyList<NoteRow> notes,
-		IReadOnlyDictionary<Guid, Guid?> noteListContexts,
+		IReadOnlyDictionary<Guid, IReadOnlyList<NoteRow>> notesByContext,
+		IReadOnlyDictionary<Guid, IReadOnlyList<NoteRow>> notesByGoal,
 		int limit)
 	{
 		if (limit == 0)
@@ -176,11 +186,25 @@ public sealed class StrategicReportReader(
 
 		var ids = new HashSet<Guid>();
 		foreach (var context in contexts)
-			ids.UnionWith(OrderNotes(notes.Where(note => ContextId(note, noteListContexts) == context.Id)).Take(limit).Select(note => note.Id));
+			ids.UnionWith((notesByContext.GetValueOrDefault(context.Id) ?? []).Take(limit).Select(note => note.Id));
 		foreach (var goal in goals)
-			ids.UnionWith(OrderNotes(notes.Where(note => note.GoalId == goal.Id)).Take(limit).Select(note => note.Id));
+			ids.UnionWith((notesByGoal.GetValueOrDefault(goal.Id) ?? []).Take(limit).Select(note => note.Id));
 		return ids;
 	}
+
+	private static IReadOnlyDictionary<Guid, IReadOnlyList<T>> GroupById<T>(
+		IEnumerable<T> items,
+		Func<T, Guid?> keySelector) => items
+		.Where(item => keySelector(item).HasValue)
+		.GroupBy(item => keySelector(item)!.Value)
+		.ToDictionary(group => group.Key, group => (IReadOnlyList<T>)group.ToList());
+
+	private static IReadOnlyDictionary<Guid, int> CountById<T>(
+		IEnumerable<T> items,
+		Func<T, Guid?> keySelector) => items
+		.Where(item => keySelector(item).HasValue)
+		.GroupBy(item => keySelector(item)!.Value)
+		.ToDictionary(group => group.Key, group => group.Count());
 
 	private static async Task<IReadOnlyDictionary<Guid, PreviewRow>> LoadTaskPreviewsAsync(
 		AppDbContext db,
@@ -236,7 +260,7 @@ public sealed class StrategicReportReader(
 		IReadOnlyDictionary<Guid, Guid?> contexts,
 		IReadOnlyDictionary<Guid, PreviewRow> previews)
 	{
-		var preview = previews[task.Id];
+		var preview = previews.GetValueOrDefault(task.Id) ?? new PreviewRow(task.Id, null, false);
 		return new StrategicTaskSample(task.Id, task.Title, preview.Value, preview.Truncated, task.IsImportant, task.DueAt, task.FocusAt, task.TaskListId, ContextId(task, contexts), task.GoalId);
 	}
 
@@ -245,12 +269,12 @@ public sealed class StrategicReportReader(
 		IReadOnlyDictionary<Guid, Guid?> contexts,
 		IReadOnlyDictionary<Guid, PreviewRow> previews)
 	{
-		var preview = previews[note.Id];
+		var preview = previews.GetValueOrDefault(note.Id) ?? new PreviewRow(note.Id, null, false);
 		return new StrategicNoteSample(note.Id, note.Title, preview.Value, preview.Truncated, note.IsPinned, note.UpdatedAt, note.NoteListId, ContextId(note, contexts), note.GoalId);
 	}
 
 	private sealed record ContextRow(Guid Id, string Name, ContextType Type, ContextStatus Status);
-	private sealed record GoalRow(Guid Id, string Title, GoalHorizon Horizon, string? TargetPeriod, DateTime? TargetDate, string? Metric, string? MetricCurrent);
+	private sealed record GoalRow(Guid Id, string Title, GoalHorizon Horizon, string? TargetPeriod, DateTime? TargetDate, string? Metric, string? MetricCurrent, GoalStatus Status);
 	private sealed record ListRow(Guid Id, Guid? ContextId);
 	private sealed record TaskRow(Guid Id, string Title, bool IsImportant, DateTime? DueAt, DateTime? FocusAt, Guid TaskListId, Guid? GoalId);
 	private sealed record NoteRow(Guid Id, string Title, bool IsPinned, DateTime UpdatedAt, Guid NoteListId, Guid? GoalId);

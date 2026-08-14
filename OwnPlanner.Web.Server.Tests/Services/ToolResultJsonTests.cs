@@ -1,5 +1,6 @@
 using System.Text.Json;
 using FluentAssertions;
+using OwnPlanner.Application.Reporting;
 using OwnPlanner.Application.Tasks;
 using OwnPlanner.Web.Server.Services;
 
@@ -55,6 +56,19 @@ public sealed class ToolResultJsonTests
 		json.GetProperty("isImportant").GetBoolean().Should().BeTrue();
 		json.TryGetProperty("id", out _).Should().BeTrue();
 		json.TryGetProperty("taskListId", out _).Should().BeTrue();
+	}
+
+	[Fact]
+	public void Serialize_KeepsStrategicNoteLastUpdatedAt()
+	{
+		var lastUpdatedAt = new DateTime(2026, 8, 14, 12, 0, 0, DateTimeKind.Utc);
+		var sample = new StrategicNoteSample(
+			Guid.NewGuid(), "Decision", "Preview", false, true, lastUpdatedAt,
+			Guid.NewGuid(), null, null);
+
+		var json = Serialize(sample);
+
+		json.GetProperty("lastUpdatedAt").GetDateTime().Should().Be(lastUpdatedAt);
 	}
 
 	[Fact]
