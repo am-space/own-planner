@@ -15,7 +15,7 @@ public class PlanningServiceTests
 
 	public PlanningServiceTests()
 	{
-		_chatAdapter.GetResponse(Arg.Any<string>()).Returns(new ChatTurnResult("response", 123));
+		_chatAdapter.GetResponse(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(new ChatTurnResult("response", 123));
 		_chatAdapter.DisposeAsync().Returns(ValueTask.CompletedTask);
 		_mcpAdapter.CallToolAsync(Arg.Any<string>(), Arg.Any<Dictionary<string, object?>?>(), Arg.Any<CancellationToken>())
 			.Returns("tool-result");
@@ -157,7 +157,7 @@ public class PlanningServiceTests
 		var ct = TestContext.Current.CancellationToken;
 
 		string? captured = null;
-	  _chatAdapter.GetResponse(Arg.Do<string>(m => captured = m)).Returns(new ChatTurnResult("ok", 111));
+	  _chatAdapter.GetResponse(Arg.Do<string>(m => captured = m), Arg.Any<CancellationToken>()).Returns(new ChatTurnResult("ok", 111));
 
 		await _svc.GetResponseAsync("hello", ct);
 
@@ -174,7 +174,7 @@ public class PlanningServiceTests
 
 		await _svc.GetResponseAsync("hello", ct);
 
-		await _chatAdapter.Received(1).GetResponse("hello");
+		await _chatAdapter.Received(1).GetResponse("hello", Arg.Any<CancellationToken>());
 		await _mcpAdapter.DidNotReceive().CallToolAsync(Arg.Any<string>(), Arg.Any<Dictionary<string, object?>?>(), ct);
 	}
 
@@ -186,7 +186,7 @@ public class PlanningServiceTests
 		_mcpAdapter.ClearReceivedCalls();
 
 		string? captured = null;
-	  _chatAdapter.GetResponse(Arg.Do<string>(m => captured = m)).Returns(new ChatTurnResult("ok", 111));
+	  _chatAdapter.GetResponse(Arg.Do<string>(m => captured = m), Arg.Any<CancellationToken>()).Returns(new ChatTurnResult("ok", 111));
 
 		await _svc.GetResponseAsync("what should I do?", ct);
 
@@ -203,7 +203,7 @@ public class PlanningServiceTests
 
 		await svcWithoutMcp.GetResponseAsync("hello", ct);
 
-		await _chatAdapter.Received(1).GetResponse("hello");
+		await _chatAdapter.Received(1).GetResponse("hello", Arg.Any<CancellationToken>());
 	}
 
 	[Fact]
@@ -219,14 +219,14 @@ public class PlanningServiceTests
 
 		await _svc.GetResponseAsync("hello", ct);
 
-		await _chatAdapter.Received(1).GetResponse("hello");
+		await _chatAdapter.Received(1).GetResponse("hello", Arg.Any<CancellationToken>());
 	}
 
 	[Fact]
 	public async Task GetResponseAsync_ReturnsResponseFromChatAdapter()
 	{
 		var ct = TestContext.Current.CancellationToken;
-		_chatAdapter.GetResponse(Arg.Any<string>()).Returns(new ChatTurnResult("the answer", 789));
+		_chatAdapter.GetResponse(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(new ChatTurnResult("the answer", 789));
 
 		var result = await _svc.GetResponseAsync("question", ct);
 
@@ -243,7 +243,7 @@ public class PlanningServiceTests
 		var action = () => _svc.GetResponseAsync("hello", ct);
 
 		await action.Should().ThrowAsync<ChatContextLimitExceededException>();
-		await _chatAdapter.DidNotReceive().GetResponse(Arg.Any<string>());
+		await _chatAdapter.DidNotReceive().GetResponse(Arg.Any<string>(), Arg.Any<CancellationToken>());
 	}
 
 	[Fact]
@@ -258,7 +258,7 @@ public class PlanningServiceTests
 		var action = () => svcWithSmallLimit.GetResponseAsync("12345678", ct);
 
 		await action.Should().ThrowAsync<ChatContextLimitExceededException>();
-		await _chatAdapter.DidNotReceive().GetResponse(Arg.Any<string>());
+		await _chatAdapter.DidNotReceive().GetResponse(Arg.Any<string>(), Arg.Any<CancellationToken>());
 	}
 
 	[Fact]
@@ -267,7 +267,7 @@ public class PlanningServiceTests
 		var ct = TestContext.Current.CancellationToken;
 		var svcWithSmallLimit = new PlanningService(_chatAdapter, null, _logger, maxContextLengthTokens: 10);
 		_chatAdapter.CurrentContextLengthTokens.Returns(8);
-		_chatAdapter.GetResponse(Arg.Any<string>()).Returns(new ChatTurnResult("12345678", 8));
+		_chatAdapter.GetResponse(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(new ChatTurnResult("12345678", 8));
 
 		await svcWithSmallLimit.SwitchModeAsync(PlanningMode.GlobalPlanning, ct);
 		await svcWithSmallLimit.GetResponseAsync("hi", ct);
@@ -275,7 +275,7 @@ public class PlanningServiceTests
 		var action = () => svcWithSmallLimit.GetResponseAsync("ok", ct);
 
 		await action.Should().ThrowAsync<ChatContextLimitExceededException>();
-		await _chatAdapter.Received(1).GetResponse(Arg.Any<string>());
+		await _chatAdapter.Received(1).GetResponse(Arg.Any<string>(), Arg.Any<CancellationToken>());
 	}
 
 	// --- history compaction ---
@@ -286,7 +286,7 @@ public class PlanningServiceTests
 
 	private async Task BuildTranscriptAsync(PlanningService svc, CancellationToken ct, params string[] messages)
 	{
-		_chatAdapter.GetResponse(Arg.Any<string>()).Returns(new ChatTurnResult("resp", 10));
+		_chatAdapter.GetResponse(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(new ChatTurnResult("resp", 10));
 		_chatAdapter.CurrentContextLengthTokens.Returns(10); // comfortably below the soft threshold
 		await svc.SwitchModeAsync(PlanningMode.DayWork, ct);
 		foreach (var message in messages)
@@ -394,7 +394,7 @@ public class PlanningServiceTests
 		await action.Should().ThrowAsync<ChatContextLimitExceededException>();
 		await _chatAdapter.DidNotReceive().SummarizeAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
 		_chatAdapter.DidNotReceive().RebuildSession(Arg.Any<string>(), Arg.Any<IReadOnlyList<string>?>(), Arg.Any<IReadOnlyList<ChatMessage>>());
-		await _chatAdapter.DidNotReceive().GetResponse(hugeMessage);
+		await _chatAdapter.DidNotReceive().GetResponse(hugeMessage, Arg.Any<CancellationToken>());
 	}
 
 	[Fact]
@@ -410,7 +410,7 @@ public class PlanningServiceTests
 
 		await action.Should().ThrowAsync<ChatContextLimitExceededException>();
 		_chatAdapter.DidNotReceive().RebuildSession(Arg.Any<string>(), Arg.Any<IReadOnlyList<string>?>(), Arg.Any<IReadOnlyList<ChatMessage>>());
-		await _chatAdapter.DidNotReceive().GetResponse(Arg.Any<string>());
+		await _chatAdapter.DidNotReceive().GetResponse(Arg.Any<string>(), Arg.Any<CancellationToken>());
 	}
 
 	// --- DisposeAsync ---

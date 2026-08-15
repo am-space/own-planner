@@ -37,6 +37,32 @@ To add a new skill to the AI:
 2. Wrap it as a tool definition and handler in `OwnPlanner.Mcp.Tools` so the web server and stdio host can both reuse it.
 3. The orchestration layer will automatically expose this new tool schema to Gemini on the next chat session.
 
+## Delegated Agents
+
+Global Planning exposes the local `task_planning_agent_call` capability. It accepts a required
+planning objective and optional `contextId` and `taskListId` scopes. This capability is registered
+by the Gemini chat adapter rather than as a public MCP tool: the main planner decides what outcome
+to delegate, while the specialist performs the bounded task decomposition in a fresh Gemini
+session that receives no parent conversation history.
+
+The Task Planning Agent uses the host's existing `IMcpAdapter`, so web execution continues through
+the authenticated `DirectToolMcpAdapter` and its user-bound `AppDbContext`; console and stdio-backed
+chat use their configured adapter. A provider-neutral `TaskPlanningMcpAdapter` wraps that adapter
+for each invocation. It exposes a server-owned allowlist, rejects recursive agent calls and
+completion/reopen/archive/delete operations, validates supplied scope IDs, and checks every task or
+task-list read and write against the active scope. Broad task queries that cannot be proven in scope
+are unavailable during scoped delegation.
+
+Each invocation has a configurable tool-call-round limit (eight by default) and propagates cancellation through scope
+validation and tool execution. Its structured result distinguishes status, a factual summary,
+attempted mutations, warnings, and unresolved questions. Nested Gemini usage metadata contributes
+to the parent turn's token totals when the provider supplies it. Failures are returned as safe
+delegation results and do not reset the main conversation.
+
+This differs from `search_agent_call`, which starts a separate tool-free Gemini session with Google
+Search enabled and returns current factual information. Neither specialist can call itself or the
+other specialist.
+
 ## Strategic Report Preloading
 
 Global Planning and System Analysis preload `strategic_report_get` rather than retrieving broad

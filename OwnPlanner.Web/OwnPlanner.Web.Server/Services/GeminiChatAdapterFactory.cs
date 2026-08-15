@@ -18,5 +18,6 @@ public sealed class GeminiChatAdapterFactory(IOptions<ChatSettings> settings) : 
 			_settings.ApiKey,
 			_settings.Model,
 			_settings.MaxToolCallRounds,
-			mcpAdapter);
+			mcpAdapter,
+			_settings.MaxTaskPlanningAgentToolCallRounds);
 }

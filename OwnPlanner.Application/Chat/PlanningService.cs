@@ -82,7 +82,7 @@ public sealed class PlanningService : IPlanningService
 
 		await EnsureContextWithinLimitAsync(userMessage, cancellationToken).ConfigureAwait(false);
 
-		var result = await _chatAdapter.GetResponse(userMessage);
+		var result = await _chatAdapter.GetResponse(userMessage, cancellationToken);
 
 		_transcript.Add(new ChatMessage(ChatRole.User, userMessage));
 		_transcript.Add(new ChatMessage(ChatRole.Model, result.Message));

@@ -13,6 +13,10 @@ namespace OwnPlanner.Infrastructure.Adapters
 	public class ChatServiceAdapter : IChatAdapter
 	{
 		private const string SearchAgentToolName = "search_agent_call";
+		private const string TaskPlanningAgentToolName = "task_planning_agent_call";
+		internal const string TaskPlanningAgentSystemInstruction = """
+			You are OwnPlanner's isolated Task Planning Agent. Turn the explicit objective into concrete, well-organized tasks using only the supplied tools. Respect any scope stated in the request. You may read planner data and may create or update task lists and tasks, assign tasks, set focus dates, and mark importance. Never complete, reopen, archive, or delete anything. Never invoke another agent. Ask an unresolved question instead of guessing a destination or important requirement. Finish with only a JSON object containing: summary (string), warnings (string array), and unresolvedQuestions (string array).
+			""";
 		private const string SearchAgentToolSchema = """
 		{
 		  "type": "object",
@@ -26,14 +30,21 @@ namespace OwnPlanner.Infrastructure.Adapters
 		}
 		""";
 		private static readonly FunctionDeclaration SearchAgentFunctionDeclaration = BuildSearchAgentFunctionDeclaration();
+		private static readonly FunctionDeclaration TaskPlanningAgentFunctionDeclaration = BuildTaskPlanningAgentFunctionDeclaration();
+		private static readonly IReadOnlyList<FunctionDeclaration> LocalAgentFunctionDeclarations =
+			[SearchAgentFunctionDeclaration, TaskPlanningAgentFunctionDeclaration];
 
 		private readonly GoogleAI _googleAi;
 		private readonly string _model;
 		private readonly IMcpAdapter? _mcpClient;
 		private readonly bool _shouldDisposeMcp;
 		private readonly int _maxToolCallRounds;
+		private readonly int _maxTaskPlanningAgentToolCallRounds;
+		private readonly IReadOnlyDictionary<string, Func<IReadOnlyDictionary<string, object?>?, CancellationToken, Task<string>>> _localAgentHandlers;
 		private Tools? _geminiTools;
 		private List<FunctionDeclaration> _allFunctionDeclarations = [];
+		private string? _activeSystemPrompt;
+		private IReadOnlyList<string>? _activeAllowedTools;
 		private GenerativeModel _generativeModel = null!; // Initialized in constructor
 		private ChatSession _chat = null!; // Initialized in InitializeChatWithInstructions
 
@@ -56,6 +67,8 @@ namespace OwnPlanner.Infrastructure.Adapters
 
 		private void InitializeChatSession(string? systemPrompt = null, IReadOnlyList<string>? allowedTools = null, IReadOnlyList<ChatMessage>? history = null)
 		{
+			_activeSystemPrompt = systemPrompt;
+			_activeAllowedTools = allowedTools?.ToArray();
 			CurrentContextLengthTokens = null;
 			// Rebuild tool set, applying allow-list filter when provided
 			var declarations = GetFunctionDeclarations(allowedTools);
@@ -86,14 +99,22 @@ namespace OwnPlanner.Infrastructure.Adapters
 			InitializeChatSession(systemPrompt, allowedTools, history);
 		}
 
-		public ChatServiceAdapter(string apiKey, string model, int maxToolCallRounds = 10, IMcpAdapter? mcpAdapter = null)
+		public ChatServiceAdapter(string apiKey, string model, int maxToolCallRounds = 10, IMcpAdapter? mcpAdapter = null, int maxTaskPlanningAgentToolCallRounds = 8)
 		{
+			if (maxTaskPlanningAgentToolCallRounds <= 0)
+				throw new ArgumentOutOfRangeException(nameof(maxTaskPlanningAgentToolCallRounds));
 			Log.Debug("Creating ChatServiceAdapter with model: {Model}, MCP: {HasMcp}, MaxToolCallRounds: {MaxRounds}", model, mcpAdapter != null, maxToolCallRounds);
 			_googleAi = new GoogleAI(apiKey);
 			_model = model;
 			_mcpClient = mcpAdapter;
 			_shouldDisposeMcp = mcpAdapter != null; // Don't dispose injected adapter
 			_maxToolCallRounds = maxToolCallRounds;
+			_maxTaskPlanningAgentToolCallRounds = maxTaskPlanningAgentToolCallRounds;
+			_localAgentHandlers = new Dictionary<string, Func<IReadOnlyDictionary<string, object?>?, CancellationToken, Task<string>>>(StringComparer.Ordinal)
+			{
+				[SearchAgentToolName] = ExecuteSearchAgentCallAsync,
+				[TaskPlanningAgentToolName] = ExecuteTaskPlanningAgentCallAsync
+			};
 			// Initialize timestamps
 			CreatedTime = DateTime.UtcNow;
 			LastAccessTime = DateTime.UtcNow;
@@ -192,7 +213,7 @@ namespace OwnPlanner.Infrastructure.Adapters
 								schema = ConvertJsonSchemaToGeminiSchema(jsonSchema);
 							}
 						}
-						catch (Exception ex)
+						catch (Exception ex) when (ex is not OperationCanceledException)
 						{
 							// Log schema parse issues but continue
 						Log.Warning(ex, "Failed to parse schema for tool: {ToolName}", d.Name);
@@ -219,10 +240,8 @@ namespace OwnPlanner.Infrastructure.Adapters
 
 		private List<FunctionDeclaration> GetFunctionDeclarations(IReadOnlyList<string>? allowedTools = null)
 		{
-			var declarations = new List<FunctionDeclaration>(_allFunctionDeclarations.Count + 1)
-			{
-				SearchAgentFunctionDeclaration
-			};
+			var declarations = new List<FunctionDeclaration>(_allFunctionDeclarations.Count + LocalAgentFunctionDeclarations.Count);
+			declarations.AddRange(LocalAgentFunctionDeclarations);
 
 			declarations.AddRange(_allFunctionDeclarations);
 
@@ -237,6 +256,11 @@ namespace OwnPlanner.Infrastructure.Adapters
 			return declarations;
 		}
 
+		internal IReadOnlyList<string> GetActiveFunctionNames() =>
+			GetFunctionDeclarations(_activeAllowedTools).Select(declaration => declaration.Name!).ToList();
+
+		internal void RecoverChatSession() => InitializeChatSession(_activeSystemPrompt, _activeAllowedTools);
+
 		private static FunctionDeclaration BuildSearchAgentFunctionDeclaration()
 		{
 			using var searchSchemaDocument = JsonDocument.Parse(SearchAgentToolSchema);
@@ -245,6 +269,27 @@ namespace OwnPlanner.Infrastructure.Adapters
 				Name = SearchAgentToolName,
 				Description = "Search the web for current factual information and return a concise summary.",
 				Parameters = ConvertJsonSchemaToGeminiSchema(searchSchemaDocument.RootElement.Clone())
+			};
+		}
+
+		private static FunctionDeclaration BuildTaskPlanningAgentFunctionDeclaration()
+		{
+			using var schemaDocument = JsonDocument.Parse("""
+			{
+			  "type": "object",
+			  "properties": {
+			    "objective": { "type": "string", "description": "The concrete planning outcome to turn into organized tasks." },
+			    "contextId": { "type": "string", "format": "uuid", "description": "Optional planning-context scope." },
+			    "taskListId": { "type": "string", "format": "uuid", "description": "Optional existing task-list scope." }
+			  },
+			  "required": ["objective"]
+			}
+			""");
+			return new FunctionDeclaration
+			{
+				Name = TaskPlanningAgentToolName,
+				Description = "Delegate a concrete objective to an isolated agent that can create and organize tasks using a restricted tool set.",
+				Parameters = ConvertJsonSchemaToGeminiSchema(schemaDocument.RootElement.Clone())
 			};
 		}
 
@@ -289,7 +334,7 @@ namespace OwnPlanner.Infrastructure.Adapters
 			CurrentContextLengthTokens = response?.UsageMetadata?.PromptTokenCount;
 		}
 
-		private async Task<string> ExecuteSearchAgentCallAsync(IReadOnlyDictionary<string, object?>? arguments)
+		private async Task<string> ExecuteSearchAgentCallAsync(IReadOnlyDictionary<string, object?>? arguments, CancellationToken cancellationToken)
 		{
 			var query = ToolArgumentParser.GetStringArgument(arguments, "query");
 			if (string.IsNullOrWhiteSpace(query))
@@ -309,10 +354,70 @@ namespace OwnPlanner.Infrastructure.Adapters
 				new ContentResponse("Understood. I will search and return a concise factual summary.", "model")
 			]);
 
-			var response = await searchChat.SendMessage(query).ConfigureAwait(false);
+			cancellationToken.ThrowIfCancellationRequested();
+			var response = await searchChat.SendMessage(query).WaitAsync(cancellationToken).ConfigureAwait(false);
 			LogUsageMetadata(response, "search-agent-call");
 			return GetSafeResponseText(response);
 		}
+
+		private async Task<string> ExecuteTaskPlanningAgentCallAsync(
+			IReadOnlyDictionary<string, object?>? arguments,
+			CancellationToken cancellationToken)
+		{
+			var objective = ToolArgumentParser.GetStringArgument(arguments, "objective");
+			if (string.IsNullOrWhiteSpace(objective))
+				throw new InvalidOperationException($"Tool '{TaskPlanningAgentToolName}' requires a non-empty 'objective' argument.");
+			if (_mcpClient == null)
+				throw new InvalidOperationException("Task-planning delegation is unavailable because planner tools are not configured.");
+
+			var contextId = ParseOptionalGuid(arguments, "contextId");
+			var taskListId = ParseOptionalGuid(arguments, "taskListId");
+			var request = new TaskPlanningAgentRequest(objective, contextId, taskListId);
+			TaskPlanningMcpAdapter scopedAdapter;
+			try
+			{
+				scopedAdapter = await TaskPlanningMcpAdapter.CreateAsync(_mcpClient, contextId, taskListId, cancellationToken).ConfigureAwait(false);
+			}
+			catch (Exception ex) when (ex is not OperationCanceledException)
+			{
+				return SerializeTaskPlanningResult(new TaskPlanningAgentResult("validation_failed", ex.Message, [], [ex.Message], []));
+			}
+
+			var definitions = await scopedAdapter.ListToolDetailsAsync(cancellationToken).ConfigureAwait(false);
+			var declarations = definitions.Select(ToFunctionDeclaration).ToList();
+			var agentTools = new Tools { new Tool { FunctionDeclarations = declarations } };
+			var agentModel = _googleAi.GenerativeModel(
+				_model,
+				tools: agentTools,
+				systemInstruction: new Content(TaskPlanningAgentSystemInstruction));
+			var session = new GeminiDelegatedAgentSession(agentModel.StartChat(), GetSafeResponseText);
+			var execution = await TaskPlanningAgentOrchestrator.ExecuteAsync(
+				request,
+				scopedAdapter,
+				session,
+				_maxTaskPlanningAgentToolCallRounds,
+				cancellationToken).ConfigureAwait(false);
+			_turnInputTokens += execution.InputTokens;
+			_turnOutputTokens += execution.OutputTokens;
+			return SerializeTaskPlanningResult(execution.Result);
+		}
+
+		private static Guid? ParseOptionalGuid(IReadOnlyDictionary<string, object?>? arguments, string name)
+		{
+			var value = ToolArgumentParser.GetStringArgument(arguments, name);
+			if (string.IsNullOrWhiteSpace(value)) return null;
+			return Guid.TryParse(value, out var guid) ? guid : throw new InvalidOperationException($"Tool argument '{name}' must be a valid UUID.");
+		}
+
+		private static FunctionDeclaration ToFunctionDeclaration(McpToolDefinition definition) => new()
+		{
+			Name = definition.Name,
+			Description = definition.Description,
+			Parameters = definition.JsonSchema is JsonElement schema ? ConvertJsonSchemaToGeminiSchema(schema) : null
+		};
+
+		private static string SerializeTaskPlanningResult(TaskPlanningAgentResult result) =>
+			JsonSerializer.Serialize(result, new JsonSerializerOptions(JsonSerializerDefaults.Web));
 
 		public async Task<string> SummarizeAsync(string conversationText, CancellationToken cancellationToken = default)
 		{
@@ -339,19 +444,17 @@ namespace OwnPlanner.Infrastructure.Adapters
 			return GetSafeResponseText(response);
 		}
 
-		private async Task<string> ExecuteToolCallAsync(string toolName, IReadOnlyDictionary<string, object?>? arguments)
+		private async Task<string> ExecuteToolCallAsync(string toolName, IReadOnlyDictionary<string, object?>? arguments, CancellationToken cancellationToken)
 		{
-			if (toolName == SearchAgentToolName)
-			{
-				return await ExecuteSearchAgentCallAsync(arguments).ConfigureAwait(false);
-			}
+			if (_localAgentHandlers.TryGetValue(toolName, out var localAgentHandler))
+				return await localAgentHandler(arguments, cancellationToken).ConfigureAwait(false);
 
 			if (_mcpClient == null)
 			{
 				throw new InvalidOperationException($"Tool '{toolName}' is unavailable because MCP is not configured.");
 			}
 
-			return await _mcpClient.CallToolAsync(toolName, arguments).ConfigureAwait(false);
+			return await _mcpClient.CallToolAsync(toolName, arguments, cancellationToken).ConfigureAwait(false);
 		}
 
 		private string GetSafeResponseText(GenerateContentResponse response)
@@ -380,7 +483,7 @@ namespace OwnPlanner.Infrastructure.Adapters
 			}
 		}
 
-		public async Task<ChatTurnResult> GetResponse(string text)
+		public async Task<ChatTurnResult> GetResponse(string text, CancellationToken cancellationToken = default)
 		{
 			LastAccessTime = DateTime.UtcNow;
 			_turnInputTokens = 0;
@@ -389,7 +492,7 @@ namespace OwnPlanner.Infrastructure.Adapters
 			Log.Debug("Getting response for prompt: {Prompt}", text);
 			try
 			{
-				var response = await _chat.SendMessage(text);
+				var response = await _chat.SendMessage(text).WaitAsync(cancellationToken);
 				LogUsageMetadata(response, "user-message");
 				int roundCount = 0;
 				while (roundCount < _maxToolCallRounds)
@@ -434,7 +537,7 @@ namespace OwnPlanner.Infrastructure.Adapters
 								toolName = nsSplit[1];
 								Log.Debug("Stripped namespace prefix from tool name: {Original} -> {Stripped}", functionCall.Name, toolName);
 							}
-							var result = await ExecuteToolCallAsync(toolName, argsDict).ConfigureAwait(false);
+							var result = await ExecuteToolCallAsync(toolName, argsDict, cancellationToken).ConfigureAwait(false);
 							Log.Debug("Tool {ToolName} executed successfully", toolName);
 							toolResults.Add(new Part
 							{
@@ -448,7 +551,7 @@ namespace OwnPlanner.Infrastructure.Adapters
 								}
 							});
 						}
-						catch (Exception ex)
+						catch (Exception ex) when (ex is not OperationCanceledException)
 						{
 							Log.Error(ex, "MCP tool execution failed: {ToolName}", functionCall.Name);
 
@@ -471,7 +574,7 @@ namespace OwnPlanner.Infrastructure.Adapters
 						break;
 					}
 					Log.Debug("Sending {Count} tool results back to model", toolResults.Count);
-					response = await _chat.SendMessage(toolResults);
+					response = await _chat.SendMessage(toolResults).WaitAsync(cancellationToken);
 					LogUsageMetadata(response, $"tool-results-round-{roundCount + 1}");
 					roundCount++;
 				}
@@ -488,10 +591,62 @@ namespace OwnPlanner.Infrastructure.Adapters
 				if (ex.Message.Contains("required oneof field 'data' must have one initialized field"))
 				{
 					Log.Warning(ex, "GeminiApiException: Detected session corruption, resetting chat session and retrying...");
-					ResetChatSession();
+					RecoverChatSession();
 					return new ChatTurnResult("I'm sorry, there was an issue processing your request. I've reset our conversation context. Could you please repeat your last message?", null);
 				}
 				throw;
+			}
+		}
+
+		public Task<ChatTurnResult> GetResponse(string text) => GetResponse(text, CancellationToken.None);
+
+		private sealed class GeminiDelegatedAgentSession(
+			ChatSession chat,
+			Func<GenerateContentResponse, string> getResponseText) : IDelegatedAgentSession
+		{
+			public async Task<DelegatedAgentResponse> SendObjectiveAsync(string objective, CancellationToken cancellationToken)
+			{
+				var response = await chat.SendMessage(objective).WaitAsync(cancellationToken).ConfigureAwait(false);
+				return Map(response);
+			}
+
+			public async Task<DelegatedAgentResponse> SendToolResultsAsync(
+				IReadOnlyList<DelegatedAgentToolResult> results,
+				CancellationToken cancellationToken)
+			{
+				var parts = results.Select(result => new Part
+				{
+					FunctionResponse = new FunctionResponse
+					{
+						Name = result.Name,
+						Response = new Dictionary<string, object?>
+						{
+							[result.Succeeded ? "result" : "error"] = result.Payload
+						}
+					}
+				}).ToList();
+				var response = await chat.SendMessage(parts).WaitAsync(cancellationToken).ConfigureAwait(false);
+				return Map(response);
+			}
+
+			private DelegatedAgentResponse Map(GenerateContentResponse response)
+			{
+				var calls = response.Candidates?.FirstOrDefault()?.Content?.Parts?
+					.Where(part => part.FunctionCall != null)
+					.Select(part =>
+					{
+						var call = part.FunctionCall!;
+						var arguments = call.Args == null
+							? null
+							: JsonSerializer.Deserialize<Dictionary<string, object?>>(JsonSerializer.Serialize(call.Args));
+						return new DelegatedAgentToolCall(call.Name ?? string.Empty, arguments);
+					})
+					.ToList() ?? [];
+				return new DelegatedAgentResponse(
+					getResponseText(response),
+					calls,
+					response.UsageMetadata?.PromptTokenCount ?? 0,
+					response.UsageMetadata?.CandidatesTokenCount ?? 0);
 			}
 		}
 

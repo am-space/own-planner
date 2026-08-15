@@ -42,7 +42,7 @@ public sealed record ModeConfig(
 					"notelist_all", "notelist_get", "notelist_create", "notelist_update", "notelist_archive", "notelist_unarchive", "notelist_delete",
 					"noteitem_list_items", "noteitem_list_by_goal", "noteitem_get", "noteitem_create", "noteitem_update", "noteitem_assign", "noteitem_pin", "noteitem_unpin", "noteitem_delete",
 					"taskitem_list_items", "taskitem_list_by_goal", "taskitem_list_by_focus_date", "taskitem_get",
-					"strategic_report_get", "datetime_get_current", "search_agent_call"
+					"strategic_report_get", "datetime_get_current", "search_agent_call", "task_planning_agent_call"
 				],
 				CanWrite: true),
 

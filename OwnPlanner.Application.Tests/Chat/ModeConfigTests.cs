@@ -5,6 +5,14 @@ namespace OwnPlanner.Application.Tests.Chat;
 
 public class ModeConfigTests
 {
+	[Fact]
+	public void TaskPlanningAgent_IsExposedOnlyInGlobalPlanning()
+	{
+		ModeConfig.All[PlanningMode.GlobalPlanning].AllowedTools.Should().Contain("task_planning_agent_call");
+		ModeConfig.All.Where(pair => pair.Key != PlanningMode.GlobalPlanning)
+			.Should().OnlyContain(pair => !pair.Value.AllowedTools.Contains("task_planning_agent_call"));
+	}
+
 	public static TheoryData<PlanningMode> AllModes()
 	{
 		var data = new TheoryData<PlanningMode>();
