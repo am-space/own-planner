@@ -11,6 +11,7 @@ namespace OwnPlanner.Console
 		public string ApiKey { get; set; } = string.Empty;
 		public string Model { get; set; } = "gemini-2.0-flash-exp";
 		public int MaxToolCallRounds { get; set; } = 10;
+		public int MaxTaskPlanningAgentToolCallRounds { get; set; } = 8;
 	}
 
 	public class McpSettings

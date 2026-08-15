@@ -33,6 +33,11 @@ public interface IChatAdapter : IAsyncDisposable
 	/// <returns>The resulting assistant turn, including response text and any available token metadata.</returns>
 	Task<ChatTurnResult> GetResponse(string text);
 
+	/// <summary>Sends a user message while propagating cancellation through model and tool orchestration.</summary>
+	/// <param name="text">The user message to submit to the active chat session.</param>
+	/// <param name="cancellationToken">Cancels model and tool orchestration for the turn.</param>
+	Task<ChatTurnResult> GetResponse(string text, CancellationToken cancellationToken) => GetResponse(text);
+
 	/// <summary>
 	/// Resets the underlying chat session and optionally applies a new system prompt and tool allow-list.
 	/// This is used when switching planning modes or recovering from corrupted conversation state.

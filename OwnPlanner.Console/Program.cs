@@ -83,7 +83,8 @@ namespace OwnPlanner.Console
 						settings.Gemini.ApiKey,
 						settings.Gemini.Model,
 						settings.Gemini.MaxToolCallRounds,
-						mcpAdapter);
+						mcpAdapter,
+						settings.Gemini.MaxTaskPlanningAgentToolCallRounds);
 
 					await using var planningService = new PlanningService(
 						chatAdapter,

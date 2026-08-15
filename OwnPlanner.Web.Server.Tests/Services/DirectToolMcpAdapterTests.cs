@@ -10,6 +10,7 @@ using OwnPlanner.Application.Reporting;
 using OwnPlanner.Domain.Tasks;
 using OwnPlanner.Infrastructure.Persistence;
 using OwnPlanner.Infrastructure.Reporting;
+using OwnPlanner.Infrastructure.Repositories;
 using OwnPlanner.Web.Server.Services;
 
 namespace OwnPlanner.Web.Server.Tests.Services;
@@ -50,8 +51,9 @@ public sealed class DirectToolMcpAdapterTests : IDisposable
 		await using var adapter = CreateAdapter(serviceProvider);
 
 		var registered = (await adapter.ListToolDetailsAsync(ct)).Select(tool => tool.Name).ToHashSet();
-		// search_agent_call is a built-in tool added by the chat adapter, not an MCP registration.
+		// Delegated agents are built-in chat capabilities, not MCP registrations.
 		registered.Add("search_agent_call");
+		registered.Add("task_planning_agent_call");
 
 		foreach (var (mode, config) in OwnPlanner.Application.Chat.ModeConfig.All)
 		{
@@ -136,6 +138,20 @@ public sealed class DirectToolMcpAdapterTests : IDisposable
 
 		reportA.Should().Contain("User A private task").And.NotContain("User B private task");
 		reportB.Should().Contain("User B private task").And.NotContain("User A private task");
+	}
+
+	[Fact]
+	public async Task TaskPlanningDelegation_CannotResolveAnotherUsersTaskListScope()
+	{
+		var ct = TestContext.Current.CancellationToken;
+		await using var serviceProvider = BuildTenantServiceProvider();
+		await SeedUserTaskAsync("user-a", "User A private task", ct);
+		var userBListId = await SeedUserTaskAsync("user-b", "User B private task", ct);
+		await using var adapterA = CreateAdapter(serviceProvider, "user-a");
+
+		var act = () => OwnPlanner.Application.Chat.TaskPlanningMcpAdapter.CreateAsync(adapterA, null, userBListId, ct);
+
+		await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*not found in the authenticated planner*");
 	}
 
 	[Fact]
@@ -301,11 +317,15 @@ public sealed class DirectToolMcpAdapterTests : IDisposable
 		services.AddScoped(_ => inboxSeeder);
 		services.AddSingleton(TimeProvider.System);
 		services.AddScoped<IStrategicReportReader, StrategicReportReader>();
+		services.AddScoped<ITaskListRepository, TaskListRepository>();
+		services.AddScoped<ITaskItemRepository, TaskItemRepository>();
+		services.AddScoped<ITaskListService, TaskListService>();
+		services.AddScoped<ITaskItemService, TaskItemService>();
 		services.AddSingleton(new TenantTestDirectory(_tempDirectory));
 		return services.BuildServiceProvider();
 	}
 
-	private async Task SeedUserTaskAsync(string userId, string title, CancellationToken cancellationToken)
+	private async Task<Guid> SeedUserTaskAsync(string userId, string title, CancellationToken cancellationToken)
 	{
 		var path = Path.Combine(_tempDirectory, $"ownplanner-user-{userId}.db");
 		await using var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseSqlite($"Data Source={path}").Options);
@@ -313,6 +333,7 @@ public sealed class DirectToolMcpAdapterTests : IDisposable
 		var list = new TaskList("Tasks");
 		db.AddRange(list, new TaskItem(title, list.Id));
 		await db.SaveChangesAsync(cancellationToken);
+		return list.Id;
 	}
 
 	private static JsonElement ParseJsonElement(string json)
@@ -354,4 +375,3 @@ public sealed class DirectToolMcpAdapterTests : IDisposable
 		public Task DeleteUserDatabaseAsync(string userId, CancellationToken cancellationToken = default) => Task.CompletedTask;
 	}
 }
-

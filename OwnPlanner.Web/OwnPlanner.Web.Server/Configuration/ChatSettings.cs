@@ -14,6 +14,7 @@ namespace OwnPlanner.Web.Server.Configuration
 		public string ApiKey { get; set; } = string.Empty;
 		public string Model { get; set; } = "gemini-flash-latest";
 		public int MaxToolCallRounds { get; set; } = 10;
+		public int MaxTaskPlanningAgentToolCallRounds { get; set; } = 8;
 		public int MaxContextLengthTokens { get; set; } = 64 * 1024;
 	}
 
