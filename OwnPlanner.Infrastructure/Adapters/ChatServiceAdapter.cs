@@ -14,6 +14,9 @@ namespace OwnPlanner.Infrastructure.Adapters
 	{
 		private const string SearchAgentToolName = "search_agent_call";
 		private const string TaskPlanningAgentToolName = "task_planning_agent_call";
+		internal const string TaskPlanningAgentSystemInstruction = """
+			You are OwnPlanner's isolated Task Planning Agent. Turn the explicit objective into concrete, well-organized tasks using only the supplied tools. Respect any scope stated in the request. You may read planner data and may create or update task lists and tasks, assign tasks, set focus dates, and mark importance. Never complete, reopen, archive, or delete anything. Never invoke another agent. Ask an unresolved question instead of guessing a destination or important requirement. Finish with only a JSON object containing: summary (string), warnings (string array), and unresolvedQuestions (string array).
+			""";
 		private const string SearchAgentToolSchema = """
 		{
 		  "type": "object",
@@ -40,6 +43,8 @@ namespace OwnPlanner.Infrastructure.Adapters
 		private readonly IReadOnlyDictionary<string, Func<IReadOnlyDictionary<string, object?>?, CancellationToken, Task<string>>> _localAgentHandlers;
 		private Tools? _geminiTools;
 		private List<FunctionDeclaration> _allFunctionDeclarations = [];
+		private string? _activeSystemPrompt;
+		private IReadOnlyList<string>? _activeAllowedTools;
 		private GenerativeModel _generativeModel = null!; // Initialized in constructor
 		private ChatSession _chat = null!; // Initialized in InitializeChatWithInstructions
 
@@ -62,6 +67,8 @@ namespace OwnPlanner.Infrastructure.Adapters
 
 		private void InitializeChatSession(string? systemPrompt = null, IReadOnlyList<string>? allowedTools = null, IReadOnlyList<ChatMessage>? history = null)
 		{
+			_activeSystemPrompt = systemPrompt;
+			_activeAllowedTools = allowedTools?.ToArray();
 			CurrentContextLengthTokens = null;
 			// Rebuild tool set, applying allow-list filter when provided
 			var declarations = GetFunctionDeclarations(allowedTools);
@@ -249,6 +256,11 @@ namespace OwnPlanner.Infrastructure.Adapters
 			return declarations;
 		}
 
+		internal IReadOnlyList<string> GetActiveFunctionNames() =>
+			GetFunctionDeclarations(_activeAllowedTools).Select(declaration => declaration.Name!).ToList();
+
+		internal void RecoverChatSession() => InitializeChatSession(_activeSystemPrompt, _activeAllowedTools);
+
 		private static FunctionDeclaration BuildSearchAgentFunctionDeclaration()
 		{
 			using var searchSchemaDocument = JsonDocument.Parse(SearchAgentToolSchema);
@@ -374,68 +386,20 @@ namespace OwnPlanner.Infrastructure.Adapters
 			var definitions = await scopedAdapter.ListToolDetailsAsync(cancellationToken).ConfigureAwait(false);
 			var declarations = definitions.Select(ToFunctionDeclaration).ToList();
 			var agentTools = new Tools { new Tool { FunctionDeclarations = declarations } };
-			var agentModel = _googleAi.GenerativeModel(_model, tools: agentTools);
-			var agentChat = agentModel.StartChat(history:
-			[
-				new ContentResponse("""
-					You are OwnPlanner's isolated Task Planning Agent. Turn the explicit objective into concrete, well-organized tasks using only the supplied tools. Respect any scope stated in the request. You may read planner data and may create or update task lists and tasks, assign tasks, set focus dates, and mark importance. Never complete, reopen, archive, or delete anything. Never invoke another agent. Ask an unresolved question instead of guessing a destination or important requirement. Finish with only a JSON object containing: summary (string), warnings (string array), and unresolvedQuestions (string array).
-					"""),
-				new ContentResponse("Understood. I will perform only bounded task-planning work and report the result.", "model")
-			]);
-
-			var scopeText = $"Context scope: {request.ContextId?.ToString() ?? "none"}; task-list scope: {request.TaskListId?.ToString() ?? "none"}.";
-			var warnings = new List<string>();
-			GenerateContentResponse response;
-			try
-			{
-				response = await agentChat.SendMessage($"Objective: {request.Objective}\n{scopeText}").WaitAsync(cancellationToken).ConfigureAwait(false);
-				LogUsageMetadata(response, "task-planning-agent-initial");
-
-				for (var round = 0; round < _maxTaskPlanningAgentToolCallRounds; round++)
-				{
-					var calls = response.Candidates?.FirstOrDefault()?.Content?.Parts?.Where(part => part.FunctionCall != null).ToList();
-					if (calls == null || calls.Count == 0)
-					{
-						var completed = BuildTaskPlanningResult("completed", GetSafeResponseText(response), scopedAdapter.Actions, warnings.Concat(scopedAdapter.Warnings).ToList());
-						return SerializeTaskPlanningResult(completed);
-					}
-
-					var results = new List<Part>();
-					foreach (var part in calls)
-					{
-						cancellationToken.ThrowIfCancellationRequested();
-						var call = part.FunctionCall!;
-						var toolName = call.Name ?? string.Empty;
-						try
-						{
-							var callArguments = call.Args == null ? null : JsonSerializer.Deserialize<Dictionary<string, object?>>(JsonSerializer.Serialize(call.Args));
-							var result = await scopedAdapter.CallToolAsync(toolName, callArguments, cancellationToken).ConfigureAwait(false);
-							results.Add(FunctionResult(call.Name, "result", result));
-						}
-						catch (Exception ex) when (ex is not OperationCanceledException)
-						{
-							warnings.Add($"{toolName}: {ex.Message}");
-							results.Add(FunctionResult(call.Name, "error", ex.Message));
-						}
-					}
-
-					response = await agentChat.SendMessage(results).WaitAsync(cancellationToken).ConfigureAwait(false);
-					LogUsageMetadata(response, $"task-planning-agent-round-{round + 1}");
-				}
-
-				warnings.Add($"Delegation reached the configured limit of {_maxTaskPlanningAgentToolCallRounds} tool-call rounds.");
-				return SerializeTaskPlanningResult(BuildTaskPlanningResult("limit_reached", GetSafeResponseText(response), scopedAdapter.Actions, warnings.Concat(scopedAdapter.Warnings).ToList()));
-			}
-			catch (OperationCanceledException)
-			{
-				throw;
-			}
-			catch (Exception ex)
-			{
-				Log.Warning(ex, "Task-planning agent failed safely");
-				warnings.Add("The delegated planning session failed before it could finish.");
-				return SerializeTaskPlanningResult(new TaskPlanningAgentResult("failed", "The delegated planning session could not finish safely.", scopedAdapter.Actions, warnings.Concat(scopedAdapter.Warnings).ToList(), []));
-			}
+			var agentModel = _googleAi.GenerativeModel(
+				_model,
+				tools: agentTools,
+				systemInstruction: new Content(TaskPlanningAgentSystemInstruction));
+			var session = new GeminiDelegatedAgentSession(agentModel.StartChat(), GetSafeResponseText);
+			var execution = await TaskPlanningAgentOrchestrator.ExecuteAsync(
+				request,
+				scopedAdapter,
+				session,
+				_maxTaskPlanningAgentToolCallRounds,
+				cancellationToken).ConfigureAwait(false);
+			_turnInputTokens += execution.InputTokens;
+			_turnOutputTokens += execution.OutputTokens;
+			return SerializeTaskPlanningResult(execution.Result);
 		}
 
 		private static Guid? ParseOptionalGuid(IReadOnlyDictionary<string, object?>? arguments, string name)
@@ -452,49 +416,8 @@ namespace OwnPlanner.Infrastructure.Adapters
 			Parameters = definition.JsonSchema is JsonElement schema ? ConvertJsonSchemaToGeminiSchema(schema) : null
 		};
 
-		private static Part FunctionResult(string? name, string key, string value) => new()
-		{
-			FunctionResponse = new FunctionResponse { Name = name, Response = new Dictionary<string, object?> { [key] = value } }
-		};
-
 		private static string SerializeTaskPlanningResult(TaskPlanningAgentResult result) =>
 			JsonSerializer.Serialize(result, new JsonSerializerOptions(JsonSerializerDefaults.Web));
-
-		private static TaskPlanningAgentResult BuildTaskPlanningResult(
-			string status,
-			string modelText,
-			IReadOnlyList<TaskPlanningAgentAction> actions,
-			IReadOnlyList<string> executionWarnings)
-		{
-			try
-			{
-				var json = modelText.Trim();
-				if (json.StartsWith("```", StringComparison.Ordinal))
-				{
-					var firstNewLine = json.IndexOf('\n');
-					var closingFence = json.LastIndexOf("```", StringComparison.Ordinal);
-					if (firstNewLine >= 0 && closingFence > firstNewLine)
-						json = json[(firstNewLine + 1)..closingFence].Trim();
-				}
-
-				using var document = JsonDocument.Parse(json);
-				var root = document.RootElement;
-				var summary = root.TryGetProperty("summary", out var summaryProperty) ? summaryProperty.GetString() ?? string.Empty : modelText;
-				var warnings = executionWarnings.Concat(ReadStringArray(root, "warnings")).Distinct(StringComparer.Ordinal).ToList();
-				var questions = ReadStringArray(root, "unresolvedQuestions");
-				return new TaskPlanningAgentResult(status, summary, actions, warnings, questions);
-			}
-			catch (JsonException)
-			{
-				var questions = modelText.TrimEnd().EndsWith("?", StringComparison.Ordinal) ? new[] { modelText } : [];
-				return new TaskPlanningAgentResult(status, modelText, actions, executionWarnings, questions);
-			}
-		}
-
-		private static IReadOnlyList<string> ReadStringArray(JsonElement root, string propertyName) =>
-			root.TryGetProperty(propertyName, out var property) && property.ValueKind == JsonValueKind.Array
-				? property.EnumerateArray().Where(item => item.ValueKind == JsonValueKind.String).Select(item => item.GetString()!).ToList()
-				: [];
 
 		public async Task<string> SummarizeAsync(string conversationText, CancellationToken cancellationToken = default)
 		{
@@ -668,7 +591,7 @@ namespace OwnPlanner.Infrastructure.Adapters
 				if (ex.Message.Contains("required oneof field 'data' must have one initialized field"))
 				{
 					Log.Warning(ex, "GeminiApiException: Detected session corruption, resetting chat session and retrying...");
-					ResetChatSession();
+					RecoverChatSession();
 					return new ChatTurnResult("I'm sorry, there was an issue processing your request. I've reset our conversation context. Could you please repeat your last message?", null);
 				}
 				throw;
@@ -676,6 +599,56 @@ namespace OwnPlanner.Infrastructure.Adapters
 		}
 
 		public Task<ChatTurnResult> GetResponse(string text) => GetResponse(text, CancellationToken.None);
+
+		private sealed class GeminiDelegatedAgentSession(
+			ChatSession chat,
+			Func<GenerateContentResponse, string> getResponseText) : IDelegatedAgentSession
+		{
+			public async Task<DelegatedAgentResponse> SendObjectiveAsync(string objective, CancellationToken cancellationToken)
+			{
+				var response = await chat.SendMessage(objective).WaitAsync(cancellationToken).ConfigureAwait(false);
+				return Map(response);
+			}
+
+			public async Task<DelegatedAgentResponse> SendToolResultsAsync(
+				IReadOnlyList<DelegatedAgentToolResult> results,
+				CancellationToken cancellationToken)
+			{
+				var parts = results.Select(result => new Part
+				{
+					FunctionResponse = new FunctionResponse
+					{
+						Name = result.Name,
+						Response = new Dictionary<string, object?>
+						{
+							[result.Succeeded ? "result" : "error"] = result.Payload
+						}
+					}
+				}).ToList();
+				var response = await chat.SendMessage(parts).WaitAsync(cancellationToken).ConfigureAwait(false);
+				return Map(response);
+			}
+
+			private DelegatedAgentResponse Map(GenerateContentResponse response)
+			{
+				var calls = response.Candidates?.FirstOrDefault()?.Content?.Parts?
+					.Where(part => part.FunctionCall != null)
+					.Select(part =>
+					{
+						var call = part.FunctionCall!;
+						var arguments = call.Args == null
+							? null
+							: JsonSerializer.Deserialize<Dictionary<string, object?>>(JsonSerializer.Serialize(call.Args));
+						return new DelegatedAgentToolCall(call.Name ?? string.Empty, arguments);
+					})
+					.ToList() ?? [];
+				return new DelegatedAgentResponse(
+					getResponseText(response),
+					calls,
+					response.UsageMetadata?.PromptTokenCount ?? 0,
+					response.UsageMetadata?.CandidatesTokenCount ?? 0);
+			}
+		}
 
 		public async ValueTask DisposeAsync()
 		{

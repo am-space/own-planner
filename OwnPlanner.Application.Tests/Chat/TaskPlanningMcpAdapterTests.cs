@@ -98,6 +98,19 @@ public class TaskPlanningMcpAdapterTests
 	}
 
 	[Fact]
+	public async Task CallToolAsync_FailedWriteIsWarningNotPerformedAction()
+	{
+		var inner = new FakeMcpAdapter("taskitem_create");
+		inner.Results["taskitem_create"] = JsonSerializer.Serialize(new { error = "Task list not found" });
+		var adapter = await TaskPlanningMcpAdapter.CreateAsync(inner, null, null, TestContext.Current.CancellationToken);
+
+		await adapter.CallToolAsync("taskitem_create", new Dictionary<string, object?>(), TestContext.Current.CancellationToken);
+
+		adapter.Actions.Should().BeEmpty();
+		adapter.Warnings.Should().ContainSingle().Which.Should().Contain("Task list not found");
+	}
+
+	[Fact]
 	public async Task CallToolAsync_PropagatesCancellationToAuthenticatedAdapter()
 	{
 		var inner = new FakeMcpAdapter("taskitem_create");

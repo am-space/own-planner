@@ -97,9 +97,10 @@ public sealed class TaskPlanningMcpAdapter : IMcpAdapter
 		var result = await _inner.CallToolAsync(toolName, scopedArguments, cancellationToken).ConfigureAwait(false);
 		if (WriteTools.Contains(toolName))
 		{
-			_actions.Add(new TaskPlanningAgentAction(toolName, BoundResult(result)));
 			if (HasError(result))
-				_warnings.Add($"Tool '{toolName}' returned an application error.");
+				_warnings.Add($"Tool '{toolName}' failed: {BoundResult(result)}");
+			else
+				_actions.Add(new TaskPlanningAgentAction(toolName, BoundResult(result)));
 		}
 		return result;
 	}
