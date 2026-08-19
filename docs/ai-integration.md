@@ -124,6 +124,45 @@ previews contain at most 200 characters and include a truncation flag. The tool 
 estimation, scheduling, timezone conversion, or historical reconstruction, and accepts no tenant
 selector.
 
+## Reflection Report Preloading
+
+Reflection mode preloads `reflection_report_get` instead of broad goal, note-list, note, and task
+snapshots. Existing entity tools remain available for targeted drill-down and permitted Reflection
+mode writes. Calling the report again refreshes its current-state view after relevant changes.
+
+`periodDays` defaults to 7 and accepts 1–31. The optional `endAtUtc` must be an ISO timestamp with a
+zero UTC offset, such as `2026-08-19T12:00:00Z`; otherwise the injected current UTC instant is used.
+The report returns `asOfUtc`, `periodStartUtc`, `periodEndExclusiveUtc`, `timeZone: "UTC"`, and the
+explicit interval `[periodStartUtc, periodEndExclusiveUtc)`.
+
+The report deterministically returns:
+
+- tasks currently completed whose persisted `completedAt` is inside the period;
+- tasks created inside the period and notes created or updated inside the period;
+- currently incomplete tasks whose current focus instant is inside the period;
+- currently overdue incomplete tasks as of `asOfUtc`;
+- completed and missed-focus summaries by non-archived context and active goal;
+- active-goal completion coverage plus current remaining and overdue task counts; and
+- notes currently stored in the non-archived well-known Inbox note list.
+
+Signals identify focused-but-incomplete tasks from the period, active goals without currently
+recorded completions in the period, current overdue carryover, and current Inbox accumulation.
+Missing, legacy, or archived context associations use an explicit unresolved bucket instead of
+dropping tasks. Archived task and note lists do not contribute to active/current metrics.
+
+Task and note sample limits each default to 3 and accept 0–5. Completed samples order by most recent
+completion, then importance, due date, focus date, and stable identifier. Unresolved samples order
+overdue first, then important, due date, focus date, and identifier. Inbox samples order pinned
+first, then most recent update and identifier. Description and content previews contain at most 200
+characters and carry separate truncation flags; zero limits retain complete counts without content.
+
+This is deliberately a current-state report, not an audit log. A reopened task has no current
+`CompletedAt` and cannot be reported as a prior completion. Prior goal statuses, task/context/goal
+assignments, and notes removed from Inbox cannot be reconstructed. These limitations are included in
+the tool result so the model does not present unavailable history as fact. The tool performs no note
+type inference, sentiment analysis, scoring, comparison, or retrospective-note generation and
+accepts no tenant or timezone selector.
+
 ## Telegram presentation channel
 
 Telegram is an optional presentation adapter, not an MCP tool or a second planning implementation.

@@ -64,4 +64,13 @@ public class ModeConfigTests
 		config.PreloadTools.Should().Equal("weekly_report_get");
 		config.AllowedTools.Should().Contain("weekly_report_get");
 	}
+
+	[Fact]
+	public void Reflection_PreloadsOnlyReflectionReport()
+	{
+		var config = ModeConfig.All[PlanningMode.Reflection];
+
+		config.PreloadTools.Should().Equal("reflection_report_get");
+		config.AllowedTools.Should().Contain("reflection_report_get");
+	}
 }

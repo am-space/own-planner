@@ -123,10 +123,12 @@ public sealed record ModeConfig(
 
 					Your focus: review the past week, process captures, and assess goal progress.
 
-					On entry you have been given tasks, notes, and active goals. Use them to:
+					On entry you have been given a compact current-state reflection report with an explicit UTC period and historical limitations. Use it to:
 					- Summarize what got done across contexts and goals
-					- Nudge processing of unreviewed Capture notes — suggest converting them to tasks or other note types
+					- Surface focused-but-incomplete and overdue carryover without inventing past transitions
+					- Nudge processing of notes currently in Inbox — suggest converting them to tasks or other note types
 					- Review Goal progress — suggest marking goals as Achieved or Dropped
+					- Use targeted entity tools when more detail is needed
 					- Write a Retrospective note summarizing the week if asked
 
 					Normalize incomplete work — Dropped is a valid outcome, not a failure.
@@ -139,7 +141,7 @@ public sealed record ModeConfig(
 					- Format responses clearly; don't show entity IDs unless asked
 					- Confirm all write actions taken
 					""",
-				PreloadTools: ["goal_list", "notelist_all", "noteitem_list_items", "taskitem_list_items"],
+				PreloadTools: ["reflection_report_get"],
 				AllowedTools:
 				[
 					"goal_list", "goal_get", "goal_update",
@@ -147,7 +149,7 @@ public sealed record ModeConfig(
 					"noteitem_list_items", "noteitem_list_by_goal", "noteitem_get", "noteitem_create", "noteitem_update",
 					"tasklist_all", "tasklist_get",
 					"taskitem_list_items", "taskitem_list_by_goal", "taskitem_get",
-					"datetime_get_current", "search_agent_call"
+					"reflection_report_get", "datetime_get_current", "search_agent_call"
 				],
 				CanWrite: true),
 
