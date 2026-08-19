@@ -29,6 +29,8 @@ import type {
   PlannerNoteSummary,
   PlannerNoteDetail,
   PlannerFilterOptions,
+  TelegramConnectionStatus,
+  TelegramConnectionLink,
 } from '../types/api.types';
 
 /**
@@ -299,6 +301,26 @@ class ApiService {
       try { message = (JSON.parse(text) as { message?: string }).message || message; } catch { if (text) message = text; }
       throw new Error(message);
     }
+  }
+
+  async getTelegramConnection(): Promise<TelegramConnectionStatus> {
+    const response = await fetch(`${this.baseUrl}/telegram/connection`, { credentials: 'include' });
+    if (!response.ok) throw new Error('Failed to load Telegram connection status');
+    return await response.json();
+  }
+
+  async createTelegramConnection(): Promise<TelegramConnectionLink> {
+    const response = await fetch(`${this.baseUrl}/telegram/connection`, { method: 'POST', credentials: 'include' });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({})) as { message?: string };
+      throw new Error(error.message || 'Failed to create Telegram connection link');
+    }
+    return await response.json();
+  }
+
+  async disconnectTelegram(): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/telegram/connection`, { method: 'DELETE', credentials: 'include' });
+    if (!response.ok) throw new Error('Failed to disconnect Telegram');
   }
 
   // Account (GDPR) API methods

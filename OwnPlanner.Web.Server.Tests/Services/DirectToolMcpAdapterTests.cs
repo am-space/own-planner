@@ -3,15 +3,21 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using NSubstitute;
+using OwnPlanner.Application.Chat;
 using OwnPlanner.Application.Inbox;
+using OwnPlanner.Application.Telegram;
 using OwnPlanner.Application.Tasks;
 using OwnPlanner.Application.Reporting;
+using OwnPlanner.Application.Usage;
 using OwnPlanner.Domain.Tasks;
 using OwnPlanner.Infrastructure.Persistence;
 using OwnPlanner.Infrastructure.Reporting;
 using OwnPlanner.Infrastructure.Repositories;
 using OwnPlanner.Web.Server.Services;
+using OwnPlanner.Web.Server.Controllers;
+using OwnPlanner.Web.Server.Models;
 
 namespace OwnPlanner.Web.Server.Tests.Services;
 
@@ -138,6 +144,47 @@ public sealed class DirectToolMcpAdapterTests : IDisposable
 
 		reportA.Should().Contain("User A private task").And.NotContain("User B private task");
 		reportB.Should().Contain("User B private task").And.NotContain("User A private task");
+	}
+
+	[Fact]
+	public async Task TelegramMappedUser_ExecutesToolsOnlyAgainstMappedUsersPlannerDatabase()
+	{
+		var ct = TestContext.Current.CancellationToken;
+		var userA = Guid.NewGuid();
+		var userB = Guid.NewGuid();
+		await using var serviceProvider = BuildTenantServiceProvider();
+		await SeedUserTaskAsync(userA.ToString(), "User A Telegram task", ct);
+		await SeedUserTaskAsync(userB.ToString(), "User B private task", ct);
+
+		var factory = new TenantToolChatFactory(serviceProvider);
+		using var sessions = new ChatSessionManager(factory, serviceProvider.GetRequiredService<ILogger<ChatSessionManager>>());
+		var integration = Substitute.For<ITelegramIntegrationService>();
+		integration.ReserveUpdateAsync(42, Arg.Any<CancellationToken>()).Returns(TelegramUpdateReservation.Reserved);
+		integration.FindLinkedAccountAsync(100, 200, Arg.Any<CancellationToken>())
+			.Returns(new TelegramLinkedAccount(userA, 100, 200, PlanningMode.DayWork));
+		integration.TryAdvanceChatUpdateAsync(userA, 42, Arg.Any<CancellationToken>()).Returns(true);
+		var bot = Substitute.For<ITelegramBotClient>();
+		var quota = Substitute.For<IUsageQuotaService>();
+		quota.CheckAndReserveAsync(userA.ToString(), Arg.Any<CancellationToken>())
+			.Returns(new UsageStatus(200, 1, 199, DateTimeOffset.UtcNow.AddDays(1)));
+		var controller = new TelegramController(
+			integration, bot, sessions, quota, new TelegramChatLock(),
+			Options.Create(new TelegramOptions { Enabled = true }),
+			serviceProvider.GetRequiredService<ILogger<TelegramController>>());
+
+		await controller.Webhook(new TelegramUpdate
+		{
+			UpdateId = 42,
+			Message = new TelegramMessage
+			{
+				Text = "show my work", From = new TelegramUser { Id = 100 }, Chat = new TelegramChat { Id = 200, Type = "private" },
+			},
+		}, ct);
+
+		await bot.Received(1).SendTextAsync(
+			200,
+			Arg.Is<string>(text => text != null && text.Contains("User A Telegram task") && !text.Contains("User B private task")),
+			Arg.Any<CancellationToken>());
 	}
 
 	[Fact]
@@ -373,5 +420,36 @@ public sealed class DirectToolMcpAdapterTests : IDisposable
 		}
 
 		public Task DeleteUserDatabaseAsync(string userId, CancellationToken cancellationToken = default) => Task.CompletedTask;
+	}
+
+	private sealed class TenantToolChatFactory(ServiceProvider serviceProvider) : IChatServiceFactory
+	{
+		public async Task<IPlanningService> CreateAsync(string sessionId, string userId, CancellationToken cancellationToken = default)
+		{
+			var adapter = CreateAdapter(serviceProvider, userId);
+			await adapter.InitializeAsync(cancellationToken);
+			return new PlanningService(
+				new ToolReadingChatAdapter(adapter),
+				adapter,
+				serviceProvider.GetRequiredService<ILogger<PlanningService>>());
+		}
+	}
+
+	private sealed class ToolReadingChatAdapter(IMcpAdapter mcpAdapter) : IChatAdapter
+	{
+		public DateTime CreatedTime { get; } = DateTime.UtcNow;
+		public DateTime LastAccessTime { get; private set; } = DateTime.UtcNow;
+		public int? CurrentContextLengthTokens => 0;
+		public Task<ChatTurnResult> GetResponse(string text) => GetResponse(text, CancellationToken.None);
+		public async Task<ChatTurnResult> GetResponse(string text, CancellationToken cancellationToken)
+		{
+			LastAccessTime = DateTime.UtcNow;
+			var report = await mcpAdapter.CallToolAsync("strategic_report_get", cancellationToken: cancellationToken);
+			return new ChatTurnResult(report, 0);
+		}
+		public void ResetChatSession(string? systemPrompt = null, IReadOnlyList<string>? allowedTools = null) { }
+		public void RebuildSession(string systemPrompt, IReadOnlyList<string>? allowedTools, IReadOnlyList<ChatMessage> history) { }
+		public Task<string> SummarizeAsync(string conversationText, CancellationToken cancellationToken = default) => Task.FromResult(string.Empty);
+		public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 	}
 }

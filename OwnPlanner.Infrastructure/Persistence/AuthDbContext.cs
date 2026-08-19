@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using OwnPlanner.Domain.Users;
+using OwnPlanner.Infrastructure.Telegram;
 
 namespace OwnPlanner.Infrastructure.Persistence;
 
@@ -14,6 +15,9 @@ public class AuthDbContext(DbContextOptions<AuthDbContext> options) : DbContext(
 	public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
 	public DbSet<UserDailyUsage> UserDailyUsages => Set<UserDailyUsage>();
 	public DbSet<UserQuotaOverride> UserQuotaOverrides => Set<UserQuotaOverride>();
+	public DbSet<TelegramConnectionToken> TelegramConnectionTokens => Set<TelegramConnectionToken>();
+	public DbSet<TelegramAccountLink> TelegramAccountLinks => Set<TelegramAccountLink>();
+	public DbSet<TelegramProcessedUpdate> TelegramProcessedUpdates => Set<TelegramProcessedUpdate>();
 
 	protected override void OnModelCreating(ModelBuilder modelBuilder)
 	{
@@ -88,5 +92,24 @@ public class AuthDbContext(DbContextOptions<AuthDbContext> options) : DbContext(
 			.HasForeignKey(o => o.UserId)
 			.OnDelete(DeleteBehavior.Cascade);
 		quotaOverride.HasIndex(o => o.UserId).IsUnique();
+
+		var telegramToken = modelBuilder.Entity<TelegramConnectionToken>();
+		telegramToken.HasKey(x => x.Id);
+		telegramToken.Property(x => x.TokenHash).IsRequired().HasMaxLength(64);
+		telegramToken.HasIndex(x => x.TokenHash).IsUnique();
+		telegramToken.HasIndex(x => x.UserId);
+		telegramToken.HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+
+		var telegramLink = modelBuilder.Entity<TelegramAccountLink>();
+		telegramLink.HasKey(x => x.Id);
+		telegramLink.Property(x => x.Mode).HasConversion<string>().HasMaxLength(32).IsRequired();
+		telegramLink.Property(x => x.LastProcessedUpdateId);
+		telegramLink.HasIndex(x => x.UserId).IsUnique();
+		telegramLink.HasIndex(x => x.TelegramUserId).IsUnique();
+		telegramLink.HasIndex(x => x.ChatId).IsUnique();
+		telegramLink.HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+
+		var telegramUpdate = modelBuilder.Entity<TelegramProcessedUpdate>();
+		telegramUpdate.HasKey(x => x.UpdateId);
 	}
 }

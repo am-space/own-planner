@@ -10,6 +10,9 @@ The architecture maintains two distinct categories of databases:
     *   A single, central database instance.
     *   Responsible for storing user accounts, credentials, and session information.
     *   Provides the mapping to determine which User Database to mount when a user logs in.
+    *   Stores Telegram connection-token hashes, one-to-one Telegram account/chat mappings, the
+        selected Telegram planning mode, and processed Telegram update IDs. All user-owned Telegram
+        rows cascade-delete with the account; processed update IDs contain no message content.
 
 2.  **User Databases (`ownplanner-user-{userId}.db`)**
     *   Dynamically created on a per-user basis.

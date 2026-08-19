@@ -25,8 +25,10 @@ import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import DeleteForeverIcon from '@mui/icons-material/DeleteForever';
 import DownloadIcon from '@mui/icons-material/Download';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
+import LinkOffIcon from '@mui/icons-material/LinkOff';
 import { apiService } from '../services/api';
-import type { PersonalAccessTokenCreatedResponse, PersonalAccessTokenResponse } from '../types/api.types';
+import type { PersonalAccessTokenCreatedResponse, PersonalAccessTokenResponse, TelegramConnectionLink, TelegramConnectionStatus } from '../types/api.types';
 
 export default function SettingsPage() {
   const navigate = useNavigate();
@@ -42,12 +44,17 @@ export default function SettingsPage() {
   const [deletePassword, setDeletePassword] = useState('');
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [telegram, setTelegram] = useState<TelegramConnectionStatus | null>(null);
+  const [telegramLink, setTelegramLink] = useState<TelegramConnectionLink | null>(null);
+  const [telegramBusy, setTelegramBusy] = useState(false);
+  const [telegramLoading, setTelegramLoading] = useState(true);
+  const [telegramError, setTelegramError] = useState<string | null>(null);
 
   const activeTokens = useMemo(() => tokens.filter(token => token.revokedAt === null), [tokens]);
   const revokedTokens = useMemo(() => tokens.filter(token => token.revokedAt !== null), [tokens]);
 
   useEffect(() => {
-    const load = async () => {
+    const loadTokens = async () => {
       try {
         setTokens(await apiService.getPersonalAccessTokens());
       } catch (err) {
@@ -57,7 +64,18 @@ export default function SettingsPage() {
       }
     };
 
-    load();
+    const loadTelegram = async () => {
+      try {
+        setTelegram(await apiService.getTelegramConnection());
+      } catch (err) {
+        setTelegramError(err instanceof Error ? err.message : 'Failed to load Telegram connection status');
+      } finally {
+        setTelegramLoading(false);
+      }
+    };
+
+    void loadTokens();
+    void loadTelegram();
   }, []);
 
   const handleCreate = async (event: React.FormEvent) => {
@@ -77,6 +95,35 @@ export default function SettingsPage() {
       setError(err instanceof Error ? err.message : 'Failed to create personal access token');
     } finally {
       setBusy(false);
+    }
+  };
+
+  const handleConnectTelegram = async () => {
+    setTelegramBusy(true);
+    setError(null);
+    setTelegramError(null);
+    try {
+      const link = await apiService.createTelegramConnection();
+      setTelegramLink(link);
+      setTelegram(current => current ? { ...current, pending: true } : current);
+    } catch (err) {
+      setTelegramError(err instanceof Error ? err.message : 'Failed to connect Telegram');
+    } finally {
+      setTelegramBusy(false);
+    }
+  };
+
+  const handleDisconnectTelegram = async () => {
+    setTelegramBusy(true);
+    setError(null);
+    try {
+      await apiService.disconnectTelegram();
+      setTelegram(current => current ? { ...current, connected: false, pending: false, telegramUserId: null, connectedAtUtc: null, mode: null } : current);
+      setTelegramLink(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to disconnect Telegram');
+    } finally {
+      setTelegramBusy(false);
     }
   };
 
@@ -161,7 +208,7 @@ export default function SettingsPage() {
           Back to chat
         </Button>
         <Typography variant="h5" component="h1" sx={{ fontWeight: 500 }}>
-          Personal access tokens
+          Settings
         </Typography>
       </Box>
 
@@ -193,6 +240,58 @@ export default function SettingsPage() {
       )}
 
       <Paper sx={{ p: 3, mb: 3 }}>
+        <Typography variant="h6" gutterBottom>Telegram</Typography>
+        <Divider sx={{ mb: 2 }} />
+        {telegramLoading ? (
+          <Typography color="text.secondary">Loading...</Typography>
+        ) : telegramError ? (
+          <Alert severity="error">{telegramError}</Alert>
+        ) : telegram === null ? (
+          <Alert severity="error">Telegram connection status is unavailable.</Alert>
+        ) : !telegram.enabled ? (
+          <Alert severity="info">Telegram integration is not enabled on this OwnPlanner server.</Alert>
+        ) : telegram.connected ? (
+          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+            <Box>
+              <Typography>Connected</Typography>
+              <Typography variant="body2" color="text.secondary">
+                Telegram user {telegram.telegramUserId} · {telegram.mode ?? 'DayWork'} mode · connected {formatDate(telegram.connectedAtUtc)}
+              </Typography>
+            </Box>
+            <Button color="error" variant="outlined" startIcon={<LinkOffIcon />} disabled={telegramBusy} onClick={handleDisconnectTelegram}>
+              Disconnect
+            </Button>
+          </Box>
+        ) : (
+          <Box>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Link one private Telegram account to use the same planner data and assistant from the bot.
+            </Typography>
+            {telegram.pending && (
+              <Alert severity="warning" sx={{ mb: 2 }}>
+                A connection link is pending. Generate a new one if it expired.
+              </Alert>
+            )}
+            <Button variant="contained" startIcon={<OpenInNewIcon />} disabled={telegramBusy} onClick={handleConnectTelegram}>
+              {telegram.pending ? 'Generate new link' : 'Connect Telegram'}
+            </Button>
+            {telegramLink && (
+              <Box sx={{ mt: 2 }}>
+                <Button component="a" href={telegramLink.url} target="_blank" rel="noopener noreferrer" variant="outlined" startIcon={<OpenInNewIcon />}>
+                  Open Telegram
+                </Button>
+                <Typography variant="caption" display="block" color="text.secondary" sx={{ mt: 1 }}>
+                  Link expires {formatDate(telegramLink.expiresAtUtc)}.
+                </Typography>
+              </Box>
+            )}
+          </Box>
+        )}
+      </Paper>
+
+      <Paper sx={{ p: 3, mb: 3 }}>
+		<Typography variant="h6" gutterBottom>Personal access tokens</Typography>
+		<Divider sx={{ mb: 2 }} />
         <Box
           component="form"
           onSubmit={handleCreate}

@@ -9,7 +9,8 @@ namespace OwnPlanner.Infrastructure.Account;
 /// <summary>
 /// Permanently erases a user's account across both data stores. The auth record is removed first —
 /// its <see cref="AuthDbContext"/> foreign keys cascade-delete the user's access tokens,
-/// password-reset tokens, daily usage counters, and quota overrides — which immediately makes login
+/// password-reset tokens, daily usage counters, quota overrides, Telegram links, and Telegram link
+/// tokens — which immediately makes login
 /// impossible. The per-user planner database file is then deleted. Any file left behind by a failure
 /// is orphaned and unreachable, since no surviving account can resolve it.
 /// </summary>
