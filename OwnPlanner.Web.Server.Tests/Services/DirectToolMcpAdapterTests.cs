@@ -23,6 +23,7 @@ namespace OwnPlanner.Web.Server.Tests.Services;
 
 public sealed class DirectToolMcpAdapterTests : IDisposable
 {
+	private static readonly DateTime TenantTestUtcNow = new(2026, 8, 19, 12, 0, 0, DateTimeKind.Utc);
 	private readonly string _tempDirectory = Path.Combine(Path.GetTempPath(), "ownplanner-direct-tool-tests", Guid.NewGuid().ToString("N"));
 
 	[Fact]
@@ -387,7 +388,7 @@ public sealed class DirectToolMcpAdapterTests : IDisposable
 		services.AddSingleton<PerUserAppInitializationService>();
 		services.AddScoped<IPlannerDbContextFactory, SessionBoundTestPlannerDbContextFactory>();
 		services.AddScoped(_ => inboxSeeder);
-		services.AddSingleton(TimeProvider.System);
+		services.AddSingleton<TimeProvider>(new FixedTimeProvider(TenantTestUtcNow));
 		services.AddScoped<IStrategicReportReader, StrategicReportReader>();
 		services.AddScoped<IWeeklyReportReader, WeeklyReportReader>();
 		services.AddScoped<ITaskListRepository, TaskListRepository>();
@@ -416,7 +417,7 @@ public sealed class DirectToolMcpAdapterTests : IDisposable
 		await db.Database.MigrateAsync(cancellationToken);
 		var list = new TaskList("Tasks");
 		var task = new TaskItem(title, list.Id);
-		task.SetFocusAt(DateTime.UtcNow);
+		task.SetFocusAt(TenantTestUtcNow);
 		db.AddRange(list, task);
 		await db.SaveChangesAsync(cancellationToken);
 	}
@@ -444,6 +445,11 @@ public sealed class DirectToolMcpAdapterTests : IDisposable
 	}
 
 	private sealed record TenantTestDirectory(string Path);
+
+	private sealed class FixedTimeProvider(DateTime utcNow) : TimeProvider
+	{
+		public override DateTimeOffset GetUtcNow() => new(utcNow);
+	}
 
 	private sealed class SessionBoundTestPlannerDbContextFactory(
 		TenantTestDirectory directory,
