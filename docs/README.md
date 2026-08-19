@@ -50,6 +50,7 @@ ADRs describe decisions as actually shipped. Start new records from [`adr/templa
 - [`ADR-0010`](adr/0010-deterministic-strategic-reporting.md) — deterministic strategic reporting through focused read models
 - [`ADR-0011`](adr/0011-bounded-delegated-task-planning-agent.md) — bounded delegated task planning through authenticated scoped tools
 - [`ADR-0012`](adr/0012-private-telegram-presentation-channel.md) — private Telegram presentation channel with explicit account linking
+- [`ADR-0013`](adr/0013-deterministic-weekly-workload-reporting.md) — deterministic seven-day UTC workload reporting for Week Planning
 
 ## Historical plans
 

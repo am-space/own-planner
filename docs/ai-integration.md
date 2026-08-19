@@ -95,6 +95,35 @@ cross-entity projections through the host-provided `IPlannerDbContextFactory`, s
 authenticated user's database and stdio calls use that host's configured database. The tool accepts
 no user ID, database path, or other tenant selector.
 
+## Weekly Report Preloading
+
+Week Planning preloads `weekly_report_get` instead of broad goal, task-list, and task snapshots. The
+existing entity tools remain available for targeted drill-down and permitted task changes. Calling
+the report again refreshes the point-in-time workload after a conversation changes planner data.
+
+The optional `startDate` is a strict ISO UTC calendar date (`yyyy-MM-dd`). When omitted, the reader
+uses the calendar date of its injected `asOfUtc` instant. The report covers exactly seven UTC dates
+using `[windowStartDate, windowEndExclusiveDate)` and returns both endpoints, `asOfUtc`, `timeZone:
+"UTC"`, and the interval notation. It does not apply a local week start or daylight-saving offset.
+
+Only incomplete tasks in non-archived task lists contribute. Overall totals separately count tasks
+focused inside the window, due inside the window, currently overdue (`dueAt < asOfUtc`), currently
+important, and currently lacking both focus and due dates. A task focused and due inside the window
+appears in both relevant views but contributes once to distinct window/day task totals. Focus dates
+are flexible work plans; due dates are fixed commitments and are never inferred from focus dates.
+
+Each day contains separate focus and due counts and bounded samples. Context summaries include an
+explicit `Unassigned or missing context` bucket for legacy associations; active-goal summaries make
+coverage available for drill-down. Signals identify overloaded days, active goals without focused
+work, overdue tasks not focused inside the window, and important tasks without a focus date.
+
+`taskSampleLimit` defaults to 3 and accepts 0–5. `overloadedDayThreshold` defaults to 5 and accepts
+1–20; a day is overloaded when its distinct focus-or-due task count is at least the threshold. Task
+samples sort overdue first, then important, due date, focus date, and stable identifier. Description
+previews contain at most 200 characters and include a truncation flag. The tool performs no capacity
+estimation, scheduling, timezone conversion, or historical reconstruction, and accepts no tenant
+selector.
+
 ## Telegram presentation channel
 
 Telegram is an optional presentation adapter, not an MCP tool or a second planning implementation.
