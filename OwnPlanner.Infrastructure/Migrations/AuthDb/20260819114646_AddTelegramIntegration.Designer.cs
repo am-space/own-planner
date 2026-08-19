@@ -11,7 +11,7 @@ using OwnPlanner.Infrastructure.Persistence;
 namespace OwnPlanner.Infrastructure.Migrations.AuthDb
 {
     [DbContext(typeof(AuthDbContext))]
-    [Migration("20260818193013_AddTelegramIntegration")]
+    [Migration("20260819114646_AddTelegramIntegration")]
     partial class AddTelegramIntegration
     {
         /// <inheritdoc />
@@ -212,6 +212,9 @@ namespace OwnPlanner.Infrastructure.Migrations.AuthDb
 
                     b.Property<DateTime>("ConnectedAtUtc")
                         .HasColumnType("TEXT");
+
+                    b.Property<long?>("LastProcessedUpdateId")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("Mode")
                         .IsRequired()

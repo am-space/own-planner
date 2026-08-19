@@ -103,6 +103,7 @@ public class AuthDbContext(DbContextOptions<AuthDbContext> options) : DbContext(
 		var telegramLink = modelBuilder.Entity<TelegramAccountLink>();
 		telegramLink.HasKey(x => x.Id);
 		telegramLink.Property(x => x.Mode).HasConversion<string>().HasMaxLength(32).IsRequired();
+		telegramLink.Property(x => x.LastProcessedUpdateId);
 		telegramLink.HasIndex(x => x.UserId).IsUnique();
 		telegramLink.HasIndex(x => x.TelegramUserId).IsUnique();
 		telegramLink.HasIndex(x => x.ChatId).IsUnique();

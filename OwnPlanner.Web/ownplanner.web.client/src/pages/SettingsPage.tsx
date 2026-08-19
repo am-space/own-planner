@@ -47,19 +47,16 @@ export default function SettingsPage() {
   const [telegram, setTelegram] = useState<TelegramConnectionStatus | null>(null);
   const [telegramLink, setTelegramLink] = useState<TelegramConnectionLink | null>(null);
   const [telegramBusy, setTelegramBusy] = useState(false);
+  const [telegramLoading, setTelegramLoading] = useState(true);
+  const [telegramError, setTelegramError] = useState<string | null>(null);
 
   const activeTokens = useMemo(() => tokens.filter(token => token.revokedAt === null), [tokens]);
   const revokedTokens = useMemo(() => tokens.filter(token => token.revokedAt !== null), [tokens]);
 
   useEffect(() => {
-    const load = async () => {
+    const loadTokens = async () => {
       try {
-        const [loadedTokens, telegramStatus] = await Promise.all([
-          apiService.getPersonalAccessTokens(),
-          apiService.getTelegramConnection(),
-        ]);
-        setTokens(loadedTokens);
-        setTelegram(telegramStatus);
+        setTokens(await apiService.getPersonalAccessTokens());
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load personal access tokens');
       } finally {
@@ -67,7 +64,18 @@ export default function SettingsPage() {
       }
     };
 
-    load();
+    const loadTelegram = async () => {
+      try {
+        setTelegram(await apiService.getTelegramConnection());
+      } catch (err) {
+        setTelegramError(err instanceof Error ? err.message : 'Failed to load Telegram connection status');
+      } finally {
+        setTelegramLoading(false);
+      }
+    };
+
+    void loadTokens();
+    void loadTelegram();
   }, []);
 
   const handleCreate = async (event: React.FormEvent) => {
@@ -93,13 +101,13 @@ export default function SettingsPage() {
   const handleConnectTelegram = async () => {
     setTelegramBusy(true);
     setError(null);
+    setTelegramError(null);
     try {
       const link = await apiService.createTelegramConnection();
       setTelegramLink(link);
       setTelegram(current => current ? { ...current, pending: true } : current);
-      window.open(link.url, '_blank', 'noopener,noreferrer');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to connect Telegram');
+      setTelegramError(err instanceof Error ? err.message : 'Failed to connect Telegram');
     } finally {
       setTelegramBusy(false);
     }
@@ -234,8 +242,12 @@ export default function SettingsPage() {
       <Paper sx={{ p: 3, mb: 3 }}>
         <Typography variant="h6" gutterBottom>Telegram</Typography>
         <Divider sx={{ mb: 2 }} />
-        {loading || telegram === null ? (
+        {telegramLoading ? (
           <Typography color="text.secondary">Loading...</Typography>
+        ) : telegramError ? (
+          <Alert severity="error">{telegramError}</Alert>
+        ) : telegram === null ? (
+          <Alert severity="error">Telegram connection status is unavailable.</Alert>
         ) : !telegram.enabled ? (
           <Alert severity="info">Telegram integration is not enabled on this OwnPlanner server.</Alert>
         ) : telegram.connected ? (
@@ -264,9 +276,14 @@ export default function SettingsPage() {
               {telegram.pending ? 'Generate new link' : 'Connect Telegram'}
             </Button>
             {telegramLink && (
-              <Typography variant="caption" display="block" color="text.secondary" sx={{ mt: 1 }}>
-                Link expires {formatDate(telegramLink.expiresAtUtc)}.
-              </Typography>
+              <Box sx={{ mt: 2 }}>
+                <Button component="a" href={telegramLink.url} target="_blank" rel="noopener noreferrer" variant="outlined" startIcon={<OpenInNewIcon />}>
+                  Open Telegram
+                </Button>
+                <Typography variant="caption" display="block" color="text.secondary" sx={{ mt: 1 }}>
+                  Link expires {formatDate(telegramLink.expiresAtUtc)}.
+                </Typography>
+              </Box>
             )}
           </Box>
         )}

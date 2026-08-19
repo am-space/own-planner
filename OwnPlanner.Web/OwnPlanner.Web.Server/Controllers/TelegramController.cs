@@ -1,6 +1,4 @@
 using System.Security.Claims;
-using System.Security.Cryptography;
-using System.Text;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
@@ -54,12 +52,11 @@ public sealed class TelegramController(
 
 	[AllowAnonymous]
 	[HttpPost("webhook")]
+	[ServiceFilter(typeof(TelegramWebhookSecretFilter))]
 	public async Task<IActionResult> Webhook(
 		[FromBody] TelegramUpdate update,
-		[FromHeader(Name = "X-Telegram-Bot-Api-Secret-Token")] string? suppliedSecret,
 		CancellationToken cancellationToken)
 	{
-		if (!_options.Enabled || !SecretMatches(suppliedSecret, _options.WebhookSecret)) return Unauthorized();
 		if (update.UpdateId <= 0) return BadRequest();
 		if (await integrationService.ReserveUpdateAsync(update.UpdateId, cancellationToken) == TelegramUpdateReservation.Duplicate) return Ok();
 
@@ -75,7 +72,7 @@ public sealed class TelegramController(
 		{
 			using (await chatLock.AcquireAsync(message.Chat.Id, cancellationToken))
 			{
-				await ProcessMessageAsync(message.From.Id, message.Chat.Id, message.Text, cancellationToken);
+				await ProcessMessageAsync(update.UpdateId, message.From.Id, message.Chat.Id, message.Text, cancellationToken);
 			}
 			await integrationService.CompleteUpdateAsync(update.UpdateId, true, cancellationToken);
 		}
@@ -91,7 +88,7 @@ public sealed class TelegramController(
 		return Ok();
 	}
 
-	private async Task ProcessMessageAsync(long telegramUserId, long chatId, string text, CancellationToken cancellationToken)
+	private async Task ProcessMessageAsync(long updateId, long telegramUserId, long chatId, string text, CancellationToken cancellationToken)
 	{
 		var command = text.Trim();
 		if (command.StartsWith("/start ", StringComparison.OrdinalIgnoreCase))
@@ -110,6 +107,7 @@ public sealed class TelegramController(
 			await botClient.SendTextAsync(chatId, "Connect Telegram from OwnPlanner Settings before using this bot.", cancellationToken);
 			return;
 		}
+		if (!await integrationService.TryAdvanceChatUpdateAsync(account.UserId, updateId, cancellationToken)) return;
 
 		var sessionId = SessionId(telegramUserId);
 		if (command.StartsWith('/'))
@@ -185,12 +183,6 @@ public sealed class TelegramController(
 
 	private Guid GetCurrentUserId() => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? throw new UnauthorizedAccessException());
 	private static string SessionId(long telegramUserId) => $"telegram:{telegramUserId}";
-	private static bool SecretMatches(string? supplied, string expected)
-	{
-		if (string.IsNullOrEmpty(supplied) || string.IsNullOrEmpty(expected)) return false;
-		var left = Encoding.UTF8.GetBytes(supplied); var right = Encoding.UTF8.GetBytes(expected);
-		return left.Length == right.Length && CryptographicOperations.FixedTimeEquals(left, right);
-	}
 	private static bool TryParseMode(string? value, out PlanningMode mode)
 	{
 		mode = value?.ToLowerInvariant() switch

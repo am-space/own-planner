@@ -8,7 +8,8 @@ is disabled by default and supports private text messages only.
 1. Create a bot with BotFather and note its token and username.
 2. Generate a high-entropy webhook secret.
 3. Configure `Telegram__Enabled=true`, `Telegram__BotToken`, `Telegram__BotUsername`,
-   `Telegram__WebhookSecret`, and optionally `Telegram__LinkTokenLifetimeMinutes` (default 15).
+   `Telegram__WebhookSecret`, and optionally `Telegram__LinkTokenLifetimeMinutes` (default 15) and
+   `Telegram__ProcessedUpdateRetentionDays` (default 7, constrained to 1–30 days).
 4. Register `https://<public-host>/api/telegram/webhook` with Telegram's `setWebhook`, passing the
    configured secret as `secret_token`. Webhook registration is deployment-managed; OwnPlanner
    exposes no endpoint that returns the bot token or registers a webhook.
@@ -33,8 +34,10 @@ display names, and client-provided OwnPlanner identifiers never select a tenant 
 The webhook requires an exact `X-Telegram-Bot-Api-Secret-Token`. It ignores non-private, bot,
 non-text, edited, callback, media, group, channel, and other unsupported update shapes. Every
 accepted `update_id` is reserved under a unique key before side effects, and each chat is serialized
-in process. A failed reserved update is marked failed and acknowledged; a Telegram retry is not
-replayed because planner mutations may already have occurred.
+in process. A persisted per-link high-water mark prevents an older concurrent update from executing
+after a newer one. Deduplication rows are retained for a bounded seven-day retry window by default
+and pruned during reservation. A failed reserved update is marked failed and acknowledged; a
+Telegram retry is not replayed because planner mutations may already have occurred.
 
 Ordinary text uses the same quota reservation, token accounting, context limits, planning modes,
 Gemini flow, and user-bound tools as web chat. Responses are plain text and split at 4,096 UTF-16

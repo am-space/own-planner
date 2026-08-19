@@ -137,6 +137,7 @@ namespace OwnPlanner.Web.Server
 				}
 				builder.Services.AddScoped<ITelegramIntegrationService, TelegramIntegrationService>();
 				builder.Services.AddSingleton<TelegramChatLock>();
+				builder.Services.AddScoped<TelegramWebhookSecretFilter>();
 				// Telegram requires the bot token in the request path. Use a dedicated client without the
 				// IHttpClientFactory logging handlers so request logs can never expose that credential.
 				builder.Services.AddSingleton<ITelegramBotClient>(sp => new TelegramBotClient(

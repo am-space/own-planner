@@ -19,7 +19,9 @@ hashed, expiring, single-use deep-link tokens. `AuthDbContext` owns unique OwnPl
 Telegram-user, and private-chat mappings plus selected mode and content-free processed update IDs.
 
 `TelegramController` validates the configured webhook secret, filters to new private text messages,
-reserves `update_id` before side effects, and serializes each chat. It derives the OwnPlanner user
+reserves `update_id` before side effects, serializes each chat through an idle-evicted keyed lock,
+and atomically advances a persisted per-link update high-water mark so stale turns cannot execute
+after newer ones. Deduplication rows use a bounded retention window. It derives the OwnPlanner user
 only from the persisted numeric-ID mapping and uses a separate `telegram:<telegram-user-id>` session.
 The existing chat session manager, planning service, quotas, Gemini adapter, and tenant-bound direct
 tool adapter execute the turn. Failed reserved updates are acknowledged and never automatically

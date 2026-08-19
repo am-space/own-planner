@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using Microsoft.Data.Sqlite;
 using OwnPlanner.Application.Chat;
 using OwnPlanner.Application.Telegram;
 using OwnPlanner.Infrastructure.Persistence;
@@ -28,7 +29,7 @@ public sealed class TelegramIntegrationService(
 			pending,
 			link?.TelegramUserId,
 			link is null ? null : new DateTimeOffset(link.ConnectedAtUtc, TimeSpan.Zero),
-			link?.Mode);
+			link?.Mode.ToString());
 	}
 
 	public async Task<TelegramConnectionLink> CreateConnectionLinkAsync(Guid userId, CancellationToken cancellationToken = default)
@@ -117,20 +118,32 @@ public sealed class TelegramIntegrationService(
 			.ExecuteUpdateAsync(setters => setters.SetProperty(x => x.Mode, mode), cancellationToken);
 	}
 
+	public async Task<bool> TryAdvanceChatUpdateAsync(Guid userId, long updateId, CancellationToken cancellationToken = default)
+	{
+		var updated = await db.TelegramAccountLinks
+			.Where(x => x.UserId == userId && (x.LastProcessedUpdateId == null || x.LastProcessedUpdateId < updateId))
+			.ExecuteUpdateAsync(setters => setters.SetProperty(x => x.LastProcessedUpdateId, updateId), cancellationToken);
+		return updated == 1;
+	}
+
 	public async Task<TelegramUpdateReservation> ReserveUpdateAsync(long updateId, CancellationToken cancellationToken = default)
 	{
 		db.ChangeTracker.Clear();
+		var now = timeProvider.GetUtcNow().UtcDateTime;
+		var retentionDays = Math.Clamp(_options.ProcessedUpdateRetentionDays, 1, 30);
+		var retentionCutoff = now.AddDays(-retentionDays);
+		await db.TelegramProcessedUpdates.Where(x => x.ReservedAtUtc < retentionCutoff).ExecuteDeleteAsync(cancellationToken);
 		if (await db.TelegramProcessedUpdates.AsNoTracking().AnyAsync(x => x.UpdateId == updateId, cancellationToken))
 		{
 			return TelegramUpdateReservation.Duplicate;
 		}
-		db.TelegramProcessedUpdates.Add(new TelegramProcessedUpdate { UpdateId = updateId, ReservedAtUtc = timeProvider.GetUtcNow().UtcDateTime });
+		db.TelegramProcessedUpdates.Add(new TelegramProcessedUpdate { UpdateId = updateId, ReservedAtUtc = now });
 		try
 		{
 			await db.SaveChangesAsync(cancellationToken);
 			return TelegramUpdateReservation.Reserved;
 		}
-		catch (DbUpdateException)
+		catch (DbUpdateException ex) when (IsUniqueConstraintViolation(ex))
 		{
 			db.ChangeTracker.Clear();
 			return TelegramUpdateReservation.Duplicate;
@@ -149,4 +162,6 @@ public sealed class TelegramIntegrationService(
 
 	private static string HashToken(string token) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token)));
 	private static string Base64UrlEncode(byte[] bytes) => Convert.ToBase64String(bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');
+	internal static bool IsUniqueConstraintViolation(DbUpdateException exception)
+		=> exception.InnerException is SqliteException { SqliteErrorCode: 19 };
 }

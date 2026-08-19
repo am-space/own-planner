@@ -1,4 +1,5 @@
 using FluentAssertions;
+using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -14,13 +15,13 @@ namespace OwnPlanner.Web.Server.Tests.Controllers;
 public sealed class TelegramControllerTests
 {
 	[Fact]
-	public async Task Webhook_RejectsInvalidSecretWithoutReservingUpdate()
+	public void ConnectionStatus_JsonContract_UsesPlanningModeName()
 	{
-		var fixture = new Fixture();
-		var result = await fixture.Controller.Webhook(Fixture.PrivateTextUpdate(), "wrong", TestContext.Current.CancellationToken);
+		var json = JsonSerializer.Serialize(
+			new TelegramConnectionStatus(true, true, false, 100, DateTimeOffset.UtcNow, "DayWork"),
+			new JsonSerializerOptions(JsonSerializerDefaults.Web));
 
-		result.Should().BeOfType<UnauthorizedResult>();
-		await fixture.Integration.DidNotReceiveWithAnyArgs().ReserveUpdateAsync(default, TestContext.Current.CancellationToken);
+		json.Should().Contain("\"mode\":\"DayWork\"").And.NotContain("\"mode\":2");
 	}
 
 	[Fact]
@@ -28,7 +29,7 @@ public sealed class TelegramControllerTests
 	{
 		var fixture = new Fixture();
 		fixture.Integration.ReserveUpdateAsync(42, Arg.Any<CancellationToken>()).Returns(TelegramUpdateReservation.Duplicate);
-		var result = await fixture.Controller.Webhook(Fixture.PrivateTextUpdate(), "webhook-secret", TestContext.Current.CancellationToken);
+		var result = await fixture.Controller.Webhook(Fixture.PrivateTextUpdate(), TestContext.Current.CancellationToken);
 
 		result.Should().BeOfType<OkResult>();
 		await fixture.Bot.DidNotReceiveWithAnyArgs().SendTextAsync(default, default!, TestContext.Current.CancellationToken);
@@ -40,7 +41,7 @@ public sealed class TelegramControllerTests
 		var fixture = new Fixture();
 		var update = Fixture.PrivateTextUpdate();
 		update.Message!.Chat!.Type = "group";
-		var result = await fixture.Controller.Webhook(update, "webhook-secret", TestContext.Current.CancellationToken);
+		var result = await fixture.Controller.Webhook(update, TestContext.Current.CancellationToken);
 
 		result.Should().BeOfType<OkResult>();
 		await fixture.Integration.Received(1).CompleteUpdateAsync(42, true, Arg.Any<CancellationToken>());
@@ -51,10 +52,26 @@ public sealed class TelegramControllerTests
 	public async Task Webhook_UnlinkedPrivateUserGetsGenericConnectionDirection()
 	{
 		var fixture = new Fixture();
-		var result = await fixture.Controller.Webhook(Fixture.PrivateTextUpdate(), "webhook-secret", TestContext.Current.CancellationToken);
+		var result = await fixture.Controller.Webhook(Fixture.PrivateTextUpdate(), TestContext.Current.CancellationToken);
 
 		result.Should().BeOfType<OkResult>();
 		await fixture.Bot.Received(1).SendTextAsync(200, "Connect Telegram from OwnPlanner Settings before using this bot.", Arg.Any<CancellationToken>());
+		await fixture.Integration.Received(1).CompleteUpdateAsync(42, true, Arg.Any<CancellationToken>());
+	}
+
+	[Fact]
+	public async Task Webhook_StaleLinkedUpdateIsAcknowledgedWithoutExecutingChatTurn()
+	{
+		var fixture = new Fixture();
+		var userId = Guid.NewGuid();
+		fixture.Integration.FindLinkedAccountAsync(100, 200, Arg.Any<CancellationToken>())
+			.Returns(new TelegramLinkedAccount(userId, 100, 200, OwnPlanner.Application.Chat.PlanningMode.DayWork));
+		fixture.Integration.TryAdvanceChatUpdateAsync(userId, 42, Arg.Any<CancellationToken>()).Returns(false);
+
+		var result = await fixture.Controller.Webhook(Fixture.PrivateTextUpdate(), TestContext.Current.CancellationToken);
+
+		result.Should().BeOfType<OkResult>();
+		await fixture.Sessions.DidNotReceiveWithAnyArgs().GetOrCreateSessionAsync(default!, default!, TestContext.Current.CancellationToken);
 		await fixture.Integration.Received(1).CompleteUpdateAsync(42, true, Arg.Any<CancellationToken>());
 	}
 
@@ -62,6 +79,7 @@ public sealed class TelegramControllerTests
 	{
 		public ITelegramIntegrationService Integration { get; } = Substitute.For<ITelegramIntegrationService>();
 		public ITelegramBotClient Bot { get; } = Substitute.For<ITelegramBotClient>();
+		public IChatSessionManager Sessions { get; } = Substitute.For<IChatSessionManager>();
 		public TelegramController Controller { get; }
 
 		public Fixture()
@@ -70,7 +88,7 @@ public sealed class TelegramControllerTests
 			Controller = new TelegramController(
 				Integration,
 				Bot,
-				Substitute.For<IChatSessionManager>(),
+				Sessions,
 				Substitute.For<IUsageQuotaService>(),
 				new TelegramChatLock(),
 				Options.Create(new TelegramOptions { Enabled = true, WebhookSecret = "webhook-secret" }),

@@ -210,6 +210,9 @@ namespace OwnPlanner.Infrastructure.Migrations.AuthDb
                     b.Property<DateTime>("ConnectedAtUtc")
                         .HasColumnType("TEXT");
 
+                    b.Property<long?>("LastProcessedUpdateId")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("Mode")
                         .IsRequired()
                         .HasMaxLength(32)

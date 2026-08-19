@@ -20,7 +20,8 @@ namespace OwnPlanner.Infrastructure.Migrations.AuthDb
                     TelegramUserId = table.Column<long>(type: "INTEGER", nullable: false),
                     ChatId = table.Column<long>(type: "INTEGER", nullable: false),
                     Mode = table.Column<string>(type: "TEXT", maxLength: 32, nullable: false),
-                    ConnectedAtUtc = table.Column<DateTime>(type: "TEXT", nullable: false)
+                    ConnectedAtUtc = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    LastProcessedUpdateId = table.Column<long>(type: "INTEGER", nullable: true)
                 },
                 constraints: table =>
                 {

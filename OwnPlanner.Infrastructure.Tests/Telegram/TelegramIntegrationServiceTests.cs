@@ -30,6 +30,7 @@ public sealed class TelegramIntegrationServiceTests
 		account.Should().NotBeNull();
 		account!.UserId.Should().Be(fixture.UserA);
 		account.Mode.Should().Be(PlanningMode.DayWork);
+		(await fixture.Service.GetStatusAsync(fixture.UserA, ct)).Mode.Should().Be("DayWork");
 	}
 
 	[Fact]
@@ -95,6 +96,46 @@ public sealed class TelegramIntegrationServiceTests
 		await fixture.Service.CompleteUpdateAsync(42, false, ct);
 		(await fixture.Service.ReserveUpdateAsync(42, ct)).Should().Be(TelegramUpdateReservation.Duplicate);
 		(await fixture.Db.TelegramProcessedUpdates.SingleAsync(ct)).Succeeded.Should().BeFalse();
+	}
+
+	[Fact]
+	public async Task ReserveUpdate_PrunesRowsOutsideConfiguredRetryWindow()
+	{
+		var ct = TestContext.Current.CancellationToken;
+		await using var fixture = await Fixture.CreateAsync(ct);
+		fixture.Db.TelegramProcessedUpdates.AddRange(
+			new TelegramProcessedUpdate { UpdateId = 1, ReservedAtUtc = Now.UtcDateTime.AddDays(-8) },
+			new TelegramProcessedUpdate { UpdateId = 2, ReservedAtUtc = Now.UtcDateTime.AddDays(-6) });
+		await fixture.Db.SaveChangesAsync(ct);
+
+		(await fixture.Service.ReserveUpdateAsync(3, ct)).Should().Be(TelegramUpdateReservation.Reserved);
+
+		(await fixture.Db.TelegramProcessedUpdates.AsNoTracking().Select(x => x.UpdateId).ToListAsync(ct))
+			.Should().BeEquivalentTo([2L, 3L]);
+	}
+
+	[Fact]
+	public async Task ChatUpdateHighWater_AllowsIncreasingIdsAndRejectsStaleIds()
+	{
+		var ct = TestContext.Current.CancellationToken;
+		await using var fixture = await Fixture.CreateAsync(ct);
+		var link = await fixture.Service.CreateConnectionLinkAsync(fixture.UserA, ct);
+		await fixture.Service.ConsumeConnectionTokenAsync(new Uri(link.Url).Query[7..], 101, 201, ct);
+
+		(await fixture.Service.TryAdvanceChatUpdateAsync(fixture.UserA, 100, ct)).Should().BeTrue();
+		(await fixture.Service.TryAdvanceChatUpdateAsync(fixture.UserA, 99, ct)).Should().BeFalse();
+		(await fixture.Service.TryAdvanceChatUpdateAsync(fixture.UserA, 100, ct)).Should().BeFalse();
+		(await fixture.Service.TryAdvanceChatUpdateAsync(fixture.UserA, 101, ct)).Should().BeTrue();
+	}
+
+	[Fact]
+	public void UniqueConstraintDetection_DoesNotMisclassifyOtherDatabaseFailures()
+	{
+		TelegramIntegrationService.IsUniqueConstraintViolation(
+			new DbUpdateException("unique", new SqliteException("constraint", 19))).Should().BeTrue();
+		TelegramIntegrationService.IsUniqueConstraintViolation(
+			new DbUpdateException("locked", new SqliteException("busy", 5))).Should().BeFalse();
+		TelegramIntegrationService.IsUniqueConstraintViolation(new DbUpdateException("disk failure")).Should().BeFalse();
 	}
 
 	[Fact]
