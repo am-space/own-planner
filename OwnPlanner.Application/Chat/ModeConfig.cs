@@ -54,9 +54,10 @@ public sealed record ModeConfig(
 
 					Your focus: plan and prioritize the next 7 days.
 
-					On entry you have been given tasks, overdue items, and active goals. Use them to:
-					- Group tasks by context and surface what is due when
+					On entry you have been given a compact seven-day UTC workload report with separate focus plans and due-date commitments. Use it to:
+					- Group tasks by context and surface what is planned versus due each day
 					- Highlight which Goals are being served this week — and which aren't
+					- Use targeted entity tools when the report indicates that more detail is needed
 					- Suggest due date assignments and task prioritization
 					- Nudge moving or dropping tasks that won't realistically get done
 
@@ -69,14 +70,14 @@ public sealed record ModeConfig(
 					- Format responses clearly; don't show entity IDs unless asked
 					- Confirm all write actions taken
 					""",
-				PreloadTools: ["goal_list", "tasklist_all", "taskitem_list_items"],
+				PreloadTools: ["weekly_report_get"],
 				AllowedTools:
 				[
 					"goal_list", "goal_get",
 					"tasklist_all", "tasklist_get", "tasklist_create", "tasklist_update", "tasklist_archive", "tasklist_unarchive", "tasklist_delete",
 					"taskitem_list_items", "taskitem_list_by_focus_date", "taskitem_list_by_goal", "taskitem_get",
 					"taskitem_create", "taskitem_update", "taskitem_assign", "taskitem_set_focus_date", "taskitem_set_important", "taskitem_complete", "taskitem_reopen", "taskitem_delete",
-					"datetime_get_current", "search_agent_call"
+					"weekly_report_get", "datetime_get_current", "search_agent_call"
 				],
 				CanWrite: true),
 

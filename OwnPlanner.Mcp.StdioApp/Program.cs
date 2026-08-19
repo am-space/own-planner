@@ -118,6 +118,7 @@ namespace OwnPlanner.Mcp.StdioApp
 					services.AddScoped<IPlanningContextService, PlanningContextService>();
 					services.AddSingleton(TimeProvider.System);
 					services.AddScoped<IStrategicReportReader, StrategicReportReader>();
+					services.AddScoped<IWeeklyReportReader, WeeklyReportReader>();
 
 					// Inbox seeder
 					services.AddScoped<IInboxSeeder, InboxSeeder>();
@@ -138,6 +139,7 @@ namespace OwnPlanner.Mcp.StdioApp
 						.WithTools<GoalTools>()
 						.WithTools<PlanningContextTools>()
 						.WithTools<StrategicReportTools>()
+						.WithTools<WeeklyReportTools>()
 						.WithTools<DateTimeTools>();
 				});
 

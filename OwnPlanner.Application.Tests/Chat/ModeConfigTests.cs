@@ -55,4 +55,13 @@ public class ModeConfigTests
 	{
 		ModeConfig.All[mode].PreloadTools.Should().Equal("strategic_report_get");
 	}
+
+	[Fact]
+	public void WeekPlanning_PreloadsOnlyWeeklyReport()
+	{
+		var config = ModeConfig.All[PlanningMode.WeekPlanning];
+
+		config.PreloadTools.Should().Equal("weekly_report_get");
+		config.AllowedTools.Should().Contain("weekly_report_get");
+	}
 }

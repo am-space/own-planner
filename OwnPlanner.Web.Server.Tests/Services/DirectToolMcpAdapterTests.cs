@@ -23,6 +23,7 @@ namespace OwnPlanner.Web.Server.Tests.Services;
 
 public sealed class DirectToolMcpAdapterTests : IDisposable
 {
+	private static readonly DateTime TenantTestUtcNow = new(2026, 8, 19, 12, 0, 0, DateTimeKind.Utc);
 	private readonly string _tempDirectory = Path.Combine(Path.GetTempPath(), "ownplanner-direct-tool-tests", Guid.NewGuid().ToString("N"));
 
 	[Fact]
@@ -37,6 +38,7 @@ public sealed class DirectToolMcpAdapterTests : IDisposable
 		toolDetails.Should().Contain(tool => tool.Name == "datetime_get_current");
 		toolDetails.Should().Contain(tool => tool.Name == "taskitem_get");
 		toolDetails.Should().Contain(tool => tool.Name == "strategic_report_get");
+		toolDetails.Should().Contain(tool => tool.Name == "weekly_report_get");
 
 		var taskGetTool = toolDetails.Single(tool => tool.Name == "taskitem_get");
 		taskGetTool.JsonSchema.Should().NotBeNull();
@@ -47,6 +49,13 @@ public sealed class DirectToolMcpAdapterTests : IDisposable
 		reportProperties.TryGetProperty("taskSampleLimit", out _).Should().BeTrue();
 		reportProperties.TryGetProperty("noteSampleLimit", out _).Should().BeTrue();
 		reportProperties.TryGetProperty("cancellationToken", out _).Should().BeFalse();
+
+		var weeklyReportTool = toolDetails.Single(tool => tool.Name == "weekly_report_get");
+		var weeklyProperties = weeklyReportTool.JsonSchema!.Value.GetProperty("properties");
+		weeklyProperties.TryGetProperty("startDate", out _).Should().BeTrue();
+		weeklyProperties.TryGetProperty("taskSampleLimit", out _).Should().BeTrue();
+		weeklyProperties.TryGetProperty("overloadedDayThreshold", out _).Should().BeTrue();
+		weeklyProperties.TryGetProperty("cancellationToken", out _).Should().BeFalse();
 	}
 
 	[Fact]
@@ -144,6 +153,23 @@ public sealed class DirectToolMcpAdapterTests : IDisposable
 
 		reportA.Should().Contain("User A private task").And.NotContain("User B private task");
 		reportB.Should().Contain("User B private task").And.NotContain("User A private task");
+	}
+
+	[Fact]
+	public async Task CallToolAsync_WeeklyReport_IsIsolatedByAdapterUser()
+	{
+		var ct = TestContext.Current.CancellationToken;
+		await using var serviceProvider = BuildTenantServiceProvider();
+		await SeedUserWeeklyTaskAsync("user-a", "User A weekly task", ct);
+		await SeedUserWeeklyTaskAsync("user-b", "User B weekly task", ct);
+		await using var adapterA = CreateAdapter(serviceProvider, "user-a");
+		await using var adapterB = CreateAdapter(serviceProvider, "user-b");
+
+		var reportA = await adapterA.CallToolAsync("weekly_report_get", cancellationToken: ct);
+		var reportB = await adapterB.CallToolAsync("weekly_report_get", cancellationToken: ct);
+
+		reportA.Should().Contain("User A weekly task").And.NotContain("User B weekly task");
+		reportB.Should().Contain("User B weekly task").And.NotContain("User A weekly task");
 	}
 
 	[Fact]
@@ -362,8 +388,9 @@ public sealed class DirectToolMcpAdapterTests : IDisposable
 		services.AddSingleton<PerUserAppInitializationService>();
 		services.AddScoped<IPlannerDbContextFactory, SessionBoundTestPlannerDbContextFactory>();
 		services.AddScoped(_ => inboxSeeder);
-		services.AddSingleton(TimeProvider.System);
+		services.AddSingleton<TimeProvider>(new FixedTimeProvider(TenantTestUtcNow));
 		services.AddScoped<IStrategicReportReader, StrategicReportReader>();
+		services.AddScoped<IWeeklyReportReader, WeeklyReportReader>();
 		services.AddScoped<ITaskListRepository, TaskListRepository>();
 		services.AddScoped<ITaskItemRepository, TaskItemRepository>();
 		services.AddScoped<ITaskListService, TaskListService>();
@@ -381,6 +408,18 @@ public sealed class DirectToolMcpAdapterTests : IDisposable
 		db.AddRange(list, new TaskItem(title, list.Id));
 		await db.SaveChangesAsync(cancellationToken);
 		return list.Id;
+	}
+
+	private async Task SeedUserWeeklyTaskAsync(string userId, string title, CancellationToken cancellationToken)
+	{
+		var path = Path.Combine(_tempDirectory, $"ownplanner-user-{userId}.db");
+		await using var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseSqlite($"Data Source={path}").Options);
+		await db.Database.MigrateAsync(cancellationToken);
+		var list = new TaskList("Tasks");
+		var task = new TaskItem(title, list.Id);
+		task.SetFocusAt(TenantTestUtcNow);
+		db.AddRange(list, task);
+		await db.SaveChangesAsync(cancellationToken);
 	}
 
 	private static JsonElement ParseJsonElement(string json)
@@ -406,6 +445,11 @@ public sealed class DirectToolMcpAdapterTests : IDisposable
 	}
 
 	private sealed record TenantTestDirectory(string Path);
+
+	private sealed class FixedTimeProvider(DateTime utcNow) : TimeProvider
+	{
+		public override DateTimeOffset GetUtcNow() => new(utcNow);
+	}
 
 	private sealed class SessionBoundTestPlannerDbContextFactory(
 		TenantTestDirectory directory,
