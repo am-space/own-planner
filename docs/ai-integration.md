@@ -19,7 +19,7 @@ leaving planning, MCP execution, tenant resolution, and persistence real. See
 
 When a user submits a prompt, the system executes the following loop:
 
-1.  **Request**: The user's input is received via the React UI or CLI.
+1.  **Request**: The user's input is received via the React UI, private Telegram bot, or CLI.
 2.  **LLM Prompting**: The Backend Web Server wraps the underlying conversation history and attaches a dynamic list of available MCP tool definitions.
 3.  **Generation & Tool Request**: Gemini responds. If the LLM determines it needs data or needs to perform an action, it pauses generation and emits a `FunctionCall` (Tool Call) request.
 4.  **Tool Invocation**:
@@ -94,3 +94,17 @@ replace detail tools.
 cross-entity projections through the host-provided `IPlannerDbContextFactory`, so web calls use the
 authenticated user's database and stdio calls use that host's configured database. The tool accepts
 no user ID, database path, or other tenant selector.
+
+## Telegram presentation channel
+
+Telegram is an optional presentation adapter, not an MCP tool or a second planning implementation.
+After a user explicitly links a private Telegram identity, ordinary bot text uses a distinct
+`telegram:<telegram-user-id>` session and the existing `IChatSessionManager`, `PlanningService`,
+usage quota service, Gemini adapter, and tenant-bound `DirectToolMcpAdapter`. Web and Telegram
+conversation histories are separate while planner entities remain shared.
+
+The mapping from Telegram numeric user and private-chat IDs to the OwnPlanner user is resolved only
+from `AuthDbContext`; usernames and request-supplied OwnPlanner identifiers are never authorization
+inputs. The saved mode is restored after in-memory session expiry. See
+[`telegram-integration.md`](telegram-integration.md) for linking, commands, deduplication, failure,
+and deployment behavior.

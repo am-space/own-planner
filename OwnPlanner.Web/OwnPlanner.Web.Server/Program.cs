@@ -4,6 +4,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using OwnPlanner.Application.Account;
 using OwnPlanner.Application.Contexts;
 using OwnPlanner.Infrastructure.Account;
@@ -24,10 +25,12 @@ using OwnPlanner.Application.Notes;
 using OwnPlanner.Application.Planner;
 using OwnPlanner.Application.Tasks;
 using OwnPlanner.Application.Usage;
+using OwnPlanner.Application.Telegram;
 using OwnPlanner.Mcp.Tools;
 using OwnPlanner.Web.Server.Authentication;
 using OwnPlanner.Web.Server.Configuration;
 using OwnPlanner.Web.Server.Services;
+using OwnPlanner.Infrastructure.Telegram;
 
 namespace OwnPlanner.Web.Server
 {
@@ -121,6 +124,24 @@ namespace OwnPlanner.Web.Server
 				builder.Services.AddScoped<IAccountDeletionService, AccountDeletionService>();
 				builder.Services.AddScoped<IPlannerReadService, PlannerReadService>();
 				builder.Services.AddHostedService<ExportTempFileCleanupService>();
+
+				var telegramOptions = builder.Configuration.GetSection("Telegram").Get<TelegramOptions>() ?? new TelegramOptions();
+				builder.Services.Configure<TelegramOptions>(builder.Configuration.GetSection("Telegram"));
+				if (telegramOptions.Enabled)
+				{
+					var missing = new List<string>();
+					if (string.IsNullOrWhiteSpace(telegramOptions.BotToken)) missing.Add("Telegram:BotToken");
+					if (string.IsNullOrWhiteSpace(telegramOptions.BotUsername)) missing.Add("Telegram:BotUsername");
+					if (string.IsNullOrWhiteSpace(telegramOptions.WebhookSecret)) missing.Add("Telegram:WebhookSecret");
+					if (missing.Count > 0) throw new InvalidOperationException($"Missing required Telegram settings: {string.Join(", ", missing)}.");
+				}
+				builder.Services.AddScoped<ITelegramIntegrationService, TelegramIntegrationService>();
+				builder.Services.AddSingleton<TelegramChatLock>();
+				// Telegram requires the bot token in the request path. Use a dedicated client without the
+				// IHttpClientFactory logging handlers so request logs can never expose that credential.
+				builder.Services.AddSingleton<ITelegramBotClient>(sp => new TelegramBotClient(
+					new HttpClient { BaseAddress = new Uri("https://api.telegram.org/") },
+					sp.GetRequiredService<IOptions<TelegramOptions>>()));
 
 				// Configure usage quota: bound limits (singleton instance) + in-memory burst window (singleton)
 				var usageQuotaOptions = builder.Configuration.GetSection("UsageQuota").Get<UsageQuotaOptions>() ?? new UsageQuotaOptions();

@@ -17,6 +17,7 @@ describe.
 | [`docker.md`](docker.md) | Container build and operating notes |
 | [`testing.md`](testing.md) | Local, CI, and deterministic browser E2E verification |
 | [`planner-workspace.md`](planner-workspace.md) | Read-only planner UI, HTTP contract, and tenant-safe read path |
+| [`telegram-integration.md`](telegram-integration.md) | Private Telegram bot setup, identity, delivery, and cleanup |
 
 ## Plans
 
@@ -48,6 +49,7 @@ ADRs describe decisions as actually shipped. Start new records from [`adr/templa
 - [`ADR-0009`](adr/0009-read-only-planner-workspace.md) — read-only planner workspace alongside persistent chat
 - [`ADR-0010`](adr/0010-deterministic-strategic-reporting.md) — deterministic strategic reporting through focused read models
 - [`ADR-0011`](adr/0011-bounded-delegated-task-planning-agent.md) — bounded delegated task planning through authenticated scoped tools
+- [`ADR-0012`](adr/0012-private-telegram-presentation-channel.md) — private Telegram presentation channel with explicit account linking
 
 ## Historical plans
 

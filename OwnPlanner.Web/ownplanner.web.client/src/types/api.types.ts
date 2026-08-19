@@ -115,6 +115,20 @@ export interface ModeStarterPromptsResponse {
   starterPrompts: string[];
 }
 
+export interface TelegramConnectionStatus {
+  enabled: boolean;
+  connected: boolean;
+  pending: boolean;
+  telegramUserId: number | null;
+  connectedAtUtc: string | null;
+  mode: PlanningMode | null;
+}
+
+export interface TelegramConnectionLink {
+  url: string;
+  expiresAtUtc: string;
+}
+
 // Read-only planner workspace types
 export interface PagedResult<T> {
   items: T[];
