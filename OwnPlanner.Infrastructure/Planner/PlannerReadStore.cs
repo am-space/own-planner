@@ -14,7 +14,7 @@ public sealed class PlannerReadStore(IPlannerDbContextFactory dbContextFactory) 
 	{
 		await using var db = await dbContextFactory.CreateAsync(cancellationToken).ConfigureAwait(false);
 		var filtered =
-			from task in db.TaskItems.AsNoTracking()
+			from task in db.TaskItems.AsNoTracking().Where(task => task.TrashedAt == null)
 			join taskList in db.TaskLists.AsNoTracking() on task.TaskListId equals taskList.Id
 			join planningContext in db.PlanningContexts.AsNoTracking()
 				on taskList.ContextId equals (Guid?)planningContext.Id into planningContexts
@@ -98,7 +98,7 @@ public sealed class PlannerReadStore(IPlannerDbContextFactory dbContextFactory) 
 	{
 		await using var db = await dbContextFactory.CreateAsync(cancellationToken).ConfigureAwait(false);
 		return await (
-			from task in db.TaskItems.AsNoTracking()
+			from task in db.TaskItems.AsNoTracking().Where(task => task.TrashedAt == null)
 			join taskList in db.TaskLists.AsNoTracking() on task.TaskListId equals taskList.Id
 			join planningContext in db.PlanningContexts.AsNoTracking()
 				on taskList.ContextId equals (Guid?)planningContext.Id into planningContexts

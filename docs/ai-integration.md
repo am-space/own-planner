@@ -37,6 +37,18 @@ To add a new skill to the AI:
 2. Wrap it as a tool definition and handler in `OwnPlanner.Mcp.Tools` so the web server and stdio host can both reuse it.
 3. The orchestration layer will automatically expose this new tool schema to Gemini on the next chat session.
 
+## Task Trash tools
+
+`taskitem_delete` is a backward-compatible recoverable operation: it moves an active task to Trash
+and does not remove its stored task data. Trashed tasks are absent from normal task queries and all
+planning reports. `taskitem_list_trash` returns the authenticated user's paged Trash contents, and
+`taskitem_restore` restores a task only when its original task list still exists.
+
+Permanent deletion is intentionally not an MCP tool. It is available only through the authenticated
+web Trash flow after explicit user confirmation, and the Application service rejects permanent
+deletion unless the task is already in Trash. The bounded Task Planning Agent's allowlist remains
+unchanged by this feature.
+
 ## Delegated Agents
 
 Global Planning exposes the local `task_planning_agent_call` capability. It accepts a required

@@ -3,12 +3,13 @@ using Microsoft.AspNetCore.Mvc;
 using OwnPlanner.Application.Common;
 using OwnPlanner.Application.Planner;
 using OwnPlanner.Domain.Goals;
+using OwnPlanner.Application.Tasks;
 using OwnPlanner.Web.Server.Services;
 
 namespace OwnPlanner.Web.Server.Controllers;
 
 /// <summary>
-/// Authenticated, read-only access to the current user's planner workspace.
+/// Authenticated access to the current user's planner workspace and recoverable task Trash.
 /// </summary>
 [ApiController]
 [Route("api/planner")]
@@ -16,6 +17,7 @@ namespace OwnPlanner.Web.Server.Controllers;
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
 public sealed class PlannerController(
 	IPlannerReadService plannerReadService,
+	ITaskItemService taskItemService,
 	IPerUserAppInitializationService initializationService) : ControllerBase
 {
 	[HttpGet("tasks")]
@@ -34,6 +36,56 @@ public sealed class PlannerController(
 		return Ok(await plannerReadService.QueryTasksAsync(
 			new PlannerTaskQuery(search, status, important, taskListId, contextId, goalId, offset, limit),
 			cancellationToken));
+	}
+
+	[HttpGet("tasks/trash")]
+	public async Task<ActionResult<PagedResult<TrashedTaskItemDto>>> GetTaskTrash(
+		[FromQuery] int offset = 0,
+		[FromQuery] int limit = PlannerReadDefaults.DefaultPageSize,
+		CancellationToken cancellationToken = default)
+	{
+		await EnsurePlannerInitializedAsync(cancellationToken);
+		if (offset < 0 || limit is < 1 or > PlannerReadDefaults.MaximumPageSize)
+			return BadRequest(new ProblemDetails { Title = "Invalid paging", Detail = $"Offset must be non-negative and limit must be between 1 and {PlannerReadDefaults.MaximumPageSize}." });
+		return Ok(await taskItemService.ListTrashedPagedAsync(offset, limit, cancellationToken));
+	}
+
+	[HttpPost("tasks/trash/{id:guid}/restore")]
+	public async Task<IActionResult> RestoreTask(Guid id, CancellationToken cancellationToken = default)
+	{
+		await EnsurePlannerInitializedAsync(cancellationToken);
+		try
+		{
+			await taskItemService.RestoreAsync(id, cancellationToken);
+			return Ok(new { success = true, id });
+		}
+		catch (KeyNotFoundException)
+		{
+			return NotFound();
+		}
+		catch (InvalidOperationException ex)
+		{
+			return Conflict(new ProblemDetails { Title = "Task cannot be restored", Detail = ex.Message });
+		}
+	}
+
+	[HttpDelete("tasks/trash/{id:guid}")]
+	public async Task<IActionResult> PermanentlyDeleteTask(Guid id, CancellationToken cancellationToken = default)
+	{
+		await EnsurePlannerInitializedAsync(cancellationToken);
+		try
+		{
+			await taskItemService.PermanentlyDeleteAsync(id, cancellationToken);
+			return Ok(new { success = true, id });
+		}
+		catch (KeyNotFoundException)
+		{
+			return NotFound();
+		}
+		catch (InvalidOperationException ex)
+		{
+			return Conflict(new ProblemDetails { Title = "Task cannot be permanently deleted", Detail = ex.Message });
+		}
 	}
 
 	[HttpGet("tasks/{id}")]

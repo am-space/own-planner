@@ -1,8 +1,24 @@
 namespace OwnPlanner.Domain.Tasks;
 
+public enum TaskRestoreResult
+{
+	Restored,
+	TaskNotFound,
+	OriginalTaskListNotFound
+}
+
+public enum TaskPermanentDeleteResult
+{
+	Deleted,
+	TaskNotFound,
+	TaskNotTrashed
+}
+
 public interface ITaskItemRepository
 {
 	Task<TaskItem?> GetAsync(Guid id, CancellationToken ct = default);
+	/// <summary>Gets one trashed task by id, excluding active tasks.</summary>
+	Task<TaskItem?> GetTrashedAsync(Guid id, CancellationToken ct = default);
 	Task<IReadOnlyList<TaskItem>> ListAsync(bool includeCompleted, CancellationToken ct = default);
 	Task<IReadOnlyList<TaskItem>> ListByTaskListAsync(Guid taskListId, bool includeCompleted, CancellationToken ct = default);
 	Task<IReadOnlyList<TaskItem>> ListByFocusDateAsync(DateTime focusDateUtc, bool includeCompleted, CancellationToken ct = default);
@@ -33,7 +49,13 @@ public interface ITaskItemRepository
 	/// </summary>
 	Task<(IReadOnlyList<TaskItem> Items, int TotalCount)> ListByGoalPagedAsync(Guid goalId, bool includeCompleted, int offset, int limit, CancellationToken ct = default);
 
+	/// <summary>Returns trashed tasks ordered by most recently trashed, then id.</summary>
+	Task<(IReadOnlyList<TaskItem> Items, int TotalCount)> ListTrashedPagedAsync(int offset, int limit, CancellationToken ct = default);
+
 	Task AddAsync(TaskItem task, CancellationToken ct = default);
 	Task UpdateAsync(TaskItem task, CancellationToken ct = default);
-	Task DeleteAsync(TaskItem task, CancellationToken ct = default);
+	/// <summary>Atomically restores a trashed task when its original task list still exists.</summary>
+	Task<TaskRestoreResult> RestoreAsync(Guid id, CancellationToken ct = default);
+	/// <summary>Atomically removes a task only while it remains in Trash.</summary>
+	Task<TaskPermanentDeleteResult> PermanentlyDeleteAsync(Guid id, CancellationToken ct = default);
 }

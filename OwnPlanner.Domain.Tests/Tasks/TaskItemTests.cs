@@ -13,8 +13,44 @@ public class TaskItemTests
 		t.Title.Should().Be("title");
 		t.Description.Should().Be("desc");
 		t.TaskListId.Should().Be(listId);
+		t.ActiveTaskListId.Should().Be(listId);
+		t.TrashedAt.Should().BeNull();
 		t.IsCompleted.Should().BeFalse();
 		t.CreatedAt.Should().BeOnOrBefore(t.UpdatedAt);
+	}
+
+	[Fact]
+	public void Trash_ThenRestore_PreservesDestinationAndState()
+	{
+		var listId = Guid.NewGuid();
+		var task = new TaskItem("task", listId, "description", isImportant: true);
+		task.Complete();
+
+		task.Trash();
+		var trashedAt = task.TrashedAt;
+		task.Trash();
+
+		task.TrashedAt.Should().Be(trashedAt);
+		task.ActiveTaskListId.Should().BeNull();
+		task.TaskListId.Should().Be(listId);
+		task.IsCompleted.Should().BeTrue();
+		task.Description.Should().Be("description");
+
+		task.Restore();
+		task.Restore();
+		task.TrashedAt.Should().BeNull();
+		task.ActiveTaskListId.Should().Be(listId);
+	}
+
+	[Fact]
+	public void AssignToList_WhenTrashed_IsRejected()
+	{
+		var task = new TaskItem("task", Guid.NewGuid());
+		task.Trash();
+
+		var act = () => task.AssignToList(Guid.NewGuid());
+
+		act.Should().Throw<InvalidOperationException>().WithMessage("*restored*");
 	}
 
 	[Fact]

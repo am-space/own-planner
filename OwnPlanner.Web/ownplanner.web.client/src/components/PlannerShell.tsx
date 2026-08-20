@@ -28,6 +28,7 @@ import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import LogoutIcon from '@mui/icons-material/Logout';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import { useAuth } from '../contexts/useAuth';
 import ChatPage from '../pages/ChatPage';
 import logo from '../assets/logo.svg';
@@ -43,6 +44,7 @@ export interface PlannerShellOutletContext {
 const navigationItems = [
   { label: 'Chat', path: '/chat', icon: <ChatBubbleOutlineIcon /> },
   { label: 'Tasks', path: '/planner/tasks', icon: <ChecklistIcon /> },
+  { label: 'Trash', path: '/planner/trash', icon: <DeleteOutlineIcon /> },
   { label: 'Goals', path: '/planner/goals', icon: <FlagOutlinedIcon /> },
   { label: 'Notes', path: '/planner/notes', icon: <NotesOutlinedIcon /> },
   { label: 'Settings', path: '/settings', icon: <SettingsOutlinedIcon /> },

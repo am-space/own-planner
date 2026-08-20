@@ -142,6 +142,31 @@ public class ReflectionReportReaderTests
 	}
 
 	[Fact]
+	public async Task GetAsync_ExcludesTrashedTasksFromTotalsSignalsAndSamples()
+	{
+		using var db = CreateDb(out var connection);
+		await using var _ = connection;
+		var ct = TestContext.Current.CancellationToken;
+		var goal = new Goal("Goal", GoalHorizon.Yearly, targetPeriod: "2026");
+		var list = new TaskList("Tasks");
+		db.AddRange(goal, list);
+		await db.SaveChangesAsync(ct);
+		var trashed = CompletedTask("Trashed completion", list.Id, PeriodStartUtc, goal.Id);
+		trashed.SetFocusAt(PeriodStartUtc);
+		trashed.Trash();
+		db.Add(trashed);
+		await db.SaveChangesAsync(ct);
+
+		var report = await CreateReader(connection).GetAsync(new ReflectionReportOptions(), ct);
+
+		report.Totals.CompletedTaskCount.Should().Be(0);
+		report.Contexts.Should().BeEmpty();
+		report.Goals.Single(item => item.Id == goal.Id).CompletedTaskSamples.Should().BeEmpty();
+		report.Signals.FocusedButIncompleteTaskCount.Should().Be(0);
+		report.Signals.OverdueCarryoverTaskCount.Should().Be(0);
+	}
+
+	[Fact]
 	public async Task GetAsync_ZeroLimitsKeepCountsAndRepresentLegacyContext()
 	{
 		using var db = CreateDb(out var connection);

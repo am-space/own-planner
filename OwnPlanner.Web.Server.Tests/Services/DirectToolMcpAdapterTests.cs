@@ -254,6 +254,26 @@ public sealed class DirectToolMcpAdapterTests : IDisposable
 	}
 
 	[Fact]
+	public async Task TaskTrashTools_AreTenantIsolated()
+	{
+		var ct = TestContext.Current.CancellationToken;
+		await using var serviceProvider = BuildTenantServiceProvider();
+		var userATaskId = await SeedUserTaskIdAsync("user-a", "User A trash task", ct);
+		var userBTaskId = await SeedUserTaskIdAsync("user-b", "User B private task", ct);
+		await using var adapterA = CreateAdapter(serviceProvider, "user-a");
+		var ownArguments = new Dictionary<string, object?> { ["id"] = ParseJsonElement($"\"{userATaskId}\"") };
+		var otherArguments = new Dictionary<string, object?> { ["id"] = ParseJsonElement($"\"{userBTaskId}\"") };
+
+		var ownDelete = await adapterA.CallToolAsync("taskitem_delete", ownArguments, ct);
+		var otherDelete = await adapterA.CallToolAsync("taskitem_delete", otherArguments, ct);
+		var trash = await adapterA.CallToolAsync("taskitem_list_trash", cancellationToken: ct);
+
+		ownDelete.Should().Contain("success");
+		otherDelete.Should().Contain("not found");
+		trash.Should().Contain("User A trash task").And.NotContain("User B private task");
+	}
+
+	[Fact]
 	public async Task CallToolAsync_TaskListCreate_RejectsNullForNonNullableTitle()
 	{
 		var ct = TestContext.Current.CancellationToken;
@@ -435,6 +455,18 @@ public sealed class DirectToolMcpAdapterTests : IDisposable
 		db.AddRange(list, new TaskItem(title, list.Id));
 		await db.SaveChangesAsync(cancellationToken);
 		return list.Id;
+	}
+
+	private async Task<Guid> SeedUserTaskIdAsync(string userId, string title, CancellationToken cancellationToken)
+	{
+		var path = Path.Combine(_tempDirectory, $"ownplanner-user-{userId}.db");
+		await using var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseSqlite($"Data Source={path}").Options);
+		await db.Database.MigrateAsync(cancellationToken);
+		var list = new TaskList("Tasks");
+		var task = new TaskItem(title, list.Id);
+		db.AddRange(list, task);
+		await db.SaveChangesAsync(cancellationToken);
+		return task.Id;
 	}
 
 	private async Task SeedUserWeeklyTaskAsync(string userId, string title, CancellationToken cancellationToken)

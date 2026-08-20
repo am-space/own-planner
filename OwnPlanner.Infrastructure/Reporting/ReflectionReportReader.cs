@@ -50,6 +50,7 @@ public sealed class ReflectionReportReader(
 		var allTaskListIds = taskLists.Select(list => list.Id).ToHashSet();
 		var activeTaskListIds = activeTaskLists.Select(list => list.Id).ToHashSet();
 		var tasks = await db.TaskItems.AsNoTracking()
+			.Where(task => task.TrashedAt == null)
 			.Where(task =>
 				(activeTaskListIds.Contains(task.TaskListId) || !allTaskListIds.Contains(task.TaskListId)) &&
 				(!task.IsCompleted ||
@@ -161,7 +162,7 @@ public sealed class ReflectionReportReader(
 	private static async Task<IReadOnlyDictionary<Guid, PreviewRow>> LoadTaskPreviewsAsync(AppDbContext db, HashSet<Guid> ids, CancellationToken cancellationToken)
 	{
 		if (ids.Count == 0) return new Dictionary<Guid, PreviewRow>();
-		return await db.TaskItems.AsNoTracking().Where(task => ids.Contains(task.Id))
+		return await db.TaskItems.AsNoTracking().Where(task => task.TrashedAt == null && ids.Contains(task.Id))
 			.Select(task => new PreviewRow(task.Id,
 				task.Description == null ? null : task.Description.Substring(0, Math.Min(task.Description.Length, PreviewLength)),
 				task.Description != null && task.Description.Length > PreviewLength))

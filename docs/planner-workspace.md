@@ -1,13 +1,13 @@
-# Read-only planner workspace
+# Planner workspace
 
 OwnPlanner's authenticated web application keeps chat as its central interaction surface while also
-providing deterministic, read-only browsing for tasks, goals, and notes.
+providing deterministic browsing for tasks, goals, and notes plus a recoverable task Trash.
 
 ## Application layout
 
 The protected React routes share one `PlannerShell`:
 
-- a responsive left navigation area links Chat, Tasks, Goals, Notes, and Settings;
+- a responsive left navigation area links Chat, Tasks, Trash, Goals, Notes, and Settings;
 - Chat uses the full central workspace;
 - Tasks, Goals, and Notes use the upper workspace with the same mounted chat session in a horizontal
   assistant panel below;
@@ -27,13 +27,19 @@ quota, context, loading, and error state therefore survive navigation during the
 session. Planner section, filters, search, offset, and selected item are represented by the route and
 query string. The assistant's collapsed state is a local `sessionStorage` preference.
 
-## HTTP read API
+The Trash route lists recoverable tasks with restore and permanent-delete actions. Permanent deletion
+uses an explicit confirmation dialog and cannot be undone.
+
+## HTTP planner API
 
 The additive API surface is authenticated with the existing cookie scheme:
 
 ```text
 GET /api/planner/tasks
 GET /api/planner/tasks/{id}
+GET /api/planner/tasks/trash
+POST /api/planner/tasks/trash/{id}/restore
+DELETE /api/planner/tasks/trash/{id}
 GET /api/planner/goals
 GET /api/planner/goals/{id}
 GET /api/planner/notes
@@ -57,6 +63,8 @@ The normal response statuses are:
 - `400` for invalid enum, identifier, offset, or limit values;
 - `401` when the request is unauthenticated;
 - `404` when an item is absent from the authenticated user's database.
+- `409` when restore cannot resolve the original task list or permanent deletion targets a task that
+  is not in Trash.
 
 ## Architecture and tenant isolation
 
@@ -70,8 +78,9 @@ authenticated planner session; planner routes and query parameters never accept 
 path. The React application calls these HTTP endpoints directly and does not invoke MCP tools for UI
 browsing.
 
-The feature does not change Domain entities, migrations, Gemini orchestration, MCP schemas, console,
-or stdio behavior. It exposes no planner mutations.
+Task browsing remains read-only. Trash mutations delegate to the shared `ITaskItemService`, while
+tenant selection and initialization remain controller concerns. No route accepts user or database
+identity from the client.
 
 ## Verification ownership
 

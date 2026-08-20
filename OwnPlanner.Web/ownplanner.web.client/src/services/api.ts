@@ -31,6 +31,7 @@ import type {
   PlannerFilterOptions,
   TelegramConnectionStatus,
   TelegramConnectionLink,
+  TrashedTask,
 } from '../types/api.types';
 
 /**
@@ -94,6 +95,26 @@ class ApiService {
 
   async getPlannerTask(id: string): Promise<PlannerTaskDetail> {
     return this.getPlannerJson(`tasks/${encodeURIComponent(id)}`);
+  }
+
+  async getTaskTrash(offset = 0, limit = 25): Promise<PagedResult<TrashedTask>> {
+    return this.getPlannerJson('tasks/trash', { offset, limit });
+  }
+
+  async restoreTrashedTask(id: string): Promise<void> {
+    await this.mutatePlannerTask(`tasks/trash/${encodeURIComponent(id)}/restore`, 'POST');
+  }
+
+  async permanentlyDeleteTrashedTask(id: string): Promise<void> {
+    await this.mutatePlannerTask(`tasks/trash/${encodeURIComponent(id)}`, 'DELETE');
+  }
+
+  private async mutatePlannerTask(path: string, method: 'POST' | 'DELETE'): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/planner/${path}`, { method, credentials: 'include' });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({})) as { detail?: string; title?: string };
+      throw new ApiError(error.detail || error.title || 'Task operation failed', response.status);
+    }
   }
 
   async getPlannerGoals(query: PlannerGoalQuery): Promise<PagedResult<PlannerGoalSummary>> {
