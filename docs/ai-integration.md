@@ -46,8 +46,7 @@ planning reports. `taskitem_list_trash` returns the authenticated user's paged T
 
 Permanent deletion is intentionally not an MCP tool. It is available only through the authenticated
 web Trash flow after explicit user confirmation, and the Application service rejects permanent
-deletion unless the task is already in Trash. The bounded Task Planning Agent's allowlist remains
-unchanged by this feature.
+deletion unless the task is already in Trash.
 
 ## Delegated Agents
 
@@ -61,9 +60,13 @@ The Task Planning Agent uses the host's existing `IMcpAdapter`, so web execution
 the authenticated `DirectToolMcpAdapter` and its user-bound `AppDbContext`; console and stdio-backed
 chat use their configured adapter. A provider-neutral `TaskPlanningMcpAdapter` wraps that adapter
 for each invocation. It exposes a server-owned allowlist, rejects recursive agent calls and
-completion/reopen/archive/delete operations, validates supplied scope IDs, and checks every task or
-task-list read and write against the active scope. Broad task queries that cannot be proven in scope
-are unavailable during scoped delegation.
+reopen/restore/archive/permanent-delete operations, validates supplied scope IDs, and checks every
+task or task-list read and write against the active scope. The allowlist permits completing an active
+task and moving one to recoverable Trash. Both lifecycle mutations first resolve the target through
+the authenticated adapter and prove it belongs to any context or task-list scope. The trusted
+specialist instruction permits them only when the delegated objective explicitly expresses that
+intent and identifies the target sufficiently; ambiguous targets are returned as unresolved
+questions. Broad task queries that cannot be proven in scope are unavailable during scoped delegation.
 
 Each invocation has a configurable tool-call-round limit (eight by default) and propagates cancellation through scope
 validation and tool execution. Its structured result distinguishes status, a factual summary,

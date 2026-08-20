@@ -274,6 +274,23 @@ public sealed class DirectToolMcpAdapterTests : IDisposable
 	}
 
 	[Fact]
+	public async Task TaskPlanningDelegation_CannotCompleteOrTrashAnotherUsersTask()
+	{
+		var ct = TestContext.Current.CancellationToken;
+		await using var serviceProvider = BuildTenantServiceProvider();
+		var userBTaskId = await SeedUserTaskIdAsync("user-b", "User B private task", ct);
+		await using var adapterA = CreateAdapter(serviceProvider, "user-a");
+		var delegated = await OwnPlanner.Application.Chat.TaskPlanningMcpAdapter.CreateAsync(adapterA, null, null, ct);
+		var arguments = new Dictionary<string, object?> { ["id"] = ParseJsonElement($"\"{userBTaskId}\"") };
+
+		await delegated.CallToolAsync("taskitem_complete", arguments, ct);
+		await delegated.CallToolAsync("taskitem_delete", arguments, ct);
+
+		delegated.Actions.Should().BeEmpty();
+		delegated.Warnings.Should().HaveCount(2).And.OnlyContain(warning => warning.Contains("not found", StringComparison.OrdinalIgnoreCase));
+	}
+
+	[Fact]
 	public async Task CallToolAsync_TaskListCreate_RejectsNullForNonNullableTitle()
 	{
 		var ct = TestContext.Current.CancellationToken;

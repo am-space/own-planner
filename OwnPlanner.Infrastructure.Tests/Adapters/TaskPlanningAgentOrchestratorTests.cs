@@ -46,13 +46,13 @@ public sealed class TaskPlanningAgentOrchestratorTests
 	}
 
 	[Fact]
-	public async Task ExecuteAsync_ToolFailureIsWarningAndSessionContinues()
+	public async Task ExecuteAsync_DisallowedToolIsWarningAndSessionContinues()
 	{
-		var inner = new FakeMcpAdapter("taskitem_delete");
+		var inner = new FakeMcpAdapter("taskitem_reopen");
 		var tools = await TaskPlanningMcpAdapter.CreateAsync(inner, null, null, TestContext.Current.CancellationToken);
 		var session = new FakeSession(
-			new DelegatedAgentResponse("", [new DelegatedAgentToolCall("taskitem_delete", null)]),
-			FinalResponse("Could not make the requested destructive change"));
+			new DelegatedAgentResponse("", [new DelegatedAgentToolCall("taskitem_reopen", null)]),
+			FinalResponse("Could not make the prohibited change"));
 
 		var execution = await TaskPlanningAgentOrchestrator.ExecuteAsync(
 			new TaskPlanningAgentRequest("Delete it"), tools, session, 2, TestContext.Current.CancellationToken);
@@ -74,6 +74,22 @@ public sealed class TaskPlanningAgentOrchestratorTests
 
 		execution.Result.Status.Should().Be("failed");
 		execution.Result.Summary.Should().NotContain("provider details");
+	}
+
+	[Fact]
+	public async Task ExecuteAsync_AmbiguousTargetIsReturnedAsUnresolvedQuestionWithoutMutation()
+	{
+		var tools = await TaskPlanningMcpAdapter.CreateAsync(new FakeMcpAdapter("taskitem_complete"), null, null, TestContext.Current.CancellationToken);
+		var question = "Which of the two tasks named Review should I complete?";
+		var session = new FakeSession(new DelegatedAgentResponse(
+			JsonSerializer.Serialize(new { summary = "No task was changed.", warnings = Array.Empty<string>(), unresolvedQuestions = new[] { question } }),
+			[]));
+
+		var execution = await TaskPlanningAgentOrchestrator.ExecuteAsync(
+			new TaskPlanningAgentRequest("Complete Review"), tools, session, 2, TestContext.Current.CancellationToken);
+
+		execution.Result.Actions.Should().BeEmpty();
+		execution.Result.UnresolvedQuestions.Should().ContainSingle().Which.Should().Be(question);
 	}
 
 	[Fact]
@@ -104,7 +120,9 @@ public sealed class TaskPlanningAgentOrchestratorTests
 	[Fact]
 	public void TaskPlanningPolicy_IsConfiguredAsTrustedSystemInstruction()
 	{
-		ChatServiceAdapter.TaskPlanningAgentSystemInstruction.Should().Contain("Never complete, reopen, archive, or delete anything");
+		ChatServiceAdapter.TaskPlanningAgentSystemInstruction.Should().Contain("complete or move an active task to recoverable Trash only when the objective explicitly requests");
+		ChatServiceAdapter.TaskPlanningAgentSystemInstruction.Should().Contain("Never reopen or restore tasks, permanently delete tasks, delete or archive task lists");
+		ChatServiceAdapter.TaskPlanningAgentSystemInstruction.Should().Contain("target is ambiguous, return an unresolved question");
 	}
 
 	private static DelegatedAgentResponse FinalResponse(string summary, long inputTokens = 0, long outputTokens = 0) =>
