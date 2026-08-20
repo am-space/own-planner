@@ -10,6 +10,52 @@ namespace OwnPlanner.E2E.Tests;
 public sealed class PlannerWorkspaceE2eTests(E2eWebApplicationFactory application) : E2ePageTest(application)
 {
 	[Fact]
+	public async Task TaskTrash_RestoresAndPermanentlyDeletesOnlyAfterConfirmation()
+	{
+		await RegisterAsync(Page, CreateUser());
+		var restoreTitle = $"Restore me {Guid.NewGuid():N}";
+		var deleteTitle = $"Delete me {Guid.NewGuid():N}";
+		var prompt = Application.Scenarios.Register(async mcpAdapter =>
+		{
+			var mcp = mcpAdapter ?? throw new InvalidOperationException("MCP adapter is required.");
+			async Task<Guid> CreateAndTrash(string title)
+			{
+				var createdJson = await mcp.CallToolAsync("taskitem_create", new Dictionary<string, object?>
+				{
+					["title"] = title,
+					["taskListId"] = WellKnownIds.InboxTaskList,
+				});
+				using var created = System.Text.Json.JsonDocument.Parse(createdJson);
+				var id = created.RootElement.GetProperty("id").GetGuid();
+				await mcp.CallToolAsync("taskitem_delete", new Dictionary<string, object?> { ["id"] = id });
+				return id;
+			}
+
+			await CreateAndTrash(restoreTitle);
+			await CreateAndTrash(deleteTitle);
+			return new ChatTurnResult("Prepared task Trash", 100);
+		});
+		await SendPromptAsync(Page, prompt);
+		await Expect(Page.GetByText("Prepared task Trash", new() { Exact = true })).ToBeVisibleAsync();
+
+		await Page.GetByRole(AriaRole.Button, new() { Name = "Trash", Exact = true }).ClickAsync();
+		await Expect(Page.GetByRole(AriaRole.Heading, new() { Name = "Trash", Exact = true })).ToBeVisibleAsync();
+		var restoreRow = Page.Locator("li").Filter(new() { HasText = restoreTitle });
+		await restoreRow.GetByRole(AriaRole.Button, new() { Name = "Restore", Exact = true }).ClickAsync();
+		await Expect(Page.GetByText(restoreTitle, new() { Exact = true })).ToHaveCountAsync(0);
+
+		var deleteRow = Page.Locator("li").Filter(new() { HasText = deleteTitle });
+		await deleteRow.GetByRole(AriaRole.Button, new() { Name = "Delete forever", Exact = true }).ClickAsync();
+		await Expect(Page.GetByRole(AriaRole.Dialog)).ToContainTextAsync(deleteTitle);
+		await Page.GetByRole(AriaRole.Dialog).GetByRole(AriaRole.Button, new() { Name = "Delete forever", Exact = true }).ClickAsync();
+		await Expect(Page.GetByText(deleteTitle, new() { Exact = true })).ToHaveCountAsync(0);
+
+		await Page.GetByRole(AriaRole.Button, new() { Name = "Tasks", Exact = true }).ClickAsync();
+		await Page.GetByLabel("Search tasks").FillAsync(restoreTitle);
+		await Expect(Page.GetByText(restoreTitle, new() { Exact = true }).First).ToBeVisibleAsync();
+	}
+
+	[Fact]
 	public async Task TaskWorkspace_PreservesChatAndUrlState_WhileInspectingReadOnlyDetails()
 	{
 		await Page.SetViewportSizeAsync(1440, 900);

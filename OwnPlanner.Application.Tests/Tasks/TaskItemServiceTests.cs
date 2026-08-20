@@ -14,6 +14,69 @@ public class TaskItemServiceTests
 	public TaskItemServiceTests() => _svc = new TaskItemService(_repo, _taskListRepo);
 
 	[Fact]
+	public async Task DeleteAsync_TrashesTaskAndIsIdempotent()
+	{
+		var ct = TestContext.Current.CancellationToken;
+		var id = Guid.NewGuid();
+		var item = new TaskItem("task", Guid.NewGuid());
+		_repo.GetAsync(id, ct).Returns(item, (TaskItem?)null);
+		_repo.GetTrashedAsync(id, ct).Returns(item);
+
+		await _svc.DeleteAsync(id, ct);
+		var trashedAt = item.TrashedAt;
+		await _svc.DeleteAsync(id, ct);
+
+		item.TrashedAt.Should().Be(trashedAt);
+		item.ActiveTaskListId.Should().BeNull();
+		await _repo.Received(2).UpdateAsync(item, ct);
+	}
+
+	[Fact]
+	public async Task RestoreAsync_RestoresToOriginalList()
+	{
+		var ct = TestContext.Current.CancellationToken;
+		var id = Guid.NewGuid();
+		var listId = Guid.NewGuid();
+		var item = new TaskItem("task", listId);
+		item.Trash();
+		_repo.GetTrashedAsync(id, ct).Returns(item);
+		_taskListRepo.GetAsync(listId, ct).Returns(new TaskList("list"));
+
+		await _svc.RestoreAsync(id, ct);
+
+		item.TrashedAt.Should().BeNull();
+		item.ActiveTaskListId.Should().Be(listId);
+		await _repo.Received(1).UpdateAsync(item, ct);
+	}
+
+	[Fact]
+	public async Task RestoreAsync_WhenOriginalListIsMissing_FailsWithoutChangingTask()
+	{
+		var ct = TestContext.Current.CancellationToken;
+		var item = new TaskItem("task", Guid.NewGuid());
+		item.Trash();
+		_repo.GetTrashedAsync(item.Id, ct).Returns(item);
+
+		var act = () => _svc.RestoreAsync(item.Id, ct);
+
+		await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*original task list*");
+		item.TrashedAt.Should().NotBeNull();
+		await _repo.DidNotReceive().UpdateAsync(Arg.Any<TaskItem>(), Arg.Any<CancellationToken>());
+	}
+
+	[Fact]
+	public async Task PermanentlyDeleteAsync_RequiresTrashedTask()
+	{
+		var ct = TestContext.Current.CancellationToken;
+		var id = Guid.NewGuid();
+
+		var act = () => _svc.PermanentlyDeleteAsync(id, ct);
+
+		await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*already in Trash*");
+		await _repo.DidNotReceive().PermanentlyDeleteAsync(Arg.Any<TaskItem>(), Arg.Any<CancellationToken>());
+	}
+
+	[Fact]
 	public async Task CreateAsync_Adds_And_Maps()
 	{
 		var ct = TestContext.Current.CancellationToken;

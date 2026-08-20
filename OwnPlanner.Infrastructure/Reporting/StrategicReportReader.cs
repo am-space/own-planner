@@ -41,6 +41,7 @@ public sealed class StrategicReportReader(
 		var activeTaskListIds = taskLists.Select(list => list.Id).ToHashSet();
 		var activeNoteListIds = noteLists.Select(list => list.Id).ToHashSet();
 		var tasks = await db.TaskItems.AsNoTracking()
+			.Where(task => task.TrashedAt == null)
 			.Where(task => !task.IsCompleted && activeTaskListIds.Contains(task.TaskListId))
 			.Select(task => new TaskRow(task.Id, task.Title, task.IsImportant, task.DueAt, task.FocusAt, task.TaskListId, task.GoalId))
 			.ToListAsync(cancellationToken);
@@ -215,6 +216,7 @@ public sealed class StrategicReportReader(
 			return new Dictionary<Guid, PreviewRow>();
 
 		return await db.TaskItems.AsNoTracking()
+			.Where(task => task.TrashedAt == null)
 			.Where(task => sampleIds.Contains(task.Id))
 			.Select(task => new PreviewRow(
 				task.Id,

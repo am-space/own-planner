@@ -96,4 +96,42 @@ public class TaskItemToolsTests
 		await _service.DidNotReceive().ListPagedAsync(
 			Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>());
 	}
+
+	[Fact]
+	public async Task DeleteTask_MovesTaskToTrashThroughCompatibleTool()
+	{
+		var id = Guid.NewGuid();
+
+		var json = AsJson(await _tools.DeleteTask(id));
+
+		await _service.Received(1).DeleteAsync(id, Arg.Any<CancellationToken>());
+		json.GetProperty("success").GetBoolean().Should().BeTrue();
+		json.GetProperty("id").GetGuid().Should().Be(id);
+	}
+
+	[Fact]
+	public async Task ListTrash_ReturnsPagingEnvelopeWithTrashedAt()
+	{
+		var item = new TrashedTaskItemDto(
+			Guid.NewGuid(), "trashed", null, false, false, null, null, Guid.NewGuid(), null, null, DateTime.UtcNow);
+		_service.ListTrashedPagedAsync(0, 25, Arg.Any<CancellationToken>())
+			.Returns(new PagedResult<TrashedTaskItemDto>([item], 1, 0, 25));
+
+		var json = AsJson(await _tools.ListTrash());
+
+		json.GetProperty("items")[0].GetProperty("trashedAt").GetDateTime().Should().Be(item.TrashedAt);
+		json.GetProperty("totalCount").GetInt32().Should().Be(1);
+	}
+
+	[Fact]
+	public async Task RestoreTask_ReturnsApplicationFailureAsToolError()
+	{
+		var id = Guid.NewGuid();
+		_service.RestoreAsync(id, Arg.Any<CancellationToken>())
+			.Returns(System.Threading.Tasks.Task.FromException(new InvalidOperationException("Original list missing")));
+
+		var json = AsJson(await _tools.RestoreTask(id));
+
+		json.GetProperty("error").GetString().Should().Contain("Original list missing");
+	}
 }

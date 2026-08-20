@@ -19,3 +19,17 @@ The architecture maintains two distinct categories of databases:
     *   Each user has their own completely isolated SQLite file.
     *   Stores all application entities (Tasks, Notes, Goals, etc.).
     *   Accessed via a tenant-aware Entity Framework Core `DbContext`.
+
+## Recoverable task deletion
+
+`TaskItems` stores two task-list identifiers for different purposes:
+
+- `TaskListId` is the required logical/original destination retained for display and restoration.
+- `ActiveTaskListId` is the nullable foreign key used while a task is active. It cascades when an
+  active task list is deleted and is cleared when the task enters Trash.
+
+`TrashedAt` is a nullable UTC timestamp. Normal repositories, planner reads, and strategic, weekly,
+and reflection reports explicitly select only rows where it is null. Trash queries select only rows
+where it is set. Restoring verifies that `TaskListId` still resolves in the current user's database
+before re-establishing `ActiveTaskListId`; a missing list is reported rather than replaced silently.
+Only an already-trashed row can be permanently deleted.

@@ -52,6 +52,7 @@ ADRs describe decisions as actually shipped. Start new records from [`adr/templa
 - [`ADR-0012`](adr/0012-private-telegram-presentation-channel.md) — private Telegram presentation channel with explicit account linking
 - [`ADR-0013`](adr/0013-deterministic-weekly-workload-reporting.md) — deterministic seven-day UTC workload reporting for Week Planning
 - [`ADR-0014`](adr/0014-deterministic-current-state-reflection-reporting.md) — deterministic current-state reflection reporting with explicit historical limits
+- [`ADR-0015`](adr/0015-recoverable-task-trash.md) — recoverable task deletion with explicit permanent removal
 
 ## Historical plans
 

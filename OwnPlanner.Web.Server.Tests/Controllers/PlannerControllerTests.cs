@@ -6,6 +6,7 @@ using NSubstitute;
 using OwnPlanner.Application.Common;
 using OwnPlanner.Application.Planner;
 using OwnPlanner.Mcp.Tools;
+using OwnPlanner.Application.Tasks;
 using OwnPlanner.Web.Server.Controllers;
 using OwnPlanner.Web.Server.Services;
 
@@ -15,6 +16,7 @@ public class PlannerControllerTests
 {
 	private const string UserId = "11111111-1111-1111-1111-111111111111";
 	private readonly IPlannerReadService _plannerReadService = Substitute.For<IPlannerReadService>();
+	private readonly ITaskItemService _taskItemService = Substitute.For<ITaskItemService>();
 	private readonly IPerUserAppInitializationService _initializationService = Substitute.For<IPerUserAppInitializationService>();
 
 	[Fact]
@@ -81,6 +83,31 @@ public class PlannerControllerTests
 			Arg.Any<CancellationToken>());
 	}
 
+	[Fact]
+	public async Task RestoreTask_WhenOriginalListIsMissing_ReturnsConflict()
+	{
+		var id = Guid.NewGuid();
+		_taskItemService.RestoreAsync(id, Arg.Any<CancellationToken>())
+			.Returns(Task.FromException(new InvalidOperationException("Original task list no longer exists.")));
+		var controller = CreateController();
+
+		var result = await controller.RestoreTask(id, TestContext.Current.CancellationToken);
+
+		result.Should().BeOfType<ConflictObjectResult>();
+	}
+
+	[Fact]
+	public async Task PermanentlyDeleteTask_DelegatesOnlyToGuardedApplicationOperation()
+	{
+		var id = Guid.NewGuid();
+		var controller = CreateController();
+
+		var result = await controller.PermanentlyDeleteTask(id, TestContext.Current.CancellationToken);
+
+		result.Should().BeOfType<OkObjectResult>();
+		await _taskItemService.Received(1).PermanentlyDeleteAsync(id, Arg.Any<CancellationToken>());
+	}
+
 	private PlannerController CreateController()
 	{
 		var principal = new ClaimsPrincipal(new ClaimsIdentity(
@@ -88,7 +115,7 @@ public class PlannerControllerTests
 			new Claim(ClaimTypes.NameIdentifier, UserId),
 			new Claim("SessionId", "planner-test-session")
 		], "TestAuth"));
-		return new PlannerController(_plannerReadService, _initializationService)
+		return new PlannerController(_plannerReadService, _taskItemService, _initializationService)
 		{
 			ControllerContext = new ControllerContext
 			{

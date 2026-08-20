@@ -29,9 +29,13 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 		task.Property(t => t.DueAt);
 		task.Property(t => t.CompletedAt);
 		task.Property(t => t.TaskListId).IsRequired();
+		task.Property(t => t.ActiveTaskListId);
+		task.Property(t => t.TrashedAt);
 		task.Property(t => t.FocusAt); // My Day feature: nullable focus date
 		task.Property(t => t.GoalId); // Soft reference to a Goal
 		task.HasIndex(t => t.TaskListId);
+		task.HasIndex(t => t.ActiveTaskListId);
+		task.HasIndex(t => t.TrashedAt);
 		task.HasIndex(t => t.GoalId);
 
 		// TaskList configuration
@@ -47,11 +51,11 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 		taskList.Property(tl => tl.UpdatedAt);
 		taskList.HasIndex(tl => tl.ContextId);
 
-		// Configure relationship - TaskList to TaskItems (one-to-many)
-		// When a TaskList is deleted, cascade delete all associated TaskItems
+		// Active tasks are cascade-deleted with their list. Trashed tasks clear ActiveTaskListId and
+		// retain TaskListId only as the soft restore destination, so they survive list deletion.
 		taskList.HasMany<TaskItem>()
 			.WithOne()
-			.HasForeignKey(t => t.TaskListId)
+			.HasForeignKey(t => t.ActiveTaskListId)
 			.OnDelete(DeleteBehavior.Cascade);
 
 		// NoteList configuration

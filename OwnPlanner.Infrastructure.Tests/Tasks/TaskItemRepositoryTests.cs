@@ -21,7 +21,7 @@ public class TaskItemRepositoryTests
 	}
 
 	[Fact]
-	public async Task Add_Get_Update_Delete_Roundtrip()
+	public async Task Add_Get_Update_PermanentDelete_Roundtrip()
 	{
 		using var db = CreateDb(out var conn);
 		await using var _ = conn;
@@ -45,8 +45,38 @@ public class TaskItemRepositoryTests
 		await repo.UpdateAsync(loaded, ct);
 		(await repo.GetAsync(item.Id, ct))!.IsCompleted.Should().BeTrue();
 
-		await repo.DeleteAsync(loaded, ct);
+		loaded.Trash();
+		await repo.UpdateAsync(loaded, ct);
+		await repo.PermanentlyDeleteAsync(loaded, ct);
 		(await repo.GetAsync(item.Id, ct)).Should().BeNull();
+	}
+
+	[Fact]
+	public async Task TrashedTask_IsExcludedFromNormalReads_AndSurvivesListDeletion()
+	{
+		using var db = CreateDb(out var conn);
+		await using var _ = conn;
+		var ct = TestContext.Current.CancellationToken;
+		var factory = new TestPlannerDbContextFactory(conn);
+		var tasks = new TaskItemRepository(factory);
+		var lists = new TaskListRepository(factory);
+		var list = new TaskList("list");
+		await lists.AddAsync(list, ct);
+		var task = new TaskItem("recoverable", list.Id);
+		await tasks.AddAsync(task, ct);
+		task.Trash();
+		await tasks.UpdateAsync(task, ct);
+
+		(await tasks.GetAsync(task.Id, ct)).Should().BeNull();
+		(await tasks.ListAsync(true, ct)).Should().BeEmpty();
+		var trash = await tasks.ListTrashedPagedAsync(0, 25, ct);
+		trash.Items.Should().ContainSingle().Which.TaskListId.Should().Be(list.Id);
+
+		await lists.DeleteAsync(list, ct);
+
+		var retained = await tasks.GetTrashedAsync(task.Id, ct);
+		retained.Should().NotBeNull();
+		retained!.TaskListId.Should().Be(list.Id);
 	}
 
 	[Fact]

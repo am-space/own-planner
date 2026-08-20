@@ -13,7 +13,14 @@ public interface ITaskItemService
 	Task AssignToListAsync(Guid taskId, Guid taskListId, CancellationToken ct = default);
 	Task CompleteAsync(Guid id, CancellationToken ct = default);
 	Task ReopenAsync(Guid id, CancellationToken ct = default);
+	/// <summary>Moves an active task to Trash. Repeated calls for the same task are idempotent.</summary>
 	Task DeleteAsync(Guid id, CancellationToken ct = default);
+	/// <summary>Lists tasks currently in Trash.</summary>
+	Task<PagedResult<TrashedTaskItemDto>> ListTrashedPagedAsync(int offset, int limit, CancellationToken ct = default);
+	/// <summary>Restores a trashed task to its original task list when that list still exists.</summary>
+	Task RestoreAsync(Guid id, CancellationToken ct = default);
+	/// <summary>Permanently deletes a task, but only after it has already been moved to Trash.</summary>
+	Task PermanentlyDeleteAsync(Guid id, CancellationToken ct = default);
 
 	Task SetFocusDateAsync(Guid id, DateTime? focusDateUtc, CancellationToken ct = default);
 	Task ClearFocusDateAsync(Guid id, CancellationToken ct = default);

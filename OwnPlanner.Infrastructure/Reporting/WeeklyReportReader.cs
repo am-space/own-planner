@@ -41,6 +41,7 @@ public sealed class WeeklyReportReader(
 			.Select(goal => new GoalRow(goal.Id, goal.Title))
 			.ToListAsync(cancellationToken);
 		var tasks = await db.TaskItems.AsNoTracking()
+			.Where(task => task.TrashedAt == null)
 			.Where(task => !task.IsCompleted && (activeListIds.Contains(task.TaskListId) || !allListIds.Contains(task.TaskListId)))
 			.Select(task => new TaskRow(task.Id, task.Title, task.IsImportant, task.DueAt, task.FocusAt, task.TaskListId, task.GoalId))
 			.ToListAsync(cancellationToken);
@@ -135,7 +136,7 @@ public sealed class WeeklyReportReader(
 	private static async Task<IReadOnlyDictionary<Guid, PreviewRow>> LoadPreviewsAsync(AppDbContext db, HashSet<Guid> ids, CancellationToken cancellationToken)
 	{
 		if (ids.Count == 0) return new Dictionary<Guid, PreviewRow>();
-		return await db.TaskItems.AsNoTracking().Where(task => ids.Contains(task.Id))
+		return await db.TaskItems.AsNoTracking().Where(task => task.TrashedAt == null && ids.Contains(task.Id))
 			.Select(task => new PreviewRow(task.Id,
 				task.Description == null ? null : task.Description.Substring(0, Math.Min(task.Description.Length, PreviewLength)),
 				task.Description != null && task.Description.Length > PreviewLength))

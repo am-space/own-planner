@@ -132,7 +132,7 @@ public class TaskItemTools
 		}
 	}
 
-	[McpServerTool(Name = "taskitem_delete"), Description("Delete a task by id.")]
+	[McpServerTool(Name = "taskitem_delete"), Description("Move an active task to Trash by id. This is recoverable and does not permanently delete task data.")]
 	public async Task<object> DeleteTask(Guid id)
 	{
 		try
@@ -141,6 +141,34 @@ public class TaskItemTools
 			return new { success = true, id };
 		}
 		catch (KeyNotFoundException ex)
+		{
+			return new { error = ex.Message };
+		}
+	}
+
+	[McpServerTool(Name = "taskitem_list_trash", Idempotent = true, ReadOnly = true), Description("List tasks in Trash (paginated, default 25 per page, max 100). Returns { items, totalCount, offset, limit, hasMore }. Trashed tasks are excluded from normal task queries.")]
+	public async Task<object> ListTrash(int limit = 25, int offset = 0)
+	{
+		var page = await _service.ListTrashedPagedAsync(offset, limit);
+		return new
+		{
+			items = page.Items,
+			page.TotalCount,
+			page.Offset,
+			page.Limit,
+			page.HasMore
+		};
+	}
+
+	[McpServerTool(Name = "taskitem_restore"), Description("Restore a task from Trash to its original task list. Fails safely if that list no longer exists.")]
+	public async Task<object> RestoreTask(Guid id)
+	{
+		try
+		{
+			await _service.RestoreAsync(id);
+			return new { success = true, id };
+		}
+		catch (Exception ex) when (ex is KeyNotFoundException or InvalidOperationException)
 		{
 			return new { error = ex.Message };
 		}
@@ -235,4 +263,3 @@ public class TaskItemTools
 			? description
 			: description[..DescriptionPreviewMaxLength] + TruncationSuffix;
 }
-

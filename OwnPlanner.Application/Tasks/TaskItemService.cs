@@ -94,8 +94,34 @@ public class TaskItemService(ITaskItemRepository repository, ITaskListRepository
 
 	public async Task DeleteAsync(Guid id, CancellationToken ct = default)
 	{
-		var item = await _repository.GetAsync(id, ct) ?? throw new KeyNotFoundException($"Task {id} not found");
-		await _repository.DeleteAsync(item, ct);
+		var item = await _repository.GetAsync(id, ct) ?? await _repository.GetTrashedAsync(id, ct)
+			?? throw new KeyNotFoundException($"Task {id} not found");
+		item.Trash();
+		await _repository.UpdateAsync(item, ct);
+	}
+
+	public async Task<PagedResult<TrashedTaskItemDto>> ListTrashedPagedAsync(int offset, int limit, CancellationToken ct = default)
+	{
+		var (o, l) = Normalize(offset, limit);
+		var (items, total) = await _repository.ListTrashedPagedAsync(o, l, ct);
+		return new PagedResult<TrashedTaskItemDto>(items.Select(MapTrashed).ToList(), total, o, l);
+	}
+
+	public async Task RestoreAsync(Guid id, CancellationToken ct = default)
+	{
+		var item = await _repository.GetTrashedAsync(id, ct) ?? throw new KeyNotFoundException($"Trashed task {id} not found");
+		if (await _taskListRepository.GetAsync(item.TaskListId, ct) is null)
+			throw new InvalidOperationException("The task cannot be restored because its original task list no longer exists.");
+
+		item.Restore();
+		await _repository.UpdateAsync(item, ct);
+	}
+
+	public async Task PermanentlyDeleteAsync(Guid id, CancellationToken ct = default)
+	{
+		var item = await _repository.GetTrashedAsync(id, ct)
+			?? throw new InvalidOperationException("Only a task already in Trash can be permanently deleted.");
+		await _repository.PermanentlyDeleteAsync(item, ct);
 	}
 
 	public async Task SetFocusDateAsync(Guid id, DateTime? focusDateUtc, CancellationToken ct = default)
@@ -173,4 +199,17 @@ public class TaskItemService(ITaskItemRepository repository, ITaskListRepository
 		item.FocusAt, // My Day feature
 		item.GoalId
 	);
+
+	private static TrashedTaskItemDto MapTrashed(TaskItem item) => new(
+		item.Id,
+		item.Title,
+		item.Description,
+		item.IsCompleted,
+		item.IsImportant,
+		item.DueAt,
+		item.CompletedAt,
+		item.TaskListId,
+		item.FocusAt,
+		item.GoalId,
+		item.TrashedAt ?? throw new InvalidOperationException("Only trashed tasks can be mapped as Trash results."));
 }

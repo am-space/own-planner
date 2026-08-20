@@ -9,6 +9,13 @@ public class TaskItem : EntityBase
 	public DateTime? DueAt { get; private set; }
 	public DateTime? CompletedAt { get; private set; }
 	public Guid TaskListId { get; private set; }
+	/// <summary>
+	/// Database relationship used only while the task is active. Trashing clears this relationship so
+	/// deleting the original list cannot cascade-delete a recoverable task; <see cref="TaskListId"/>
+	/// continues to remember the restore destination.
+	/// </summary>
+	public Guid? ActiveTaskListId { get; private set; }
+	public DateTime? TrashedAt { get; private set; }
 	public DateTime? FocusAt { get; private set; } // My Day feature: nullable focus date
 	/// <summary>Optional soft reference to a Goal. No FK constraint — stale references are acceptable.</summary>
 	public Guid? GoalId { get; private set; }
@@ -21,6 +28,7 @@ public class TaskItem : EntityBase
 	{
 		SetTitle(title);
 		TaskListId = taskListId;
+		ActiveTaskListId = taskListId;
 		SetDescription(description);
 		SetDueAt(dueAt);
 		IsImportant = isImportant;
@@ -94,7 +102,30 @@ public class TaskItem : EntityBase
 
 	public void AssignToList(Guid taskListId)
 	{
+		if (TrashedAt.HasValue)
+			throw new InvalidOperationException("A trashed task must be restored before it can be assigned.");
 		TaskListId = taskListId;
+		ActiveTaskListId = taskListId;
+		Touch();
+	}
+
+	public void Trash()
+	{
+		if (TrashedAt.HasValue)
+			return;
+
+		TrashedAt = DateTime.UtcNow;
+		ActiveTaskListId = null;
+		Touch();
+	}
+
+	public void Restore()
+	{
+		if (!TrashedAt.HasValue)
+			return;
+
+		TrashedAt = null;
+		ActiveTaskListId = TaskListId;
 		Touch();
 	}
 

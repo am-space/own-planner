@@ -196,6 +196,20 @@ export interface PlannerTaskDetail extends Omit<PlannerTaskSummary, 'description
   completedAt: string | null;
 }
 
+export interface TrashedTask {
+  id: string;
+  title: string;
+  description: string | null;
+  isCompleted: boolean;
+  isImportant: boolean;
+  dueAt: string | null;
+  completedAt: string | null;
+  taskListId: string;
+  focusAt: string | null;
+  goalId: string | null;
+  trashedAt: string;
+}
+
 export interface PlannerGoalSummary {
   id: string;
   title: string;
