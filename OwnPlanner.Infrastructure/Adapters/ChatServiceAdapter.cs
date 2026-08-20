@@ -15,7 +15,7 @@ namespace OwnPlanner.Infrastructure.Adapters
 		private const string SearchAgentToolName = "search_agent_call";
 		private const string TaskPlanningAgentToolName = "task_planning_agent_call";
 		internal const string TaskPlanningAgentSystemInstruction = """
-			You are OwnPlanner's isolated Task Planning Agent. Turn the explicit objective into concrete, well-organized tasks using only the supplied tools. Respect any scope stated in the request. You may read planner data and may create or update task lists and tasks, assign tasks, set focus dates, and mark importance. Never complete, reopen, archive, or delete anything. Never invoke another agent. Ask an unresolved question instead of guessing a destination or important requirement. Finish with only a JSON object containing: summary (string), warnings (string array), and unresolvedQuestions (string array).
+			You are OwnPlanner's isolated Task Planning Agent. Carry out the explicit objective using only the supplied tools and respect any scope stated in the request. You may read planner data; create or update task lists and tasks; assign tasks; set focus dates or importance; and complete or move an active task to recoverable Trash only when the objective explicitly requests that lifecycle action and identifies the target sufficiently. Never reopen or restore tasks, permanently delete tasks, delete or archive task lists, archive anything, or invoke another agent. If a completion or Trash target is ambiguous, return an unresolved question instead of guessing or mutating data. Finish with only a JSON object containing: summary (string), warnings (string array), and unresolvedQuestions (string array).
 			""";
 		private const string SearchAgentToolSchema = """
 		{
@@ -278,7 +278,7 @@ namespace OwnPlanner.Infrastructure.Adapters
 			{
 			  "type": "object",
 			  "properties": {
-			    "objective": { "type": "string", "description": "The concrete planning outcome to turn into organized tasks." },
+			    "objective": { "type": "string", "description": "The concrete planning outcome to carry out, including explicit requests to complete identified tasks or move identified active tasks to recoverable Trash." },
 			    "contextId": { "type": "string", "format": "uuid", "description": "Optional planning-context scope." },
 			    "taskListId": { "type": "string", "format": "uuid", "description": "Optional existing task-list scope." }
 			  },
@@ -288,7 +288,7 @@ namespace OwnPlanner.Infrastructure.Adapters
 			return new FunctionDeclaration
 			{
 				Name = TaskPlanningAgentToolName,
-				Description = "Delegate a concrete objective to an isolated agent that can create and organize tasks using a restricted tool set.",
+				Description = "Delegate a concrete objective to an isolated agent that can create and organize tasks, complete identified tasks, and move identified active tasks to recoverable Trash using a restricted tool set.",
 				Parameters = ConvertJsonSchemaToGeminiSchema(schemaDocument.RootElement.Clone())
 			};
 		}

@@ -100,13 +100,25 @@ public class TaskItemToolsTests
 	[Fact]
 	public async Task DeleteTask_MovesTaskToTrashThroughCompatibleTool()
 	{
+		var ct = TestContext.Current.CancellationToken;
 		var id = Guid.NewGuid();
 
-		var json = AsJson(await _tools.DeleteTask(id));
+		var json = AsJson(await _tools.DeleteTask(id, ct));
 
-		await _service.Received(1).DeleteAsync(id, Arg.Any<CancellationToken>());
+		await _service.Received(1).DeleteAsync(id, ct);
 		json.GetProperty("success").GetBoolean().Should().BeTrue();
 		json.GetProperty("id").GetGuid().Should().Be(id);
+	}
+
+	[Fact]
+	public async Task CompleteTask_ForwardsCancellation()
+	{
+		var ct = TestContext.Current.CancellationToken;
+		var id = Guid.NewGuid();
+
+		await _tools.CompleteTask(id, ct);
+
+		await _service.Received(1).CompleteAsync(id, ct);
 	}
 
 	[Fact]

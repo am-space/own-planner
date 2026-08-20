@@ -32,7 +32,7 @@ public sealed class TaskPlanningMcpAdapter : IMcpAdapter
 	public static readonly IReadOnlySet<string> WriteTools = new HashSet<string>(StringComparer.Ordinal)
 	{
 		"tasklist_create", "tasklist_update", "taskitem_create", "taskitem_update", "taskitem_assign",
-		"taskitem_set_focus_date", "taskitem_set_important"
+		"taskitem_set_focus_date", "taskitem_set_important", "taskitem_complete", "taskitem_delete"
 	};
 
 	private readonly IMcpAdapter _inner;
@@ -109,6 +109,12 @@ public sealed class TaskPlanningMcpAdapter : IMcpAdapter
 
 	private async Task EnforceScopeAsync(string toolName, Dictionary<string, object?> arguments, CancellationToken cancellationToken)
 	{
+		if (toolName is "taskitem_complete" or "taskitem_delete")
+		{
+			await EnsureTaskInScopeAsync(RequiredGuid(arguments, "id"), cancellationToken).ConfigureAwait(false);
+			return;
+		}
+
 		if (!_contextId.HasValue && !_taskListId.HasValue)
 			return;
 

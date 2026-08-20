@@ -2,7 +2,7 @@
 
 Date: 2026-08-14
 
-Status: Accepted
+Status: Superseded by ADR-0016
 
 Deciders: OwnPlanner maintainers
 
@@ -12,6 +12,10 @@ Global Planning needs to turn strategic intentions into tasks without receiving 
 task-write tools. The existing Search Agent demonstrates isolated model sessions, but task planning
 also requires authenticated planner reads and carefully bounded mutations. Prompt instructions alone
 cannot enforce tool or entity scope.
+
+This decision is superseded by
+[ADR-0016: Bounded delegated task lifecycle mutations](0016-bounded-delegated-task-lifecycle-mutations.md),
+which retains the isolation model while adding completion and recoverable Trash operations.
 
 ## Decision
 
