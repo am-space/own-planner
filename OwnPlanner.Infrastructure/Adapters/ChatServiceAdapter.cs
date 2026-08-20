@@ -278,7 +278,7 @@ namespace OwnPlanner.Infrastructure.Adapters
 			{
 			  "type": "object",
 			  "properties": {
-			    "objective": { "type": "string", "description": "The concrete planning outcome to turn into organized tasks." },
+			    "objective": { "type": "string", "description": "The concrete planning outcome to carry out, including explicit requests to complete identified tasks or move identified active tasks to recoverable Trash." },
 			    "contextId": { "type": "string", "format": "uuid", "description": "Optional planning-context scope." },
 			    "taskListId": { "type": "string", "format": "uuid", "description": "Optional existing task-list scope." }
 			  },
@@ -288,7 +288,7 @@ namespace OwnPlanner.Infrastructure.Adapters
 			return new FunctionDeclaration
 			{
 				Name = TaskPlanningAgentToolName,
-				Description = "Delegate a concrete objective to an isolated agent that can create and organize tasks using a restricted tool set.",
+				Description = "Delegate a concrete objective to an isolated agent that can create and organize tasks, complete identified tasks, and move identified active tasks to recoverable Trash using a restricted tool set.",
 				Parameters = ConvertJsonSchemaToGeminiSchema(schemaDocument.RootElement.Clone())
 			};
 		}

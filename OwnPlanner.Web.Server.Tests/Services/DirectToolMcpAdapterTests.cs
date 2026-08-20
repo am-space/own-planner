@@ -283,11 +283,39 @@ public sealed class DirectToolMcpAdapterTests : IDisposable
 		var delegated = await OwnPlanner.Application.Chat.TaskPlanningMcpAdapter.CreateAsync(adapterA, null, null, ct);
 		var arguments = new Dictionary<string, object?> { ["id"] = ParseJsonElement($"\"{userBTaskId}\"") };
 
-		await delegated.CallToolAsync("taskitem_complete", arguments, ct);
-		await delegated.CallToolAsync("taskitem_delete", arguments, ct);
+		foreach (var toolName in new[] { "taskitem_complete", "taskitem_delete" })
+		{
+			var act = () => delegated.CallToolAsync(toolName, arguments, ct);
+			await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*not found in the authenticated planner*");
+		}
 
 		delegated.Actions.Should().BeEmpty();
-		delegated.Warnings.Should().HaveCount(2).And.OnlyContain(warning => warning.Contains("not found", StringComparison.OrdinalIgnoreCase));
+	}
+
+	[Theory]
+	[InlineData("taskitem_complete")]
+	[InlineData("taskitem_delete")]
+	public async Task TaskLifecycleTool_ForwardsCancellationThroughRealHostAdapter(string toolName)
+	{
+		var taskId = Guid.NewGuid();
+		var taskService = Substitute.For<ITaskItemService>();
+		taskService.CompleteAsync(taskId, Arg.Any<CancellationToken>())
+			.Returns(call => Task.FromCanceled(call.Arg<CancellationToken>()));
+		taskService.DeleteAsync(taskId, Arg.Any<CancellationToken>())
+			.Returns(call => Task.FromCanceled(call.Arg<CancellationToken>()));
+		await using var serviceProvider = BuildServiceProvider(taskService: taskService);
+		await using var adapter = CreateAdapter(serviceProvider);
+		using var cancellation = new CancellationTokenSource();
+		await cancellation.CancelAsync();
+		var arguments = new Dictionary<string, object?> { ["id"] = ParseJsonElement($"\"{taskId}\"") };
+
+		var act = () => adapter.CallToolAsync(toolName, arguments, cancellation.Token);
+
+		await act.Should().ThrowAsync<OperationCanceledException>();
+		if (toolName == "taskitem_complete")
+			await taskService.Received(1).CompleteAsync(taskId, cancellation.Token);
+		else
+			await taskService.Received(1).DeleteAsync(taskId, cancellation.Token);
 	}
 
 	[Fact]

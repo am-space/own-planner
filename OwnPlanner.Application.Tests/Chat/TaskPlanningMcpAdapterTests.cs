@@ -108,6 +108,37 @@ public class TaskPlanningMcpAdapterTests
 	[Theory]
 	[InlineData("taskitem_complete")]
 	[InlineData("taskitem_delete")]
+	public async Task CallToolAsync_UnscopedLifecycleMutation_PreflightsActiveTask(string toolName)
+	{
+		var taskId = Guid.NewGuid();
+		var inner = new FakeMcpAdapter("taskitem_get", toolName);
+		inner.Results["taskitem_get"] = JsonSerializer.Serialize(new { id = taskId, taskListId = Guid.NewGuid() });
+		inner.Results[toolName] = JsonSerializer.Serialize(new { id = taskId });
+		var adapter = await TaskPlanningMcpAdapter.CreateAsync(inner, null, null, TestContext.Current.CancellationToken);
+
+		await adapter.CallToolAsync(toolName, new Dictionary<string, object?> { ["id"] = taskId }, TestContext.Current.CancellationToken);
+
+		adapter.Actions.Should().ContainSingle().Which.ToolName.Should().Be(toolName);
+		inner.Calls.Select(call => call.ToolName).Should().Equal("taskitem_get", toolName);
+	}
+
+	[Fact]
+	public async Task CallToolAsync_UnscopedTrash_RejectsTaskThatIsNotActive()
+	{
+		var inner = new FakeMcpAdapter("taskitem_get", "taskitem_delete");
+		inner.Results["taskitem_get"] = JsonSerializer.Serialize(new { error = "Task not found" });
+		var adapter = await TaskPlanningMcpAdapter.CreateAsync(inner, null, null, TestContext.Current.CancellationToken);
+
+		var act = () => adapter.CallToolAsync("taskitem_delete", new Dictionary<string, object?> { ["id"] = Guid.NewGuid() }, TestContext.Current.CancellationToken);
+
+		await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*not found in the authenticated planner*");
+		adapter.Actions.Should().BeEmpty();
+		inner.Calls.Select(call => call.ToolName).Should().Equal("taskitem_get");
+	}
+
+	[Theory]
+	[InlineData("taskitem_complete")]
+	[InlineData("taskitem_delete")]
 	public async Task CallToolAsync_TaskListScope_RejectsLifecycleMutationForTaskOutsideList(string toolName)
 	{
 		var taskListId = Guid.NewGuid();
@@ -213,11 +244,13 @@ public class TaskPlanningMcpAdapterTests
 	[InlineData("taskitem_delete")]
 	public async Task CallToolAsync_FailedLifecycleMutationIsWarningNotPerformedAction(string toolName)
 	{
-		var inner = new FakeMcpAdapter(toolName);
+		var taskId = Guid.NewGuid();
+		var inner = new FakeMcpAdapter("taskitem_get", toolName);
+		inner.Results["taskitem_get"] = JsonSerializer.Serialize(new { id = taskId, taskListId = Guid.NewGuid() });
 		inner.Results[toolName] = JsonSerializer.Serialize(new { error = "Task not found" });
 		var adapter = await TaskPlanningMcpAdapter.CreateAsync(inner, null, null, TestContext.Current.CancellationToken);
 
-		await adapter.CallToolAsync(toolName, new Dictionary<string, object?> { ["id"] = Guid.NewGuid() }, TestContext.Current.CancellationToken);
+		await adapter.CallToolAsync(toolName, new Dictionary<string, object?> { ["id"] = taskId }, TestContext.Current.CancellationToken);
 
 		adapter.Actions.Should().BeEmpty();
 		adapter.Warnings.Should().ContainSingle().Which.Should().Contain("Task not found");

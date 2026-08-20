@@ -109,6 +109,12 @@ public sealed class TaskPlanningMcpAdapter : IMcpAdapter
 
 	private async Task EnforceScopeAsync(string toolName, Dictionary<string, object?> arguments, CancellationToken cancellationToken)
 	{
+		if (toolName is "taskitem_complete" or "taskitem_delete")
+		{
+			await EnsureTaskInScopeAsync(RequiredGuid(arguments, "id"), cancellationToken).ConfigureAwait(false);
+			return;
+		}
+
 		if (!_contextId.HasValue && !_taskListId.HasValue)
 			return;
 
@@ -157,8 +163,6 @@ public sealed class TaskPlanningMcpAdapter : IMcpAdapter
 			case "taskitem_update":
 			case "taskitem_set_focus_date":
 			case "taskitem_set_important":
-			case "taskitem_complete":
-			case "taskitem_delete":
 				await EnsureTaskInScopeAsync(RequiredGuid(arguments, "id"), cancellationToken).ConfigureAwait(false);
 				break;
 			case "taskitem_list_by_goal":

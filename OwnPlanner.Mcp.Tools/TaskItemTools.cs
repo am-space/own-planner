@@ -105,11 +105,11 @@ public class TaskItemTools
 	}
 
 	[McpServerTool(Name = "taskitem_complete"), Description("Complete a task by id.")]
-	public async Task<object> CompleteTask(Guid id)
+	public async Task<object> CompleteTask(Guid id, CancellationToken cancellationToken = default)
 	{
 		try
 		{
-			await _service.CompleteAsync(id);
+			await _service.CompleteAsync(id, cancellationToken);
 			return new { success = true, id };
 		}
 		catch (KeyNotFoundException ex)
@@ -133,11 +133,11 @@ public class TaskItemTools
 	}
 
 	[McpServerTool(Name = "taskitem_delete"), Description("Move an active task to Trash by id. This is recoverable and does not permanently delete task data.")]
-	public async Task<object> DeleteTask(Guid id)
+	public async Task<object> DeleteTask(Guid id, CancellationToken cancellationToken = default)
 	{
 		try
 		{
-			await _service.DeleteAsync(id);
+			await _service.DeleteAsync(id, cancellationToken);
 			return new { success = true, id };
 		}
 		catch (KeyNotFoundException ex)
