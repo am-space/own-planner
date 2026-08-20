@@ -110,6 +110,7 @@ namespace OwnPlanner.Web.Server
 				builder.Services.AddSingleton(TimeProvider.System);
 				builder.Services.AddScoped<OwnPlanner.Application.Reporting.IStrategicReportReader, OwnPlanner.Infrastructure.Reporting.StrategicReportReader>();
 				builder.Services.AddScoped<OwnPlanner.Application.Reporting.IWeeklyReportReader, OwnPlanner.Infrastructure.Reporting.WeeklyReportReader>();
+				builder.Services.AddScoped<OwnPlanner.Application.Reporting.IReflectionReportReader, OwnPlanner.Infrastructure.Reporting.ReflectionReportReader>();
 
 				// Register application services
 				builder.Services.AddScoped<IAuthService, AuthService>();
@@ -244,6 +245,7 @@ namespace OwnPlanner.Web.Server
 					.WithTools<PlanningContextTools>()
 					.WithTools<StrategicReportTools>()
 					.WithTools<WeeklyReportTools>()
+					.WithTools<ReflectionReportTools>()
 					.WithTools<DateTimeTools>();
 
 				// Register global exception handler

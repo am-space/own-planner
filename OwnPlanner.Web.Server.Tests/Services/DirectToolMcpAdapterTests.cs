@@ -39,6 +39,7 @@ public sealed class DirectToolMcpAdapterTests : IDisposable
 		toolDetails.Should().Contain(tool => tool.Name == "taskitem_get");
 		toolDetails.Should().Contain(tool => tool.Name == "strategic_report_get");
 		toolDetails.Should().Contain(tool => tool.Name == "weekly_report_get");
+		toolDetails.Should().Contain(tool => tool.Name == "reflection_report_get");
 
 		var taskGetTool = toolDetails.Single(tool => tool.Name == "taskitem_get");
 		taskGetTool.JsonSchema.Should().NotBeNull();
@@ -56,6 +57,14 @@ public sealed class DirectToolMcpAdapterTests : IDisposable
 		weeklyProperties.TryGetProperty("taskSampleLimit", out _).Should().BeTrue();
 		weeklyProperties.TryGetProperty("overloadedDayThreshold", out _).Should().BeTrue();
 		weeklyProperties.TryGetProperty("cancellationToken", out _).Should().BeFalse();
+
+		var reflectionReportTool = toolDetails.Single(tool => tool.Name == "reflection_report_get");
+		var reflectionProperties = reflectionReportTool.JsonSchema!.Value.GetProperty("properties");
+		reflectionProperties.TryGetProperty("periodDays", out _).Should().BeTrue();
+		reflectionProperties.TryGetProperty("endAtUtc", out _).Should().BeTrue();
+		reflectionProperties.TryGetProperty("taskSampleLimit", out _).Should().BeTrue();
+		reflectionProperties.TryGetProperty("noteSampleLimit", out _).Should().BeTrue();
+		reflectionProperties.TryGetProperty("cancellationToken", out _).Should().BeFalse();
 	}
 
 	[Fact]
@@ -170,6 +179,23 @@ public sealed class DirectToolMcpAdapterTests : IDisposable
 
 		reportA.Should().Contain("User A weekly task").And.NotContain("User B weekly task");
 		reportB.Should().Contain("User B weekly task").And.NotContain("User A weekly task");
+	}
+
+	[Fact]
+	public async Task CallToolAsync_ReflectionReport_IsIsolatedByAdapterUser()
+	{
+		var ct = TestContext.Current.CancellationToken;
+		await using var serviceProvider = BuildTenantServiceProvider();
+		await SeedUserCompletedTaskAsync("user-a", "User A completed task", ct);
+		await SeedUserCompletedTaskAsync("user-b", "User B completed task", ct);
+		await using var adapterA = CreateAdapter(serviceProvider, "user-a");
+		await using var adapterB = CreateAdapter(serviceProvider, "user-b");
+
+		var reportA = await adapterA.CallToolAsync("reflection_report_get", cancellationToken: ct);
+		var reportB = await adapterB.CallToolAsync("reflection_report_get", cancellationToken: ct);
+
+		reportA.Should().Contain("User A completed task").And.NotContain("User B completed task");
+		reportB.Should().Contain("User B completed task").And.NotContain("User A completed task");
 	}
 
 	[Fact]
@@ -391,6 +417,7 @@ public sealed class DirectToolMcpAdapterTests : IDisposable
 		services.AddSingleton<TimeProvider>(new FixedTimeProvider(TenantTestUtcNow));
 		services.AddScoped<IStrategicReportReader, StrategicReportReader>();
 		services.AddScoped<IWeeklyReportReader, WeeklyReportReader>();
+		services.AddScoped<IReflectionReportReader, ReflectionReportReader>();
 		services.AddScoped<ITaskListRepository, TaskListRepository>();
 		services.AddScoped<ITaskItemRepository, TaskItemRepository>();
 		services.AddScoped<ITaskListService, TaskListService>();
@@ -419,6 +446,19 @@ public sealed class DirectToolMcpAdapterTests : IDisposable
 		var task = new TaskItem(title, list.Id);
 		task.SetFocusAt(TenantTestUtcNow);
 		db.AddRange(list, task);
+		await db.SaveChangesAsync(cancellationToken);
+	}
+
+	private async Task SeedUserCompletedTaskAsync(string userId, string title, CancellationToken cancellationToken)
+	{
+		var path = Path.Combine(_tempDirectory, $"ownplanner-user-{userId}.db");
+		await using var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseSqlite($"Data Source={path}").Options);
+		await db.Database.MigrateAsync(cancellationToken);
+		var list = new TaskList("Tasks");
+		var task = new TaskItem(title, list.Id);
+		task.Complete();
+		db.AddRange(list, task);
+		db.Entry(task).Property(nameof(TaskItem.CompletedAt)).CurrentValue = TenantTestUtcNow.AddHours(-1);
 		await db.SaveChangesAsync(cancellationToken);
 	}
 
