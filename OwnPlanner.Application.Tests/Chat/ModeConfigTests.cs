@@ -13,6 +13,14 @@ public class ModeConfigTests
 			.Should().OnlyContain(pair => !pair.Value.AllowedTools.Contains("task_planning_agent_call"));
 	}
 
+	[Theory]
+	[InlineData(PlanningMode.GlobalPlanning)]
+	[InlineData(PlanningMode.WeekPlanning)]
+	public void TrashManagementTools_AreExposedInPlanningModesThatManageTaskStructure(PlanningMode mode)
+	{
+		ModeConfig.All[mode].AllowedTools.Should().Contain(["taskitem_list_trash", "taskitem_restore"]);
+	}
+
 	public static TheoryData<PlanningMode> AllModes()
 	{
 		var data = new TheoryData<PlanningMode>();

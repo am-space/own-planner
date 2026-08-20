@@ -109,19 +109,32 @@ public class TaskItemService(ITaskItemRepository repository, ITaskListRepository
 
 	public async Task RestoreAsync(Guid id, CancellationToken ct = default)
 	{
-		var item = await _repository.GetTrashedAsync(id, ct) ?? throw new KeyNotFoundException($"Trashed task {id} not found");
-		if (await _taskListRepository.GetAsync(item.TaskListId, ct) is null)
-			throw new InvalidOperationException("The task cannot be restored because its original task list no longer exists.");
-
-		item.Restore();
-		await _repository.UpdateAsync(item, ct);
+		switch (await _repository.RestoreAsync(id, ct))
+		{
+			case TaskRestoreResult.Restored:
+				return;
+			case TaskRestoreResult.TaskNotFound:
+				throw new KeyNotFoundException($"Trashed task {id} not found");
+			case TaskRestoreResult.OriginalTaskListNotFound:
+				throw new InvalidOperationException("The task cannot be restored because its original task list no longer exists.");
+			default:
+				throw new InvalidOperationException("Unexpected task restore result.");
+		}
 	}
 
 	public async Task PermanentlyDeleteAsync(Guid id, CancellationToken ct = default)
 	{
-		var item = await _repository.GetTrashedAsync(id, ct)
-			?? throw new InvalidOperationException("Only a task already in Trash can be permanently deleted.");
-		await _repository.PermanentlyDeleteAsync(item, ct);
+		switch (await _repository.PermanentlyDeleteAsync(id, ct))
+		{
+			case TaskPermanentDeleteResult.Deleted:
+				return;
+			case TaskPermanentDeleteResult.TaskNotFound:
+				throw new KeyNotFoundException($"Task {id} not found");
+			case TaskPermanentDeleteResult.TaskNotTrashed:
+				throw new InvalidOperationException("Only a task already in Trash can be permanently deleted.");
+			default:
+				throw new InvalidOperationException("Unexpected permanent-delete result.");
+		}
 	}
 
 	public async Task SetFocusDateAsync(Guid id, DateTime? focusDateUtc, CancellationToken ct = default)

@@ -41,7 +41,7 @@ public sealed record ModeConfig(
 					"tasklist_all", "tasklist_get", "tasklist_create", "tasklist_update", "tasklist_archive", "tasklist_unarchive", "tasklist_delete",
 					"notelist_all", "notelist_get", "notelist_create", "notelist_update", "notelist_archive", "notelist_unarchive", "notelist_delete",
 					"noteitem_list_items", "noteitem_list_by_goal", "noteitem_get", "noteitem_create", "noteitem_update", "noteitem_assign", "noteitem_pin", "noteitem_unpin", "noteitem_delete",
-					"taskitem_list_items", "taskitem_list_by_goal", "taskitem_list_by_focus_date", "taskitem_get",
+					"taskitem_list_items", "taskitem_list_by_goal", "taskitem_list_by_focus_date", "taskitem_get", "taskitem_list_trash", "taskitem_restore",
 					"strategic_report_get", "datetime_get_current", "search_agent_call", "task_planning_agent_call"
 				],
 				CanWrite: true),
@@ -76,7 +76,7 @@ public sealed record ModeConfig(
 					"goal_list", "goal_get",
 					"tasklist_all", "tasklist_get", "tasklist_create", "tasklist_update", "tasklist_archive", "tasklist_unarchive", "tasklist_delete",
 					"taskitem_list_items", "taskitem_list_by_focus_date", "taskitem_list_by_goal", "taskitem_get",
-					"taskitem_create", "taskitem_update", "taskitem_assign", "taskitem_set_focus_date", "taskitem_set_important", "taskitem_complete", "taskitem_reopen", "taskitem_delete",
+					"taskitem_create", "taskitem_update", "taskitem_assign", "taskitem_set_focus_date", "taskitem_set_important", "taskitem_complete", "taskitem_reopen", "taskitem_delete", "taskitem_list_trash", "taskitem_restore",
 					"weekly_report_get", "datetime_get_current", "search_agent_call"
 				],
 				CanWrite: true),

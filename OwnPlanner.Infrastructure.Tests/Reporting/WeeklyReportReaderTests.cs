@@ -103,6 +103,31 @@ public class WeeklyReportReaderTests
 	}
 
 	[Fact]
+	public async Task GetAsync_ExcludesTrashedTasksFromTotalsSignalsAndSamples()
+	{
+		using var db = CreateDb(out var connection);
+		await using var _ = connection;
+		var ct = TestContext.Current.CancellationToken;
+		var goal = new Goal("Goal", GoalHorizon.Yearly, targetPeriod: "2026");
+		var list = new TaskList("Tasks");
+		db.AddRange(goal, list);
+		await db.SaveChangesAsync(ct);
+		var trashed = new TaskItem("Trashed", list.Id, dueAt: Utc(2026, 8, 18), isImportant: true, goalId: goal.Id);
+		trashed.SetFocusAt(Utc(2026, 8, 18));
+		trashed.Trash();
+		db.Add(trashed);
+		await db.SaveChangesAsync(ct);
+
+		var report = await CreateReader(connection).GetAsync(new WeeklyReportOptions(StartDate), ct);
+
+		report.Totals.Should().Be(new WeeklyOverallTotals(0, 0, 0, 0, 0, 0));
+		report.Contexts.Should().BeEmpty();
+		report.Days.SelectMany(day => day.FocusedTaskSamples).Should().BeEmpty();
+		report.Signals.ActiveGoalsWithoutFocusedWork.Should().ContainSingle(item => item.Id == goal.Id);
+		report.Signals.ImportantTasksWithoutFocusDateCount.Should().Be(0);
+	}
+
+	[Fact]
 	public async Task GetAsync_UsesDeterministicOrderingAndBoundsSamples()
 	{
 		using var db = CreateDb(out var connection);

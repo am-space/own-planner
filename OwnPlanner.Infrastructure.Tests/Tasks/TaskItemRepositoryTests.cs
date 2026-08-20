@@ -47,8 +47,29 @@ public class TaskItemRepositoryTests
 
 		loaded.Trash();
 		await repo.UpdateAsync(loaded, ct);
-		await repo.PermanentlyDeleteAsync(loaded, ct);
+		(await repo.PermanentlyDeleteAsync(loaded.Id, ct)).Should().Be(TaskPermanentDeleteResult.Deleted);
 		(await repo.GetAsync(item.Id, ct)).Should().BeNull();
+	}
+
+	[Fact]
+	public async Task RestoreAndPermanentDelete_ApplyOnlyToCurrentTrashedState()
+	{
+		using var db = CreateDb(out var conn);
+		await using var _ = conn;
+		var ct = TestContext.Current.CancellationToken;
+		var factory = new TestPlannerDbContextFactory(conn);
+		var tasks = new TaskItemRepository(factory);
+		var lists = new TaskListRepository(factory);
+		var list = new TaskList("list");
+		await lists.AddAsync(list, ct);
+		var task = new TaskItem("task", list.Id);
+		await tasks.AddAsync(task, ct);
+
+		(await tasks.PermanentlyDeleteAsync(task.Id, ct)).Should().Be(TaskPermanentDeleteResult.TaskNotTrashed);
+		task.Trash();
+		await tasks.UpdateAsync(task, ct);
+		(await tasks.RestoreAsync(task.Id, ct)).Should().Be(TaskRestoreResult.Restored);
+		(await tasks.PermanentlyDeleteAsync(task.Id, ct)).Should().Be(TaskPermanentDeleteResult.TaskNotTrashed);
 	}
 
 	[Fact]
@@ -62,13 +83,31 @@ public class TaskItemRepositoryTests
 		var lists = new TaskListRepository(factory);
 		var list = new TaskList("list");
 		await lists.AddAsync(list, ct);
-		var task = new TaskItem("recoverable", list.Id);
+		var goalId = Guid.NewGuid();
+		var focusDate = new DateTime(2026, 8, 20, 0, 0, 0, DateTimeKind.Utc);
+		var task = new TaskItem("recoverable", list.Id, isImportant: true, goalId: goalId);
+		task.SetFocusAt(focusDate);
 		await tasks.AddAsync(task, ct);
 		task.Trash();
 		await tasks.UpdateAsync(task, ct);
 
 		(await tasks.GetAsync(task.Id, ct)).Should().BeNull();
 		(await tasks.ListAsync(true, ct)).Should().BeEmpty();
+		(await tasks.ListByTaskListAsync(list.Id, true, ct)).Should().BeEmpty();
+		(await tasks.ListByGoalAsync(goalId, true, ct)).Should().BeEmpty();
+		(await tasks.ListByFocusDateAsync(focusDate, true, ct)).Should().BeEmpty();
+		var allPage = await tasks.ListPagedAsync(true, false, 0, 25, ct);
+		allPage.Items.Should().BeEmpty();
+		allPage.TotalCount.Should().Be(0);
+		var listPage = await tasks.ListByTaskListPagedAsync(list.Id, true, false, 0, 25, ct);
+		listPage.Items.Should().BeEmpty();
+		listPage.TotalCount.Should().Be(0);
+		var goalPage = await tasks.ListByGoalPagedAsync(goalId, true, 0, 25, ct);
+		goalPage.Items.Should().BeEmpty();
+		goalPage.TotalCount.Should().Be(0);
+		var focusPage = await tasks.ListByFocusDatePagedAsync(focusDate, true, 0, 25, ct);
+		focusPage.Items.Should().BeEmpty();
+		focusPage.TotalCount.Should().Be(0);
 		var trash = await tasks.ListTrashedPagedAsync(0, 25, ct);
 		trash.Items.Should().ContainSingle().Which.TaskListId.Should().Be(list.Id);
 

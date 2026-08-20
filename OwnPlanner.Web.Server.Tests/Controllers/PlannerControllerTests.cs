@@ -108,6 +108,31 @@ public class PlannerControllerTests
 		await _taskItemService.Received(1).PermanentlyDeleteAsync(id, Arg.Any<CancellationToken>());
 	}
 
+	[Fact]
+	public async Task PermanentlyDeleteTask_WhenTaskDoesNotExist_ReturnsNotFound()
+	{
+		var id = Guid.NewGuid();
+		_taskItemService.PermanentlyDeleteAsync(id, Arg.Any<CancellationToken>())
+			.Returns(Task.FromException(new KeyNotFoundException()));
+
+		var result = await CreateController().PermanentlyDeleteTask(id, TestContext.Current.CancellationToken);
+
+		result.Should().BeOfType<NotFoundResult>();
+	}
+
+	[Theory]
+	[InlineData(-1, 25)]
+	[InlineData(0, 0)]
+	[InlineData(0, 101)]
+	public async Task GetTaskTrash_InvalidPaging_ReturnsBadRequest(int offset, int limit)
+	{
+		var result = await CreateController().GetTaskTrash(offset, limit, TestContext.Current.CancellationToken);
+
+		result.Result.Should().BeOfType<BadRequestObjectResult>();
+		await _taskItemService.DidNotReceive().ListTrashedPagedAsync(
+			Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>());
+	}
+
 	private PlannerController CreateController()
 	{
 		var principal = new ClaimsPrincipal(new ClaimsIdentity(

@@ -45,6 +45,8 @@ public sealed class PlannerController(
 		CancellationToken cancellationToken = default)
 	{
 		await EnsurePlannerInitializedAsync(cancellationToken);
+		if (offset < 0 || limit is < 1 or > PlannerReadDefaults.MaximumPageSize)
+			return BadRequest(new ProblemDetails { Title = "Invalid paging", Detail = $"Offset must be non-negative and limit must be between 1 and {PlannerReadDefaults.MaximumPageSize}." });
 		return Ok(await taskItemService.ListTrashedPagedAsync(offset, limit, cancellationToken));
 	}
 
@@ -75,6 +77,10 @@ public sealed class PlannerController(
 		{
 			await taskItemService.PermanentlyDeleteAsync(id, cancellationToken);
 			return Ok(new { success = true, id });
+		}
+		catch (KeyNotFoundException)
+		{
+			return NotFound();
 		}
 		catch (InvalidOperationException ex)
 		{

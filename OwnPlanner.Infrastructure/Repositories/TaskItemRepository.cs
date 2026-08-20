@@ -126,11 +126,41 @@ public class TaskItemRepository(IPlannerDbContextFactory dbContextFactory)
 		return (items, total);
 	}
 
-	public async Task PermanentlyDeleteAsync(TaskItem task, CancellationToken ct = default)
+	public async Task<TaskRestoreResult> RestoreAsync(Guid id, CancellationToken ct = default)
 	{
-		if (!task.TrashedAt.HasValue)
-			throw new InvalidOperationException("Only a task already in Trash can be permanently deleted.");
-		await base.DeleteAsync(task, ct).ConfigureAwait(false);
+		await using var db = await CreateDbContextAsync(ct).ConfigureAwait(false);
+		var restored = await db.TaskItems
+			.Where(task => task.Id == id
+				&& task.TrashedAt != null
+				&& db.TaskLists.Any(list => list.Id == task.TaskListId))
+			.ExecuteUpdateAsync(setters => setters
+				.SetProperty(task => task.TrashedAt, (DateTime?)null)
+				.SetProperty(task => task.ActiveTaskListId, task => (Guid?)task.TaskListId), ct)
+			.ConfigureAwait(false);
+		if (restored == 1)
+			return TaskRestoreResult.Restored;
+
+		var state = await db.TaskItems
+			.Where(task => task.Id == id && task.TrashedAt != null)
+			.Select(task => new { OriginalListExists = db.TaskLists.Any(list => list.Id == task.TaskListId) })
+			.SingleOrDefaultAsync(ct)
+			.ConfigureAwait(false);
+		return state is null ? TaskRestoreResult.TaskNotFound : TaskRestoreResult.OriginalTaskListNotFound;
+	}
+
+	public async Task<TaskPermanentDeleteResult> PermanentlyDeleteAsync(Guid id, CancellationToken ct = default)
+	{
+		await using var db = await CreateDbContextAsync(ct).ConfigureAwait(false);
+		var deleted = await db.TaskItems
+			.Where(task => task.Id == id && task.TrashedAt != null)
+			.ExecuteDeleteAsync(ct)
+			.ConfigureAwait(false);
+		if (deleted == 1)
+			return TaskPermanentDeleteResult.Deleted;
+
+		return await db.TaskItems.AnyAsync(task => task.Id == id, ct).ConfigureAwait(false)
+			? TaskPermanentDeleteResult.TaskNotTrashed
+			: TaskPermanentDeleteResult.TaskNotFound;
 	}
 
 	/// <summary>

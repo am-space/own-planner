@@ -1,5 +1,19 @@
 namespace OwnPlanner.Domain.Tasks;
 
+public enum TaskRestoreResult
+{
+	Restored,
+	TaskNotFound,
+	OriginalTaskListNotFound
+}
+
+public enum TaskPermanentDeleteResult
+{
+	Deleted,
+	TaskNotFound,
+	TaskNotTrashed
+}
+
 public interface ITaskItemRepository
 {
 	Task<TaskItem?> GetAsync(Guid id, CancellationToken ct = default);
@@ -40,6 +54,8 @@ public interface ITaskItemRepository
 
 	Task AddAsync(TaskItem task, CancellationToken ct = default);
 	Task UpdateAsync(TaskItem task, CancellationToken ct = default);
-	/// <summary>Permanently removes a task that has already been moved to Trash.</summary>
-	Task PermanentlyDeleteAsync(TaskItem task, CancellationToken ct = default);
+	/// <summary>Atomically restores a trashed task when its original task list still exists.</summary>
+	Task<TaskRestoreResult> RestoreAsync(Guid id, CancellationToken ct = default);
+	/// <summary>Atomically removes a task only while it remains in Trash.</summary>
+	Task<TaskPermanentDeleteResult> PermanentlyDeleteAsync(Guid id, CancellationToken ct = default);
 }

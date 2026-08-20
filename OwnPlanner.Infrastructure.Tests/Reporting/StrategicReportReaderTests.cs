@@ -126,6 +126,31 @@ public class StrategicReportReaderTests
 	}
 
 	[Fact]
+	public async Task GetAsync_ExcludesTrashedTasksFromTotalsSignalsAndSamples()
+	{
+		using var db = CreateDb(out var connection);
+		await using var _ = connection;
+		var ct = TestContext.Current.CancellationToken;
+		var context = new PlanningContext("Work", ContextType.Area);
+		var goal = new Goal("Goal", GoalHorizon.Yearly, targetPeriod: "2026");
+		var list = new TaskList("Tasks", contextId: context.Id);
+		db.AddRange(context, goal, list);
+		await db.SaveChangesAsync(ct);
+		var trashed = new TaskItem("Trashed", list.Id, dueAt: AsOfUtc.AddDays(-1), isImportant: true, goalId: goal.Id);
+		trashed.Trash();
+		db.Add(trashed);
+		await db.SaveChangesAsync(ct);
+
+		var report = await CreateReader(connection).GetAsync(new StrategicReportOptions(), ct);
+
+		report.Totals.IncompleteTaskCount.Should().Be(0);
+		report.Contexts.Single().IncompleteTaskCount.Should().Be(0);
+		report.Contexts.Single().TaskSamples.Should().BeEmpty();
+		report.Signals.ActiveGoalsWithoutActiveTasks.Should().ContainSingle(item => item.Id == goal.Id);
+		report.Signals.TasksWithoutGoalCount.Should().Be(0);
+	}
+
+	[Fact]
 	public async Task GetAsync_BoundsOrdersAndTruncatesSamples()
 	{
 		using var db = CreateDb(out var connection);

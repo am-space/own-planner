@@ -97,6 +97,28 @@ public class PlannerReadStoreTests
 	}
 
 	[Fact]
+	public async Task TaskQueriesAndDetails_ExcludeTrashedTasks()
+	{
+		using var db = CreateDb(out var connection);
+		await using var _ = connection;
+		var ct = TestContext.Current.CancellationToken;
+		var list = new TaskList("Tasks");
+		db.Add(list);
+		await db.SaveChangesAsync(ct);
+		var task = new TaskItem("Trashed", list.Id);
+		task.Trash();
+		db.Add(task);
+		await db.SaveChangesAsync(ct);
+		var store = new PlannerReadStore(new TestPlannerDbContextFactory(connection));
+
+		var page = await store.QueryTasksAsync(new PlannerTaskQuery(Status: PlannerTaskStatus.All), ct);
+
+		page.TotalCount.Should().Be(0);
+		page.Items.Should().BeEmpty();
+		(await store.GetTaskAsync(task.Id, ct)).Should().BeNull();
+	}
+
+	[Fact]
 	public async Task QueryNotesAsync_AppliesFiltersAndLoadsFullDetailSeparately()
 	{
 		using var db = CreateDb(out var connection);

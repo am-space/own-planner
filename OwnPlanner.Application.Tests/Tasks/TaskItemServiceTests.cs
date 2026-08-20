@@ -36,32 +36,23 @@ public class TaskItemServiceTests
 	{
 		var ct = TestContext.Current.CancellationToken;
 		var id = Guid.NewGuid();
-		var listId = Guid.NewGuid();
-		var item = new TaskItem("task", listId);
-		item.Trash();
-		_repo.GetTrashedAsync(id, ct).Returns(item);
-		_taskListRepo.GetAsync(listId, ct).Returns(new TaskList("list"));
+		_repo.RestoreAsync(id, ct).Returns(TaskRestoreResult.Restored);
 
 		await _svc.RestoreAsync(id, ct);
 
-		item.TrashedAt.Should().BeNull();
-		item.ActiveTaskListId.Should().Be(listId);
-		await _repo.Received(1).UpdateAsync(item, ct);
+		await _repo.Received(1).RestoreAsync(id, ct);
 	}
 
 	[Fact]
 	public async Task RestoreAsync_WhenOriginalListIsMissing_FailsWithoutChangingTask()
 	{
 		var ct = TestContext.Current.CancellationToken;
-		var item = new TaskItem("task", Guid.NewGuid());
-		item.Trash();
-		_repo.GetTrashedAsync(item.Id, ct).Returns(item);
+		var id = Guid.NewGuid();
+		_repo.RestoreAsync(id, ct).Returns(TaskRestoreResult.OriginalTaskListNotFound);
 
-		var act = () => _svc.RestoreAsync(item.Id, ct);
+		var act = () => _svc.RestoreAsync(id, ct);
 
 		await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*original task list*");
-		item.TrashedAt.Should().NotBeNull();
-		await _repo.DidNotReceive().UpdateAsync(Arg.Any<TaskItem>(), Arg.Any<CancellationToken>());
 	}
 
 	[Fact]
@@ -69,11 +60,24 @@ public class TaskItemServiceTests
 	{
 		var ct = TestContext.Current.CancellationToken;
 		var id = Guid.NewGuid();
+		_repo.PermanentlyDeleteAsync(id, ct).Returns(TaskPermanentDeleteResult.TaskNotTrashed);
 
 		var act = () => _svc.PermanentlyDeleteAsync(id, ct);
 
 		await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*already in Trash*");
-		await _repo.DidNotReceive().PermanentlyDeleteAsync(Arg.Any<TaskItem>(), Arg.Any<CancellationToken>());
+		await _repo.Received(1).PermanentlyDeleteAsync(id, ct);
+	}
+
+	[Fact]
+	public async Task PermanentlyDeleteAsync_WhenTaskDoesNotExist_ThrowsKeyNotFound()
+	{
+		var ct = TestContext.Current.CancellationToken;
+		var id = Guid.NewGuid();
+		_repo.PermanentlyDeleteAsync(id, ct).Returns(TaskPermanentDeleteResult.TaskNotFound);
+
+		var act = () => _svc.PermanentlyDeleteAsync(id, ct);
+
+		await act.Should().ThrowAsync<KeyNotFoundException>();
 	}
 
 	[Fact]

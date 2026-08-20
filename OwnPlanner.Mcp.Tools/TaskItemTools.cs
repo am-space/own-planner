@@ -147,12 +147,12 @@ public class TaskItemTools
 	}
 
 	[McpServerTool(Name = "taskitem_list_trash", Idempotent = true, ReadOnly = true), Description("List tasks in Trash (paginated, default 25 per page, max 100). Returns { items, totalCount, offset, limit, hasMore }. Trashed tasks are excluded from normal task queries.")]
-	public async Task<object> ListTrash(int limit = 25, int offset = 0)
+	public async Task<object> ListTrash(int limit = 25, int offset = 0, CancellationToken cancellationToken = default)
 	{
-		var page = await _service.ListTrashedPagedAsync(offset, limit);
+		var page = await _service.ListTrashedPagedAsync(offset, limit, cancellationToken);
 		return new
 		{
-			items = page.Items,
+			items = page.Items.Select(item => item with { Description = TruncateDescription(item.Description) }),
 			page.TotalCount,
 			page.Offset,
 			page.Limit,
@@ -161,11 +161,11 @@ public class TaskItemTools
 	}
 
 	[McpServerTool(Name = "taskitem_restore"), Description("Restore a task from Trash to its original task list. Fails safely if that list no longer exists.")]
-	public async Task<object> RestoreTask(Guid id)
+	public async Task<object> RestoreTask(Guid id, CancellationToken cancellationToken = default)
 	{
 		try
 		{
-			await _service.RestoreAsync(id);
+			await _service.RestoreAsync(id, cancellationToken);
 			return new { success = true, id };
 		}
 		catch (Exception ex) when (ex is KeyNotFoundException or InvalidOperationException)
