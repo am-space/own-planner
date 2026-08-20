@@ -50,14 +50,22 @@ public sealed class ReflectionReportReader(
 		var allTaskListIds = taskLists.Select(list => list.Id).ToHashSet();
 		var activeTaskListIds = activeTaskLists.Select(list => list.Id).ToHashSet();
 		var tasks = await db.TaskItems.AsNoTracking()
-			.Where(task => activeTaskListIds.Contains(task.TaskListId) || !allTaskListIds.Contains(task.TaskListId))
+			.Where(task =>
+				(activeTaskListIds.Contains(task.TaskListId) || !allTaskListIds.Contains(task.TaskListId)) &&
+				(!task.IsCompleted ||
+				 (task.CreatedAt >= startUtc && task.CreatedAt < endUtc) ||
+				 (task.CompletedAt.HasValue && task.CompletedAt.Value >= startUtc && task.CompletedAt.Value < endUtc)))
 			.Select(task => new TaskRow(task.Id, task.Title, task.IsCompleted, task.IsImportant, task.CreatedAt, task.CompletedAt, task.DueAt, task.FocusAt, task.TaskListId, task.GoalId))
 			.ToListAsync(cancellationToken);
 		var activeNoteLists = noteLists.Where(list => !list.IsArchived).ToList();
 		var allNoteListIds = noteLists.Select(list => list.Id).ToHashSet();
 		var activeNoteListIds = activeNoteLists.Select(list => list.Id).ToHashSet();
 		var notes = await db.NoteItems.AsNoTracking()
-			.Where(note => activeNoteListIds.Contains(note.NoteListId) || !allNoteListIds.Contains(note.NoteListId))
+			.Where(note =>
+				(activeNoteListIds.Contains(note.NoteListId) || !allNoteListIds.Contains(note.NoteListId)) &&
+				(note.NoteListId == WellKnownIds.InboxNoteList ||
+				 (note.CreatedAt >= startUtc && note.CreatedAt < endUtc) ||
+				 (note.UpdatedAt >= startUtc && note.UpdatedAt < endUtc)))
 			.Select(note => new NoteRow(note.Id, note.Title, note.IsPinned, note.CreatedAt, note.UpdatedAt, note.NoteListId, note.GoalId))
 			.ToListAsync(cancellationToken);
 

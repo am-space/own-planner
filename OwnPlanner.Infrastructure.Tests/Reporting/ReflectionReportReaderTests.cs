@@ -1,6 +1,8 @@
 using FluentAssertions;
+using System.Data.Common;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using OwnPlanner.Application.Reporting;
 using OwnPlanner.Domain;
 using OwnPlanner.Domain.Contexts;
@@ -32,6 +34,22 @@ public class ReflectionReportReaderTests
 		report.PeriodSemantics.Should().Be("[periodStartUtc, periodEndExclusiveUtc)");
 		report.HistoricalLimitations.Should().Contain(item => item.Contains("reopened", StringComparison.OrdinalIgnoreCase));
 		report.Totals.Should().Be(new ReflectionOverallTotals(0, 0, 0, 0, 0, 0));
+	}
+
+	[Fact]
+	public async Task GetAsync_FiltersTaskAndNoteRowsInSqlToRequiredCurrentStateAndPeriod()
+	{
+		using var db = CreateDb(out var connection);
+		await using var _ = connection;
+		var interceptor = new CommandCaptureInterceptor();
+		var reader = new ReflectionReportReader(new CapturingDbContextFactory(connection, interceptor), new FixedTimeProvider(AsOfUtc));
+
+		await reader.GetAsync(new ReflectionReportOptions(), TestContext.Current.CancellationToken);
+
+		var taskQuery = interceptor.Commands.Single(command => command.Contains("FROM \"TaskItems\"", StringComparison.Ordinal));
+		taskQuery.Should().Contain("IsCompleted").And.Contain("CreatedAt").And.Contain("CompletedAt");
+		var noteQuery = interceptor.Commands.Single(command => command.Contains("FROM \"NoteItems\"", StringComparison.Ordinal));
+		noteQuery.Should().Contain("NoteListId").And.Contain("CreatedAt").And.Contain("UpdatedAt");
 	}
 
 	[Fact]
@@ -232,5 +250,28 @@ public class ReflectionReportReaderTests
 	private sealed class FixedTimeProvider(DateTime utcNow) : TimeProvider
 	{
 		public override DateTimeOffset GetUtcNow() => new(utcNow);
+	}
+
+	private sealed class CapturingDbContextFactory(SqliteConnection connection, CommandCaptureInterceptor interceptor) : IPlannerDbContextFactory
+	{
+		public ValueTask<AppDbContext> CreateAsync(CancellationToken cancellationToken = default) =>
+			ValueTask.FromResult(new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseSqlite(connection).AddInterceptors(interceptor).Options));
+
+		public Task DeleteUserDatabaseAsync(string userId, CancellationToken cancellationToken = default) => Task.CompletedTask;
+	}
+
+	private sealed class CommandCaptureInterceptor : DbCommandInterceptor
+	{
+		public List<string> Commands { get; } = [];
+
+		public override ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(
+			DbCommand command,
+			CommandEventData eventData,
+			InterceptionResult<DbDataReader> result,
+			CancellationToken cancellationToken = default)
+		{
+			Commands.Add(command.CommandText);
+			return ValueTask.FromResult(result);
+		}
 	}
 }
