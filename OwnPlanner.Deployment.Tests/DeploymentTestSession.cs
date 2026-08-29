@@ -79,29 +79,54 @@ public sealed class DeploymentTestSession : IAsyncDisposable
 			return;
 		}
 
-		var artifactDirectory = ResolveArtifactDirectory();
-		Directory.CreateDirectory(artifactDirectory);
-		var safeTestName = string.Concat(testName.Select(character => char.IsLetterOrDigit(character) ? character : '-'));
-		var suffix = Guid.NewGuid().ToString("N");
-		var screenshotPath = Path.Combine(artifactDirectory, $"{safeTestName}-{suffix}.png");
-		var tracePath = Path.Combine(artifactDirectory, $"{safeTestName}-{suffix}.zip");
-
 		try
 		{
-			await Page.ScreenshotAsync(new() { Path = screenshotPath, FullPage = true });
+			var artifactDirectory = ResolveArtifactDirectory();
+			Directory.CreateDirectory(artifactDirectory);
+			var safeTestName = string.Concat(testName.Select(character => char.IsLetterOrDigit(character) ? character : '-'));
+			var suffix = Guid.NewGuid().ToString("N");
+			var screenshotPath = Path.Combine(artifactDirectory, $"{safeTestName}-{suffix}.png");
+			var tracePath = Path.Combine(artifactDirectory, $"{safeTestName}-{suffix}.zip");
+
+			try
+			{
+				await Page.ScreenshotAsync(new() { Path = screenshotPath, FullPage = true });
+			}
+			catch (Exception screenshotException)
+			{
+				TestContext.Current.AddWarning($"Could not capture deployment screenshot: {screenshotException.Message}");
+			}
+
+			await _context.Tracing.StopAsync(new() { Path = tracePath });
+			_traceStarted = false;
+			if (File.Exists(screenshotPath))
+			{
+				TestContext.Current.AddAttachment("deployment-screenshot", await File.ReadAllBytesAsync(screenshotPath));
+			}
+			if (File.Exists(tracePath))
+			{
+				TestContext.Current.AddAttachment("deployment-trace", await File.ReadAllBytesAsync(tracePath));
+			}
 		}
 		catch (Exception exception)
 		{
-			TestContext.Current.AddWarning($"Could not capture deployment screenshot: {exception.Message}");
+			TestContext.Current.AddWarning($"Could not retain deployment failure artifacts: {exception.Message}");
+			if (_traceStarted)
+			{
+				try
+				{
+					await _context.Tracing.StopAsync();
+				}
+				catch (Exception traceException)
+				{
+					TestContext.Current.AddWarning($"Could not stop Playwright tracing: {traceException.Message}");
+				}
+				finally
+				{
+					_traceStarted = false;
+				}
+			}
 		}
-
-		await _context.Tracing.StopAsync(new() { Path = tracePath });
-		_traceStarted = false;
-		if (File.Exists(screenshotPath))
-		{
-			TestContext.Current.AddAttachment("deployment-screenshot", await File.ReadAllBytesAsync(screenshotPath));
-		}
-		TestContext.Current.AddAttachment("deployment-trace", await File.ReadAllBytesAsync(tracePath));
 	}
 
 	public async ValueTask DisposeAsync()

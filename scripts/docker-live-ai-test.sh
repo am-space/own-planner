@@ -25,8 +25,9 @@ trap cleanup EXIT
 
 mkdir -p "$REPO_ROOT/TestResults"
 "$SCRIPT_DIR/docker-up.sh" live-ai
+published_address="$(docker compose --project-directory "$REPO_ROOT" port app 8080)"
 
-OWNPLANNER_BASE_URL="http://127.0.0.1:${OWNPLANNER_PORT:-8080}" \
+OWNPLANNER_BASE_URL="http://$published_address" \
 OWNPLANNER_RUN_LIVE_AI=true \
   dotnet test "$PROJECT" --filter "Category=LiveAi" \
   --logger "trx;LogFileName=deployment-live-ai.trx" \

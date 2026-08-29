@@ -25,5 +25,5 @@ command -v docker >/dev/null 2>&1 || { echo "docker is required" >&2; exit 1; }
 docker compose version >/dev/null
 
 docker compose --project-directory "$REPO_ROOT" up --detach --build --wait app
-echo "OwnPlanner is healthy at http://127.0.0.1:${OWNPLANNER_PORT:-8080}"
-
+published_address="$(docker compose --project-directory "$REPO_ROOT" port app 8080)"
+echo "OwnPlanner is healthy at http://$published_address"

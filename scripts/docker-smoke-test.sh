@@ -18,9 +18,9 @@ trap cleanup EXIT
 
 mkdir -p "$REPO_ROOT/TestResults"
 "$SCRIPT_DIR/docker-up.sh" smoke
+published_address="$(docker compose --project-directory "$REPO_ROOT" port app 8080)"
 
-OWNPLANNER_BASE_URL="http://127.0.0.1:${OWNPLANNER_PORT:-8080}" \
+OWNPLANNER_BASE_URL="http://$published_address" \
   dotnet test "$PROJECT" --filter "Category=DeploymentSmoke" \
   --logger "trx;LogFileName=deployment-smoke.trx" \
   --results-directory "$REPO_ROOT/TestResults/Deployment"
-

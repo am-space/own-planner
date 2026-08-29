@@ -9,7 +9,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       Chat__Gemini__ApiKey: ${GEMINI_API_KEY:-}
-      Chat__Gemini__Model: ${GEMINI_MODEL:-gemini-flash-latest}
+      Chat__Gemini__Model: ${GEMINI_MODEL:-gemini-3.5-flash-lite}
       Database__AuthDbPath: /app/data/auth/auth.db
       Database__UserDbDirectory: /app/data/databases
       Email__Provider: Logging
