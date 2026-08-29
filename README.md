@@ -118,7 +118,7 @@ Key features include:
 
 ## Built With
 
-- Frontend: React 19 + TypeScript + Material-UI
+- Frontend: React 19 + TypeScript + Material UI 9 (built with Node.js 24 LTS)
 - Backend: .NET 10 + ASP.NET Core
 - AI: Google Gemini + Mscc.GenerativeAI SDK
 

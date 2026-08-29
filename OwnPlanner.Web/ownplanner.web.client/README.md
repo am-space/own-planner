@@ -39,7 +39,7 @@ A modern React + TypeScript + MUI web client for the OwnPlanner application.
 
 ### Prerequisites
 
-- Node.js (v18 or higher)
+- Node.js 24 LTS (see the repository `.node-version`)
 - npm or yarn
 
 ### Installation
@@ -152,5 +152,4 @@ dotnet dev-certs https --trust
 
 ### Port Conflicts
 Change the port in `vite.config.ts` if 56404 is already in use.
-
 

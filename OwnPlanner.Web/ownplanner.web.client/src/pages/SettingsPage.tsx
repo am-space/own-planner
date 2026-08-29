@@ -280,7 +280,7 @@ export default function SettingsPage() {
                 <Button component="a" href={telegramLink.url} target="_blank" rel="noopener noreferrer" variant="outlined" startIcon={<OpenInNewIcon />}>
                   Open Telegram
                 </Button>
-                <Typography variant="caption" display="block" color="text.secondary" sx={{ mt: 1 }}>
+                <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
                   Link expires {formatDate(telegramLink.expiresAtUtc)}.
                 </Typography>
               </Box>

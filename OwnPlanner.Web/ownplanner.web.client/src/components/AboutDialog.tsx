@@ -113,7 +113,7 @@ export default function AboutDialog({ open, onClose }: AboutDialogProps) {
 
           {/* Technology Stack */}
           <Box>
-            <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+            <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }} gutterBottom>
               Built With
             </Typography>
             <List dense disablePadding sx={{ py: 0 }}>
@@ -122,8 +122,8 @@ export default function AboutDialog({ open, onClose }: AboutDialogProps) {
                   <FiberManualRecordIcon sx={{ fontSize: 8 }} />
                 </ListItemIcon>
                 <ListItemText
-                  primary="Frontend: React 18 + TypeScript + Material-UI"
-                  primaryTypographyProps={{ variant: 'body2', color: 'text.secondary' }}
+                  primary="Frontend: React 19 + TypeScript + Material UI"
+                  slotProps={{ primary: { variant: 'body2', color: 'text.secondary' } }}
                 />
               </ListItem>
               <ListItem disableGutters sx={{ py: 0, minHeight: 'auto' }}>
@@ -132,7 +132,7 @@ export default function AboutDialog({ open, onClose }: AboutDialogProps) {
                 </ListItemIcon>
                 <ListItemText
                   primary="Backend: .NET 10 + ASP.NET Core"
-                  primaryTypographyProps={{ variant: 'body2', color: 'text.secondary' }}
+                  slotProps={{ primary: { variant: 'body2', color: 'text.secondary' } }}
                 />
               </ListItem>
               <ListItem disableGutters sx={{ py: 0, minHeight: 'auto' }}>
@@ -141,7 +141,7 @@ export default function AboutDialog({ open, onClose }: AboutDialogProps) {
                 </ListItemIcon>
                 <ListItemText
                   primary="AI: Google Gemini + Mscc.GenerativeAI SDK"
-                  primaryTypographyProps={{ variant: 'body2', color: 'text.secondary' }}
+                  slotProps={{ primary: { variant: 'body2', color: 'text.secondary' } }}
                 />
               </ListItem>
             </List>
@@ -151,7 +151,7 @@ export default function AboutDialog({ open, onClose }: AboutDialogProps) {
 
           {/* GitHub Link */}
           <Box>
-            <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+            <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }} gutterBottom>
               Open Source
             </Typography>
             <Button

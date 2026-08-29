@@ -54,6 +54,7 @@ ADRs describe decisions as actually shipped. Start new records from [`adr/templa
 - [`ADR-0014`](adr/0014-deterministic-current-state-reflection-reporting.md) — deterministic current-state reflection reporting with explicit historical limits
 - [`ADR-0015`](adr/0015-recoverable-task-trash.md) — recoverable task deletion with explicit permanent removal
 - [`ADR-0016`](adr/0016-bounded-delegated-task-lifecycle-mutations.md) — bounded delegated task completion and recoverable Trash
+- [`ADR-0017`](adr/0017-supported-dependency-baselines.md) — supported runtime and dependency baselines
 
 ## Historical plans
 

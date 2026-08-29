@@ -619,7 +619,7 @@ export default function ChatPage({ compact = false }: ChatPageProps) {
                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, alignItems: 'center' }}>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                 <LightbulbOutlinedIcon fontSize="small" color="action" />
-                                <Typography variant="body2" color="text.secondary" fontWeight="medium">
+                                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 'medium' }}>
                                     {planningMode === 'SystemAnalysis' ? 'Run analysis:' : 'Suggestions:'}
                                 </Typography>
                             </Box>

@@ -137,7 +137,7 @@ export default function TrashPage() {
           </Paper>
         )}
         {result && result.totalCount > pageSize && (
-          <Stack direction="row" justifyContent="space-between" alignItems="center">
+          <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
             <Button disabled={offset === 0 || loading} onClick={() => setOffset(Math.max(0, offset - pageSize))}>
               Previous
             </Button>
