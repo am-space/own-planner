@@ -62,6 +62,28 @@ payload mapping, or the internal Gemini function-call loop. Those behaviors requ
 tests or a separately approved, secret-gated live evaluation with bounded spend; they do not belong
 in pull-request verification.
 
+## External deployment verification
+
+`OwnPlanner.Deployment.Tests` is a black-box Playwright suite for an already-running OwnPlanner
+deployment. Unlike `OwnPlanner.E2E.Tests`, it does not host the application or replace Gemini. It
+uses only the public health endpoint and browser UI, so it validates the built container, static
+frontend, cookie authentication, routing, and persistence together.
+
+The tests require `OWNPLANNER_BASE_URL`; without it they skip. Normal `verify.sh` runs exclude the
+deployment categories so an inherited environment variable cannot accidentally target a real
+deployment.
+
+| Category | External dependency | Purpose |
+|---|---|---|
+| `DeploymentSmoke` | Running OwnPlanner only | Health, registration, navigation, logout, protected routes |
+| `LiveAi` | Running OwnPlanner plus Gemini key | Bounded prompt-to-tool-to-persisted-state evaluation |
+
+Use `scripts/docker-smoke-test.sh` for the default disposable container workflow and
+`scripts/docker-live-ai-test.sh` only after explicitly providing `GEMINI_API_KEY`. Failure
+screenshots and traces are retained in `TestResults/Deployment/`; the wrapper scripts also retain
+container logs on failure before cleanup. See [`docker.md`](docker.md) for commands and secret
+handling.
+
 ## Current browser coverage
 
 The initial suite covers:

@@ -11,7 +11,7 @@ usage() {
 Usage: scripts/verify.sh [--all|--backend|--frontend|--e2e]
 
   --all       Verify the frontend, backend, and E2E suite (default).
-  --backend   Build and test the .NET solution, excluding E2E tests.
+  --backend   Build and test the .NET solution, excluding browser deployment tests.
   --frontend  Lint and build the frontend.
   --e2e       Build the frontend and run the Playwright E2E suite.
 
@@ -66,7 +66,7 @@ verify_backend() {
 
   echo "Testing .NET solution..."
   dotnet test "$REPO_ROOT/OwnPlanner.sln" --no-build --no-restore -c Release --verbosity normal \
-    --filter "Category!=E2E" --disable-build-servers -m:1
+    --filter "Category!=E2E&Category!=DeploymentSmoke&Category!=LiveAi" --disable-build-servers -m:1
 }
 
 verify_e2e() {

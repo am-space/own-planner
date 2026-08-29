@@ -109,6 +109,8 @@ OwnPlanner is a multi-project .NET 10 solution for personal planning and task ma
 - Shared MCP tools
   - **OwnPlanner.Mcp.Tools**: Tool definitions and handlers reused by the web and stdio transports.
   - **OwnPlanner.Mcp.Tools.Tests**: Contract and behavior tests for shared MCP tools.
+- Deployment verification
+  - **OwnPlanner.Deployment.Tests**: Headless black-box tests for a running Docker deployment, with an opt-in live Gemini scenario.
 
 Key features include:
 - Layered architecture for maintainability and testability
@@ -126,6 +128,9 @@ Key features include:
 
 See [`docs/README.md`](docs/README.md) for current architecture and operations references, proposed
 work, ADRs, and archived implementation plans.
+
+For a disposable local Docker deployment and headless agent-oriented smoke tests, see
+[`docs/docker.md`](docs/docker.md).
 
 ## Release Notes
 
