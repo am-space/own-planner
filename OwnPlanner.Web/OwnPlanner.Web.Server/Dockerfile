@@ -6,10 +6,10 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0.300 AS with-node
 WORKDIR /src
 
-# Install Node.js 20.x (optimized commands)
+# Install Node.js 24.x (matches .node-version and CI)
 RUN apt-get update && \
     apt-get install -y curl && \
-    curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    curl -fsSL https://deb.nodesource.com/setup_24.x | bash - && \
     apt-get install -y nodejs && \
     rm -rf /var/lib/apt/lists/*
 

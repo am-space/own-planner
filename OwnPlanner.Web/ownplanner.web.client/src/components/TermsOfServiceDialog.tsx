@@ -69,7 +69,7 @@ export default function TermsOfServiceDialog({
             <Typography variant="h6" gutterBottom>
               1. Acceptance of Terms
             </Typography>
-            <Typography variant="body2" color="text.secondary" paragraph>
+            <Typography variant="body2" color="text.secondary" component="p" sx={{ mb: 2 }}>
               By accessing and using OwnPlanner ("the Service"), you accept and agree to be bound by
               these Terms of Service. If you do not agree to these terms, please do not use the Service.
             </Typography>
@@ -80,7 +80,7 @@ export default function TermsOfServiceDialog({
             <Typography variant="h6" gutterBottom>
               2. Service Description
             </Typography>
-            <Typography variant="body2" color="text.secondary" paragraph>
+            <Typography variant="body2" color="text.secondary" component="p" sx={{ mb: 2 }}>
               OwnPlanner is an AI-powered personal planning assistant that helps you manage tasks,
               notes, and stay organized through intelligent conversation. The Service uses Google
               Gemini AI to provide chat-based assistance.
@@ -92,7 +92,7 @@ export default function TermsOfServiceDialog({
             <Typography variant="h6" gutterBottom>
               3. AI Service and Data Processing
             </Typography>
-            <Typography variant="body2" color="text.secondary" paragraph>
+            <Typography variant="body2" color="text.secondary" component="p" sx={{ mb: 2 }}>
               <strong>Important:</strong> OwnPlanner uses Google Gemini AI to power its chat assistant.
               When you interact with the chat feature:
             </Typography>
@@ -104,7 +104,7 @@ export default function TermsOfServiceDialog({
                 <li>You should not share sensitive personal information in conversations</li>
               </ul>
             </Typography>
-            <Typography variant="body2" color="text.secondary" paragraph>
+            <Typography variant="body2" color="text.secondary" component="p" sx={{ mb: 2 }}>
               By using the chat feature, you acknowledge and consent to your data being processed by
               Google's AI services as described in Google's privacy policy.
             </Typography>
@@ -132,7 +132,7 @@ export default function TermsOfServiceDialog({
             <Typography variant="h6" gutterBottom>
               5. Data and Privacy
             </Typography>
-            <Typography variant="body2" color="text.secondary" paragraph>
+            <Typography variant="body2" color="text.secondary" component="p" sx={{ mb: 2 }}>
               We collect and store your account information (email, username) and the tasks/notes you
               create. Your chat conversations are processed by Google Gemini AI. We implement reasonable
               security measures to protect your data, but cannot guarantee absolute security.
@@ -144,7 +144,7 @@ export default function TermsOfServiceDialog({
             <Typography variant="h6" gutterBottom>
               6. Disclaimer of Warranties
             </Typography>
-            <Typography variant="body2" color="text.secondary" paragraph>
+            <Typography variant="body2" color="text.secondary" component="p" sx={{ mb: 2 }}>
               The Service is provided "AS IS" without warranties of any kind. We do not guarantee that:
             </Typography>
             <Typography variant="body2" color="text.secondary" component="div">
@@ -162,7 +162,7 @@ export default function TermsOfServiceDialog({
             <Typography variant="h6" gutterBottom>
               7. Limitation of Liability
             </Typography>
-            <Typography variant="body2" color="text.secondary" paragraph>
+            <Typography variant="body2" color="text.secondary" component="p" sx={{ mb: 2 }}>
               To the fullest extent permitted by law, OwnPlanner and its creators shall not be liable
               for any indirect, incidental, special, consequential, or punitive damages resulting from
               your use of the Service, including but not limited to data loss, inaccurate AI responses,
@@ -175,7 +175,7 @@ export default function TermsOfServiceDialog({
             <Typography variant="h6" gutterBottom>
               8. Account Termination
             </Typography>
-            <Typography variant="body2" color="text.secondary" paragraph>
+            <Typography variant="body2" color="text.secondary" component="p" sx={{ mb: 2 }}>
               We reserve the right to suspend or terminate your account at any time for violation of
               these terms or for any other reason. You may delete your account at any time by contacting us.
             </Typography>
@@ -186,7 +186,7 @@ export default function TermsOfServiceDialog({
             <Typography variant="h6" gutterBottom>
               9. Changes to Terms
             </Typography>
-            <Typography variant="body2" color="text.secondary" paragraph>
+            <Typography variant="body2" color="text.secondary" component="p" sx={{ mb: 2 }}>
               We may modify these Terms of Service at any time. Continued use of the Service after
               changes constitutes acceptance of the modified terms.
             </Typography>
@@ -197,7 +197,7 @@ export default function TermsOfServiceDialog({
             <Typography variant="h6" gutterBottom>
               10. Open Source
             </Typography>
-            <Typography variant="body2" color="text.secondary" paragraph>
+            <Typography variant="body2" color="text.secondary" component="p" sx={{ mb: 2 }}>
               OwnPlanner is an open-source project. The source code is available at{' '}
               <a
                 href="https://github.com/am-space/own-planner"
@@ -215,7 +215,7 @@ export default function TermsOfServiceDialog({
             <Typography variant="h6" gutterBottom>
               11. Contact
             </Typography>
-            <Typography variant="body2" color="text.secondary" paragraph>
+            <Typography variant="body2" color="text.secondary" component="p" sx={{ mb: 2 }}>
               For questions about these Terms of Service, please visit our GitHub repository.
             </Typography>
           </Box>

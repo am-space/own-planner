@@ -17,7 +17,7 @@ import {
   useMediaQuery,
   useTheme,
 } from '@mui/material';
-import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
+import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutlined';
 import ChecklistIcon from '@mui/icons-material/Checklist';
 import FlagOutlinedIcon from '@mui/icons-material/FlagOutlined';
 import NotesOutlinedIcon from '@mui/icons-material/NotesOutlined';
@@ -28,7 +28,7 @@ import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import LogoutIcon from '@mui/icons-material/Logout';
-import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlined';
 import { useAuth } from '../contexts/useAuth';
 import ChatPage from '../pages/ChatPage';
 import logo from '../assets/logo.svg';
@@ -160,7 +160,7 @@ export default function PlannerShell() {
           open={mobileNavigationOpen}
           onClose={() => setMobileNavigationOpen(false)}
           ModalProps={{ keepMounted: true }}
-          PaperProps={{ sx: { width: expandedNavigationWidth } }}
+          slotProps={{ paper: { sx: { width: expandedNavigationWidth } } }}
         >
           {navigation}
         </Drawer>
@@ -168,7 +168,7 @@ export default function PlannerShell() {
         <Drawer
           variant="permanent"
           open
-          PaperProps={{ sx: { width: navigationWidth, position: 'relative', overflowX: 'hidden' } }}
+          slotProps={{ paper: { sx: { width: navigationWidth, position: 'relative', overflowX: 'hidden' } } }}
           sx={{ width: navigationWidth, flexShrink: 0, transition: theme.transitions.create('width') }}
         >
           {navigation}

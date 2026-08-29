@@ -179,7 +179,7 @@ function TaskBrowser({
       onPrevious={() => updateParams({ offset: String(Math.max(0, offset - pageSize)) }, false)}
       onNext={() => updateParams({ offset: String(offset + pageSize) }, false)}
       filters={
-        <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} useFlexGap flexWrap="wrap">
+        <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} useFlexGap sx={{ flexWrap: 'wrap' }}>
           <TextField
             label="Search tasks"
             value={search}
@@ -205,7 +205,7 @@ function TaskBrowser({
           <ListItemText
             primary={<Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>{item.title}{item.isImportant && <StarIcon color="warning" fontSize="small" />}</Box>}
             secondary={joinMetadata(item.contextName, item.taskListName)}
-            secondaryTypographyProps={{ noWrap: true }}
+            slotProps={{ secondary: { noWrap: true } }}
           />
           <Stack direction="row" spacing={0.75} sx={{ ml: 2, alignItems: 'center' }}>
             {item.isCompleted && <Chip size="small" label="Completed" color="success" />}
@@ -311,7 +311,7 @@ function GoalBrowser() {
       onPrevious={() => updateParams({ offset: String(Math.max(0, offset - pageSize)) }, false)}
       onNext={() => updateParams({ offset: String(offset + pageSize) }, false)}
       filters={
-        <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} useFlexGap flexWrap="wrap">
+        <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} useFlexGap sx={{ flexWrap: 'wrap' }}>
           <TextField label="Search goals" value={search} onChange={event => updateParams({ search: event.target.value })} size="small" sx={{ minWidth: 220, flex: 1 }} />
           <TextField select label="Status" value={status} onChange={event => updateParams({ status: event.target.value })} size="small" sx={{ minWidth: 130 }}>
             {goalStatusOptions.map(value => <MenuItem key={value} value={value}>{value}</MenuItem>)}
@@ -327,7 +327,7 @@ function GoalBrowser() {
           <ListItemText
             primary={item.title}
             secondary={joinMetadata(splitLabel(item.horizon), formatGoalTarget(item))}
-            secondaryTypographyProps={{ noWrap: true }}
+            slotProps={{ secondary: { noWrap: true } }}
           />
           <Stack direction="row" spacing={0.75} sx={{ ml: 2 }}>
             <Chip size="small" label={item.status} color={item.status === 'Active' ? 'primary' : item.status === 'Achieved' ? 'success' : 'default'} />
@@ -451,7 +451,7 @@ function NoteBrowser({
       onPrevious={() => updateParams({ offset: String(Math.max(0, offset - pageSize)) }, false)}
       onNext={() => updateParams({ offset: String(offset + pageSize) }, false)}
       filters={
-        <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} useFlexGap flexWrap="wrap">
+        <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} useFlexGap sx={{ flexWrap: 'wrap' }}>
           <TextField label="Search notes" value={search} onChange={event => updateParams({ search: event.target.value })} size="small" sx={{ minWidth: 220, flex: 1 }} />
           <OptionSelect label="Note list" value={noteListId} onChange={value => updateParams({ noteListId: value })} options={filterOptions?.noteLists ?? []} />
           <OptionSelect label="Context" value={contextId} onChange={value => updateParams({ contextId: value })} options={filterOptions?.contexts ?? []} />
@@ -465,7 +465,7 @@ function NoteBrowser({
           <ListItemText
             primary={<Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>{item.title}{item.isPinned && <PushPinIcon color="primary" fontSize="small" />}</Box>}
             secondary={joinMetadata(item.contextName, item.noteListName)}
-            secondaryTypographyProps={{ noWrap: true }}
+            slotProps={{ secondary: { noWrap: true } }}
           />
         </>
       )}
@@ -625,7 +625,7 @@ function CollectionWithInspector<T extends { id: string }>({
           anchor="right"
           open
           onClose={handleClose}
-          PaperProps={{ sx: { width: { xs: '100%', sm: inspectorWidth }, maxWidth: '100%' } }}
+          slotProps={{ paper: { sx: { width: { xs: '100%', sm: inspectorWidth }, maxWidth: '100%' } } }}
         >
           {inspector}
         </Drawer>
