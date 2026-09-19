@@ -39,6 +39,7 @@ export default function PlanningModeSelector({
   return (
     <FormControl size="small" sx={{ minWidth: fullWidth ? undefined : 150 }} fullWidth={fullWidth}>
       <Select
+        inputProps={{ 'aria-label': 'Planning mode' }}
         value={currentMode}
         onChange={handleChange}
         disabled={disabled}
