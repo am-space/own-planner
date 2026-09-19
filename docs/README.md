@@ -18,6 +18,7 @@ describe.
 | [`testing.md`](testing.md) | Local, CI, and deterministic browser E2E verification |
 | [`planner-workspace.md`](planner-workspace.md) | Read-only planner UI, HTTP contract, and tenant-safe read path |
 | [`telegram-integration.md`](telegram-integration.md) | Private Telegram bot setup, identity, delivery, and cleanup |
+| [`chat-presentation.md`](chat-presentation.md) | Scoped Markdown and responsive chat styles |
 
 ## Plans
 
@@ -57,6 +58,8 @@ ADRs describe decisions as actually shipped. Start new records from [`adr/templa
 - [`ADR-0017`](adr/0017-supported-dependency-baselines.md) — supported runtime and dependency baselines
 - [`ADR-0018`](adr/0018-headless-deployment-agent-testing.md) — headless black-box deployment and opt-in live-AI verification
 
+- [`ADR-0019`](adr/0019-scoped-chat-markdown-presentation.md) — scoped chat Markdown presentation
+
 ## Historical plans
 
 Archived plans preserve the original intent but may differ from the final implementation. Prefer the
@@ -66,6 +69,8 @@ linked ADR when determining current behavior.
 - [`archive/task-list-token-reduction-plan.md`](archive/task-list-token-reduction-plan.md)
 - [`archive/e2e-testing-plan.md`](archive/e2e-testing-plan.md)
 - [`archive/read-only-planner-workspace-plan.md`](archive/read-only-planner-workspace-plan.md)
+
+- [`archive/chat-markdown-styles-plan.md`](archive/chat-markdown-styles-plan.md)
 
 ## Supporting records
 

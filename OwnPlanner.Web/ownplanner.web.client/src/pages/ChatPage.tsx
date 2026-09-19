@@ -15,7 +15,7 @@ import {
     Snackbar,
     Tooltip,
     Divider,
-    useTheme,
+    alpha,
 } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -30,8 +30,7 @@ import { apiService, RateLimitError } from '../services/api';
 import type { PlanningMode } from '../types/api.types';
 import AboutDialog from '../components/AboutDialog';
 import PlanningModeSelector from '../components/PlanningModeSelector';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+import MarkdownContent from '../components/MarkdownContent';
 
 interface Message {
     id: string;
@@ -67,7 +66,6 @@ interface ChatPageProps {
 }
 
 export default function ChatPage({ compact = false }: ChatPageProps) {
-    const theme = useTheme();
     const { mode: colorMode, setMode: setColorMode } = useThemeContext();
     const [messages, setMessages] = useState<Message[]>([]);
     const [inputText, setInputText] = useState('');
@@ -297,11 +295,11 @@ export default function ChatPage({ compact = false }: ChatPageProps) {
     };
 
     return (
-        <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, minWidth: 0, '& .Mui-focusVisible': { outline: '2px solid', outlineColor: 'primary.main', outlineOffset: 2 } }}>
             {/* Header */}
             {compact ? (
-                <AppBar position="static">
-                    <Toolbar variant="dense" sx={{ minHeight: 48, gap: 1.5 }}>
+                <AppBar position="static" elevation={0} color="default" sx={{ bgcolor: 'background.paper', borderBottom: 1, borderColor: 'divider', flexShrink: 0 }}>
+                    <Toolbar variant="dense" sx={{ minHeight: 48, gap: 1, flexWrap: 'wrap', py: 1, pl: { xs: 1, sm: 2 }, pr: { xs: 6, sm: 6 } }}>
                         <Tooltip title="About OwnPlanner">
                             <IconButton aria-label="About OwnPlanner" color="inherit" size="small" onClick={() => setAboutOpen(true)}>
                                 <InfoIcon fontSize="small" />
@@ -310,21 +308,15 @@ export default function ChatPage({ compact = false }: ChatPageProps) {
                         <Typography variant="subtitle1" component="h2" sx={{ fontWeight: 600, flexShrink: 0 }}>
                             Assistant
                         </Typography>
-                        <PlanningModeSelector
-                            currentMode={planningMode}
-                            disabled={isLoading || isSwitchingMode}
-                            loading={isSwitchingMode}
-                            onChange={handleSwitchMode}
-                            sx={{
-                                minWidth: 180,
-                                ml: 'auto',
-                                color: 'white',
-                                '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.5)' },
-                                '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'white' },
-                                '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: 'white' },
-                                '& .MuiSvgIcon-root': { color: 'white' },
-                            }}
-                        />
+                        <Box sx={{ ml: 'auto' }}>
+                            <PlanningModeSelector
+                                currentMode={planningMode}
+                                disabled={isLoading || isSwitchingMode}
+                                loading={isSwitchingMode}
+                                onChange={handleSwitchMode}
+                                sx={{ minWidth: 150 }}
+                            />
+                        </Box>
                         <Tooltip title="Clear chat session">
                             <span>
                                 <IconButton
@@ -341,8 +333,8 @@ export default function ChatPage({ compact = false }: ChatPageProps) {
                     </Toolbar>
                 </AppBar>
             ) : (
-            <AppBar position="static">
-                <Toolbar sx={{ gap: 1, minHeight: 56 }}>
+            <AppBar position="static" elevation={0} color="default" sx={{ bgcolor: 'background.paper', borderBottom: 1, borderColor: 'divider', flexShrink: 0 }}>
+                <Toolbar sx={{ gap: 0.5, minHeight: 56, flexWrap: 'wrap', px: { xs: 1, sm: 2 } }}>
                     <Tooltip title="About OwnPlanner">
                         <IconButton aria-label="About OwnPlanner" color="inherit" onClick={() => setAboutOpen(true)}>
                             <InfoIcon />
@@ -357,13 +349,6 @@ export default function ChatPage({ compact = false }: ChatPageProps) {
                             disabled={isLoading || isSwitchingMode}
                             loading={isSwitchingMode}
                             onChange={handleSwitchMode}
-                            sx={{
-                                color: 'white',
-                                '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.5)' },
-                                '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'white' },
-                                '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: 'white' },
-                                '& .MuiSvgIcon-root': { color: 'white' },
-                            }}
                         />
                     </Box>
 
@@ -374,7 +359,7 @@ export default function ChatPage({ compact = false }: ChatPageProps) {
                                     size="small"
                                     label={`${formatTokenCount(remainingDailyQuota)} left`}
                                     color={remainingDailyQuota <= 0 ? 'error' : remainingDailyQuota <= 10 ? 'warning' : 'default'}
-                                    sx={{ color: 'white', borderColor: 'rgba(255,255,255,0.5)', display: { xs: 'none', md: 'flex' } }}
+                                    sx={{ display: { xs: 'none', md: 'flex' } }}
                                     variant="outlined"
                                 />
                             </Tooltip>
@@ -388,10 +373,10 @@ export default function ChatPage({ compact = false }: ChatPageProps) {
                                     px: 1,
                                     py: 0.5,
                                     borderRadius: 5,
-                                    bgcolor: contextResetLabel ? 'rgba(255,193,7,0.25)' : 'rgba(255,255,255,0.12)',
+                                    bgcolor: 'action.hover',
                                 }}
                             >
-                                <Typography variant="caption" sx={{ color: 'white', whiteSpace: 'nowrap' }}>
+                                <Typography variant="caption" sx={{ color: 'text.secondary', whiteSpace: 'nowrap' }}>
                                     {contextResetLabel ?? formatTokenCount(contextLengthTokens)}
                                 </Typography>
                                 <Box sx={{ position: 'relative', display: 'inline-flex', flexShrink: 0 }}>
@@ -400,7 +385,7 @@ export default function ChatPage({ compact = false }: ChatPageProps) {
                                         value={100}
                                         size={18}
                                         thickness={6}
-                                        sx={{ color: 'rgba(255,255,255,0.25)' }}
+                                        sx={{ color: 'divider' }}
                                     />
                                     <CircularProgress
                                         variant="determinate"
@@ -462,7 +447,7 @@ export default function ChatPage({ compact = false }: ChatPageProps) {
             </Snackbar>
 
             {/* Chat Messages */}
-            <Container maxWidth="md" sx={{ flexGrow: 1, minHeight: 0, overflow: 'auto', py: compact ? 1.5 : 3 }}>
+            <Container maxWidth="md" data-testid="chat-messages" sx={{ flexGrow: 1, minHeight: 0, overflow: 'auto', px: { xs: 1, sm: 3 }, py: compact ? 1.5 : 3 }}>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                     {messages.length === 0 && (
                         <Paper
@@ -501,76 +486,32 @@ export default function ChatPage({ compact = false }: ChatPageProps) {
                                 </Divider>
                             ) : (
                                 <Paper
-                                    elevation={1}
-                                    sx={{
-                                        p: 2,
-                                        maxWidth: '90%',
+                                    elevation={0}
+                                    data-testid={`${message.sender}-message`}
+                                    sx={(theme) => ({
+                                        p: { xs: 2, sm: 3 },
+                                        minWidth: 0,
+                                        maxWidth: message.sender === 'user' ? '90%' : '100%',
+                                        width: 'fit-content',
+                                        border: 1,
+                                        borderColor: 'divider',
+                                        borderRadius: 3,
                                         bgcolor: message.sender === 'user'
-                                            ? 'primary.main'
-                                            : (theme.palette.mode === 'dark' ? 'grey.800' : 'grey.100'),
-                                        color: message.sender === 'user' ? 'white' : 'text.primary',
-                                    }}
+                                            ? alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.12 : 0.06)
+                                            : 'background.paper',
+                                        color: 'text.primary',
+                                    })}
                                 >
-                                    <Box sx={{
-                                        '& p': { m: 0 },
-                                        '& ul, & ol': { mt: 0.5, mb: 0.5, pl: 2 },
-                                        '& li': { mb: 0.25 },
-                                        '& code': {
-                                            bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
-                                            p: 0.5,
-                                            borderRadius: 1,
-                                            fontFamily: 'monospace',
-                                            fontSize: '0.875rem'
-                                        },
-                                        '& pre': {
-                                            bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
-                                            p: 1,
-                                            borderRadius: 1,
-                                            overflowX: 'auto',
-                                            '& code': {
-                                                bgcolor: 'transparent',
-                                                p: 0
-                                            }
-                                        },
-                                        '& a': {
-                                            color: 'inherit',
-                                            textDecoration: 'underline'
-                                        },
-                                        '& table': {
-                                            borderCollapse: 'collapse',
-                                            width: '100%',
-                                            mt: 1,
-                                            mb: 1
-                                        },
-                                        '& th, & td': {
-                                            border: '1px solid',
-                                            borderColor: 'divider',
-                                            p: 1
-                                        },
-                                        '& th': {
-                                            bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
-                                            fontWeight: 'bold'
-                                        }
-                                    }}>
-                                        <ReactMarkdown
-                                            remarkPlugins={[remarkGfm]}
-                                            components={{
-                                         table: (props) => (
-                                                    <Box sx={{ overflowX: 'auto', display: 'block', maxWidth: '100%' }}>
-                                                        <table {...props} />
-                                                    </Box>
-                                                )
-                                            }}
-                                        >
-                                            {message.text}
-                                        </ReactMarkdown>
-                                    </Box>
+                                    <Typography variant="caption" sx={{ display: 'block', mb: 1, color: 'text.secondary', fontWeight: 600 }}>
+                                        {message.sender === 'user' ? 'You' : 'OwnPlanner'}
+                                    </Typography>
+                                    <MarkdownContent>{message.text}</MarkdownContent>
                                     <Typography
                                         variant="caption"
                                         sx={{
                                             display: 'block',
-                                            mt: 0.5,
-                                            opacity: 0.7,
+                                            mt: 1.5,
+                                            color: 'text.secondary',
                                         }}
                                     >
                                         {message.timestamp.toLocaleTimeString()}
@@ -583,10 +524,12 @@ export default function ChatPage({ compact = false }: ChatPageProps) {
                     {isLoading && (
                         <Box sx={{ display: 'flex', justifyContent: 'flex-start' }}>
                             <Paper
-                                elevation={1}
+                                elevation={0}
+                                role="status"
                                 sx={{
                                     p: 2,
-                                    bgcolor: theme.palette.mode === 'dark' ? 'grey.800' : 'grey.100',
+                                    bgcolor: 'background.paper',
+                                    border: 1, borderColor: 'divider', borderRadius: 3,
                                     display: 'flex',
                                     alignItems: 'center',
                                     gap: 1,
@@ -608,8 +551,11 @@ export default function ChatPage({ compact = false }: ChatPageProps) {
             {!compact && showStarterPrompts && starterPrompts.length > 0 && (
                 <Box
                     sx={{
-                        px: 2,
+                        px: 1,
                         py: 1,
+                        maxHeight: '25%',
+                        overflowY: 'auto',
+                        flexShrink: 0,
                         bgcolor: 'background.paper',
                         borderTop: 1,
                         borderColor: 'divider',
@@ -642,18 +588,11 @@ export default function ChatPage({ compact = false }: ChatPageProps) {
                                             key={index}
                                             label={prompt}
                                             onClick={() => handlePromptClick(prompt)}
-                                            sx={(theme) => ({
-                                                cursor: 'pointer',
-                                                bgcolor: 'background.paper',
-                                                borderColor: 'primary.main',
-                                                '& .MuiChip-label': { color: 'text.primary' },
-                                                transition: 'background-color 0.2s, transform 0.2s, color 0.2s',
-                                                '&:hover': {
-                                                    bgcolor: 'primary.main',
-                                                    '& .MuiChip-label': { color: theme.palette.primary.dark },
-                                                    transform: 'scale(1.06)',
-                                                },
-                                            })}
+                                            sx={{
+                                                height: 'auto', maxWidth: '100%', color: 'text.primary',
+                                                '& .MuiChip-label': { whiteSpace: 'normal', py: 0.75 },
+                                                '&:hover': { bgcolor: 'action.hover' },
+                                            }}
                                             variant="outlined"
                                             color="primary"
                                         />
@@ -688,16 +627,19 @@ export default function ChatPage({ compact = false }: ChatPageProps) {
 
             {/* Input Area */}
             <Paper
-                elevation={3}
+                elevation={0}
+                data-testid="chat-composer"
                 sx={{
                     p: compact ? 1 : 2,
                     borderRadius: 0,
+                    borderTop: 1, borderColor: 'divider', flexShrink: 0,
                 }}
             >
-                <Container maxWidth="md">
+                <Container maxWidth="md" disableGutters>
                     <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-end' }}>
                         <TextField
                             inputRef={inputRef}
+                            slotProps={{ htmlInput: { 'aria-label': 'Message' } }}
                             fullWidth
                             multiline
                             maxRows={4}
@@ -707,8 +649,10 @@ export default function ChatPage({ compact = false }: ChatPageProps) {
                             onKeyDown={handleKeyDown}
                             variant="outlined"
                             sx={{
+                                '& .MuiOutlinedInput-root': { borderRadius: 3 },
                                 '& .MuiInputBase-input': {
                                     cursor: isLoading ? 'wait' : 'text',
+                                    '&::placeholder': { color: 'text.secondary', opacity: 1 },
                                 }
                             }}
                         />
@@ -719,10 +663,10 @@ export default function ChatPage({ compact = false }: ChatPageProps) {
                             disabled={!inputText.trim() || isLoading}
                             sx={{
                                 bgcolor: 'primary.main',
-                                color: 'white',
+                                color: 'primary.contrastText',
                                 flexShrink: 0,
                                 '&:hover': { bgcolor: 'primary.dark' },
-                                '&:disabled': { bgcolor: 'grey.300', color: 'grey.500' },
+                                '&:disabled': { bgcolor: 'action.disabledBackground', color: 'action.disabled' },
                             }}
                         >
                             {isLoading ? <CircularProgress size={24} color="inherit" /> : <SendIcon />}
