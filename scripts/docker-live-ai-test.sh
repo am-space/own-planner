@@ -13,12 +13,18 @@ fi
 
 export GEMINI_MODEL="${GEMINI_MODEL:-gemini-3.5-flash-lite}"
 
+# Override inherited Compose settings so cleanup can only remove this run's data.
+run_directory="$(mktemp -d "${TMPDIR:-/tmp}/ownplanner-test-XXXXXXXX")"
+export COMPOSE_PROJECT_NAME="$(basename "$run_directory" | tr '[:upper:]' '[:lower:]')"
+export OWNPLANNER_PORT=0
+
 cleanup() {
   local exit_code=$?
   if (( exit_code != 0 )); then
     docker compose --project-directory "$REPO_ROOT" logs --no-color app > "$REPO_ROOT/TestResults/deployment-live-ai-container.log" 2>/dev/null || true
   fi
   "$SCRIPT_DIR/docker-down.sh" --volumes || true
+  rmdir "$run_directory" || true
   return "$exit_code"
 }
 trap cleanup EXIT

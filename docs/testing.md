@@ -84,6 +84,11 @@ screenshots and traces are retained in `TestResults/Deployment/`; the wrapper sc
 container logs on failure before cleanup. See [`docker.md`](docker.md) for commands and secret
 handling.
 
+Run `python3 -m unittest discover -s scripts/tests -v` to check wrapper isolation and cleanup
+with mocked Docker and .NET commands. These regression tests cover successful runs, failed
+container startup, and rejection of a live test authorized only through `.env`; they do not
+start containers or contact Gemini.
+
 ## Current browser coverage
 
 The initial suite covers:

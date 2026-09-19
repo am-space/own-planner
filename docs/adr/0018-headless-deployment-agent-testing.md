@@ -16,13 +16,17 @@ implicit, secret-dependent pull-request gate.
 ## Decision
 
 - Provide a loopback-only Compose deployment using disposable named SQLite and log volumes.
+  Each test wrapper overrides the Compose project name with a unique run identifier and uses an
+  automatically allocated loopback port, keeping cleanup isolated from interactive deployments
+  and other test runs.
 - Run external deployment checks through headless Playwright against `OWNPLANNER_BASE_URL`; no
   desktop session, display server, or browser window is required.
 - Keep deterministic `DeploymentSmoke` coverage separate from the in-process E2E suite. It verifies
   health, registration, cookie-authenticated navigation, logout, and protected-route behavior
   against the built container.
 - Keep `LiveAi` coverage separately gated by both `GEMINI_API_KEY` and
-  `OWNPLANNER_RUN_LIVE_AI=true`. It uses a unique account and task title, makes one bounded request,
+  `OWNPLANNER_RUN_LIVE_AI=true`. The wrapper requires the key to be exported in the process
+  environment; a Compose `.env` value alone does not authorize a live test. It uses a unique account and task title, makes one bounded request,
   and grades persisted planner state rather than exact model wording. The wrapper defaults to the
   stable `gemini-3.5-flash-lite` model while allowing an explicit `GEMINI_MODEL` override for model
   comparisons.

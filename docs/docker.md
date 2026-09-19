@@ -74,8 +74,11 @@ Run the deterministic black-box test against a newly built container:
 
 The script waits for the container health check, verifies registration, authenticated navigation,
 logout, and protected-route redirection in headless Chromium, and then removes the container and
-its disposable volumes. On failure it retains the Playwright screenshot/trace under
-`TestResults/Deployment/` and container logs in `TestResults/deployment-container.log`.
+its disposable volumes. Each test run uses a unique Compose project and an automatically allocated
+loopback port, overriding `COMPOSE_PROJECT_NAME` and `OWNPLANNER_PORT` for that run. It does not
+reuse or remove data from `docker-up.sh` or another test run. On failure it retains the Playwright
+screenshot/trace under `TestResults/Deployment/` and container logs in
+`TestResults/deployment-container.log`.
 
 The separately authorized live Gemini scenario verifies tool selection by asking the assistant to
 create a uniquely named Inbox task and then asserting the persisted task through the planner UI:
@@ -94,7 +97,9 @@ export GEMINI_MODEL='gemini-3.5-flash-lite'
 
 The live test is intentionally excluded from normal verification because provider behavior is
 nondeterministic and incurs API usage. The scripts never print the key; keep it in the process
-environment or an ignored `.env`, not in command arguments or tracked files.
+environment, not in command arguments or tracked files. The live-test wrapper requires an exported
+`GEMINI_API_KEY`; a value stored only in `.env` does not authorize a live test. The ignored `.env`
+file can configure the interactive `docker-up.sh` deployment, which Compose reads directly.
 
 To target an already-running deployment directly:
 
