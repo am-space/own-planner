@@ -9,6 +9,10 @@
 # macOS Finder metadata
 .DS_Store
 
+# Local environment files may contain API keys.
+.env
+!.env.example
+
 # User-specific files
 *.rsuser
 *.suo

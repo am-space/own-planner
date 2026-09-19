@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
+PROJECT="$REPO_ROOT/OwnPlanner.Deployment.Tests/OwnPlanner.Deployment.Tests.csproj"
+
+if [[ -z "${GEMINI_API_KEY:-}" ]]; then
+  echo "GEMINI_API_KEY is required. Export it without placing it in a command argument or tracked file." >&2
+  exit 2
+fi
+
+export GEMINI_MODEL="${GEMINI_MODEL:-gemini-3.5-flash-lite}"
+
+# Override inherited Compose settings so cleanup can only remove this run's data.
+run_directory="$(mktemp -d "${TMPDIR:-/tmp}/ownplanner-test-XXXXXXXX")"
+export COMPOSE_PROJECT_NAME="$(basename "$run_directory" | tr '[:upper:]' '[:lower:]')"
+export OWNPLANNER_PORT=0
+
+cleanup() {
+  local exit_code=$?
+  if (( exit_code != 0 )); then
+    docker compose --project-directory "$REPO_ROOT" logs --no-color app > "$REPO_ROOT/TestResults/deployment-live-ai-container.log" 2>/dev/null || true
+  fi
+  "$SCRIPT_DIR/docker-down.sh" --volumes || true
+  rmdir "$run_directory" || true
+  return "$exit_code"
+}
+trap cleanup EXIT
+
+mkdir -p "$REPO_ROOT/TestResults"
+"$SCRIPT_DIR/docker-up.sh" live-ai
+published_address="$(docker compose --project-directory "$REPO_ROOT" port app 8080)"
+
+OWNPLANNER_BASE_URL="http://$published_address" \
+OWNPLANNER_RUN_LIVE_AI=true \
+  dotnet test "$PROJECT" --filter "Category=LiveAi" \
+  --logger "trx;LogFileName=deployment-live-ai.trx" \
+  --results-directory "$REPO_ROOT/TestResults/Deployment"

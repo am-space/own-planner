@@ -1,0 +1,32 @@
+name: ownplanner-agent-test
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: OwnPlanner.Web/OwnPlanner.Web.Server/Dockerfile
+    image: ownplanner:agent-test
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      Chat__Gemini__ApiKey: ${GEMINI_API_KEY:-}
+      Chat__Gemini__Model: ${GEMINI_MODEL:-gemini-3.5-flash-lite}
+      Database__AuthDbPath: /app/data/auth/auth.db
+      Database__UserDbDirectory: /app/data/databases
+      Email__Provider: Logging
+      UsageQuota__Enabled: "false"
+    ports:
+      - "127.0.0.1:${OWNPLANNER_PORT:-8080}:8080"
+    volumes:
+      - ownplanner-agent-data:/app/data
+      - ownplanner-agent-logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8080/api/chat/health"]
+      interval: 5s
+      timeout: 3s
+      start_period: 20s
+      retries: 24
+    restart: unless-stopped
+
+volumes:
+  ownplanner-agent-data:
+  ownplanner-agent-logs:
