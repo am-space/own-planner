@@ -52,6 +52,37 @@ verification. Run `./scripts/verify.sh` before pushing to match both verificatio
 - Keep unrelated staged or working-tree changes out of task commits.
 - Open a pull request targeting `master` when the work is ready for review.
 
+## Version publishing
+
+- Publish a release when the user requests it, using their requested version. Otherwise propose
+  a semantic version: patch for compatible fixes, minor for compatible features, major for breaking
+  changes. A dependency major upgrade alone does not require an application major release.
+- Check GitHub for the latest published release and the current `master` commit. Compare that
+  release tag with the intended release commit to identify all included changes; do not rely only
+  on local tags or assume that a published release includes later commits on `master`.
+- Release merged changes from an explicit commit SHA on `master`. Confirm successful CI for that
+  exact commit before publishing. For local verification, run `./scripts/setup.sh` before
+  `./scripts/verify.sh` so stale dependencies do not invalidate the results. Report any local
+  verification limitations separately from GitHub CI results.
+- Use the tag `v<major>.<minor>.<patch>` and release title `Version <major>.<minor>.<patch>`.
+  Check whether the tag or release already exists before creating it. Never move or overwrite an
+  existing release tag; when resuming an interrupted release, verify its target and continue only
+  the missing steps.
+- Prepare release notes before publishing: summarize changes since the previous release, link
+  included pull requests and the full comparison, and describe actual compatibility, configuration,
+  or database migration requirements. Do not claim new features or breaking changes solely because
+  the version number changed. Pass multiline notes through a file or structured API argument.
+- Version values come from the tag through `APP_VERSION` and `APP_FILE_VERSION`; do not bump source
+  files merely to publish. Create the GitHub release against the verified commit, mark a normal
+  stable release as latest, and let the tag-triggered CI workflow publish the Docker image.
+- Monitor release CI through frontend, backend, browser E2E checks, and Docker publication. Report
+  completion only after it succeeds, including the release URL and
+  `ghcr.io/am-space/own-planner:v<version>` image reference. Confirm that `latest` was updated.
+  If CI fails, report that the GitHub release exists but image publication is incomplete; investigate
+  the failure without silently retagging the release.
+- Publishing and deployment are separate actions. Do not change a running deployment unless the
+  user also requests it.
+
 ## Architecture
 
 Strict clean-architecture layering; dependencies only flow inward toward the Domain. Test projects mirror each layer (`*.Tests`).
