@@ -61,7 +61,8 @@ public sealed class PlanningService : IPlanningService
 		var context = await LoadContextAsync(config, cancellationToken);
 		var systemPrompt = BuildSystemPrompt(config, context);
 
-		_chatAdapter.ResetChatSession(systemPrompt, config.AllowedTools);
+		_chatAdapter.ConfigureToolPolicy(ChatToolPolicy.ForMode(config));
+		_chatAdapter.ResetChatSession(systemPrompt, config.InitialTools ?? config.AllowedTools);
 
 		_currentMode = mode;
 		_currentConfig = config;
@@ -188,7 +189,7 @@ public sealed class PlanningService : IPlanningService
 		}
 		newHistory.AddRange(recent);
 
-		_chatAdapter.RebuildSession(_currentSystemPrompt, _currentConfig.AllowedTools, newHistory);
+		_chatAdapter.RebuildSession(_currentSystemPrompt, _currentConfig.InitialTools ?? _currentConfig.AllowedTools, newHistory);
 
 		_transcript.Clear();
 		_transcript.AddRange(newHistory);

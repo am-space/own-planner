@@ -31,8 +31,19 @@ namespace OwnPlanner.Infrastructure.Adapters
 		""";
 		private static readonly FunctionDeclaration SearchAgentFunctionDeclaration = BuildSearchAgentFunctionDeclaration();
 		private static readonly FunctionDeclaration TaskPlanningAgentFunctionDeclaration = BuildTaskPlanningAgentFunctionDeclaration();
-		private static readonly IReadOnlyList<FunctionDeclaration> LocalAgentFunctionDeclarations =
-			[SearchAgentFunctionDeclaration, TaskPlanningAgentFunctionDeclaration];
+		private static readonly FunctionDeclaration SkillLoadFunctionDeclaration = new()
+		{
+			Name = ChatSkillRegistry.LoadToolName,
+			Description = "Load a skill from the catalog for this user request. Its tools become callable in the next model round. Does not retrieve planner data.",
+			Parameters = ConvertJsonSchemaToGeminiSchema(JsonSerializer.SerializeToElement(new
+			{
+				type = "object",
+				properties = new { skillId = new { type = "string", description = "Exact skill identifier from the catalog." } },
+				required = new[] { "skillId" }
+			}))
+		};
+		private static readonly IReadOnlyList<FunctionDeclaration> LocalFunctionDeclarations =
+			[SearchAgentFunctionDeclaration, TaskPlanningAgentFunctionDeclaration, SkillLoadFunctionDeclaration];
 
 		private readonly GoogleAI _googleAi;
 		private readonly string _model;
@@ -45,6 +56,8 @@ namespace OwnPlanner.Infrastructure.Adapters
 		private List<FunctionDeclaration> _allFunctionDeclarations = [];
 		private string? _activeSystemPrompt;
 		private IReadOnlyList<string>? _activeAllowedTools;
+		private ChatToolPolicy? _pendingToolPolicy;
+		private ChatToolPolicy _toolPolicy = null!;
 		private GenerativeModel _generativeModel = null!; // Initialized in constructor
 		private ChatSession _chat = null!; // Initialized in InitializeChatWithInstructions
 
@@ -69,9 +82,12 @@ namespace OwnPlanner.Infrastructure.Adapters
 		{
 			_activeSystemPrompt = systemPrompt;
 			_activeAllowedTools = allowedTools?.ToArray();
+			var baseline = allowedTools ?? GetFunctionDeclarations().Select(declaration => declaration.Name!).ToArray();
+			_toolPolicy = _pendingToolPolicy ?? new ChatToolPolicy(baseline, baseline, true, [], []);
+			_pendingToolPolicy = null;
 			CurrentContextLengthTokens = null;
 			// Rebuild tool set, applying allow-list filter when provided
-			var declarations = GetFunctionDeclarations(allowedTools);
+			var declarations = GetFunctionDeclarations(CreateSkillRuntime().ActiveTools.ToArray());
 			if (declarations.Count > 0)
 			{
 				_geminiTools = new Tools { new Tool { FunctionDeclarations = declarations } };
@@ -93,18 +109,27 @@ namespace OwnPlanner.Infrastructure.Adapters
 			InitializeChatSession(systemPrompt, allowedTools);
 		}
 
+		public void ConfigureToolPolicy(ChatToolPolicy policy)
+		{
+			ArgumentNullException.ThrowIfNull(policy);
+			_pendingToolPolicy = policy;
+		}
+
 		public void RebuildSession(string systemPrompt, IReadOnlyList<string>? allowedTools, IReadOnlyList<ChatMessage> history)
 		{
 			Log.Information("Rebuilding chat session with {Count} replayed history messages", history.Count);
+			_pendingToolPolicy = _toolPolicy;
 			InitializeChatSession(systemPrompt, allowedTools, history);
 		}
 
-		public ChatServiceAdapter(string apiKey, string model, int maxToolCallRounds = 10, IMcpAdapter? mcpAdapter = null, int maxTaskPlanningAgentToolCallRounds = 8)
+		public ChatServiceAdapter(string apiKey, string model, int maxToolCallRounds = 10, IMcpAdapter? mcpAdapter = null, int maxTaskPlanningAgentToolCallRounds = 8, IHttpClientFactory? httpClientFactory = null)
 		{
+			if (maxToolCallRounds <= 0)
+				throw new ArgumentOutOfRangeException(nameof(maxToolCallRounds));
 			if (maxTaskPlanningAgentToolCallRounds <= 0)
 				throw new ArgumentOutOfRangeException(nameof(maxTaskPlanningAgentToolCallRounds));
 			Log.Debug("Creating ChatServiceAdapter with model: {Model}, MCP: {HasMcp}, MaxToolCallRounds: {MaxRounds}", model, mcpAdapter != null, maxToolCallRounds);
-			_googleAi = new GoogleAI(apiKey);
+			_googleAi = new GoogleAI(apiKey, httpClientFactory: httpClientFactory);
 			_model = model;
 			_mcpClient = mcpAdapter;
 			_shouldDisposeMcp = mcpAdapter != null; // Don't dispose injected adapter
@@ -240,26 +265,44 @@ namespace OwnPlanner.Infrastructure.Adapters
 
 		private List<FunctionDeclaration> GetFunctionDeclarations(IReadOnlyList<string>? allowedTools = null)
 		{
-			var declarations = new List<FunctionDeclaration>(_allFunctionDeclarations.Count + LocalAgentFunctionDeclarations.Count);
-			declarations.AddRange(LocalAgentFunctionDeclarations);
+			var declarations = new List<FunctionDeclaration>(_allFunctionDeclarations.Count + LocalFunctionDeclarations.Count);
+			declarations.AddRange(LocalFunctionDeclarations);
 
 			declarations.AddRange(_allFunctionDeclarations);
 
-			if (allowedTools?.Count > 0)
+			if (allowedTools != null)
 			{
 				declarations = declarations
 					.Where(f => f.Name != null && allowedTools.Contains(f.Name))
 					.ToList();
 			}
+			declarations = declarations.DistinctBy(declaration => declaration.Name, StringComparer.Ordinal).ToList();
 
 			Log.Debug("Configured {ToolCount} Gemini tools: {Tools}", declarations.Count, string.Join(", ", declarations.Select(f => f.Name)));
 			return declarations;
 		}
 
 		internal IReadOnlyList<string> GetActiveFunctionNames() =>
-			GetFunctionDeclarations(_activeAllowedTools).Select(declaration => declaration.Name!).ToList();
+			GetFunctionDeclarations(CreateSkillRuntime().ActiveTools.ToArray()).Select(declaration => declaration.Name!).ToList();
 
-		internal void RecoverChatSession() => InitializeChatSession(_activeSystemPrompt, _activeAllowedTools);
+		internal void RecoverChatSession()
+		{
+			_pendingToolPolicy = _toolPolicy;
+			InitializeChatSession(_activeSystemPrompt, _activeAllowedTools);
+		}
+
+		private ChatSkillRuntime CreateSkillRuntime() => new(_toolPolicy, GetFunctionDeclarations().Select(declaration => declaration.Name!));
+
+		private GenerateContentRequest ConfigureRequest(GenerateContentRequest request, ChatSkillRuntime skills)
+		{
+			var declarations = GetFunctionDeclarations(skills.ActiveTools.ToArray());
+			request.Tools = declarations.Count == 0 ? new Tools() : new Tools { new Tool { FunctionDeclarations = declarations } };
+			// Request metadata is not appended to chat history. Tool results contain only load status,
+			// so resetting the runtime also removes the previous request's trusted skill instructions.
+			if (!string.IsNullOrEmpty(skills.Catalog) || !string.IsNullOrEmpty(skills.Instructions))
+				request.SystemInstruction = new Content($"{skills.Catalog}\n\n{skills.Instructions}");
+			return request;
+		}
 
 		private static FunctionDeclaration BuildSearchAgentFunctionDeclaration()
 		{
@@ -444,8 +487,18 @@ namespace OwnPlanner.Infrastructure.Adapters
 			return GetSafeResponseText(response);
 		}
 
-		private async Task<string> ExecuteToolCallAsync(string toolName, IReadOnlyDictionary<string, object?>? arguments, CancellationToken cancellationToken)
+		private async Task<string> ExecuteToolCallAsync(string toolName, IReadOnlyDictionary<string, object?>? arguments,
+			ChatSkillRuntime skills, IReadOnlySet<string> declaredTools, CancellationToken cancellationToken)
 		{
+			cancellationToken.ThrowIfCancellationRequested();
+			skills.EnsureCanExecute(toolName, declaredTools);
+			if (toolName == ChatSkillRegistry.LoadToolName)
+			{
+				var id = ToolArgumentParser.GetStringArgument(arguments, "skillId");
+				skills.Load(id);
+				return JsonSerializer.Serialize(new { skillId = id, status = "loaded_for_current_request" });
+			}
+
 			if (_localAgentHandlers.TryGetValue(toolName, out var localAgentHandler))
 				return await localAgentHandler(arguments, cancellationToken).ConfigureAwait(false);
 
@@ -492,7 +545,9 @@ namespace OwnPlanner.Infrastructure.Adapters
 			Log.Debug("Getting response for prompt: {Prompt}", text);
 			try
 			{
-				var response = await _chat.SendMessage(text).WaitAsync(cancellationToken);
+				cancellationToken.ThrowIfCancellationRequested();
+				var skills = CreateSkillRuntime();
+				var response = await _chat.SendMessage(ConfigureRequest(new GenerateContentRequest(text), skills), cancellationToken: cancellationToken);
 				LogUsageMetadata(response, "user-message");
 				int roundCount = 0;
 				while (roundCount < _maxToolCallRounds)
@@ -511,6 +566,8 @@ namespace OwnPlanner.Infrastructure.Adapters
 					}
 					Log.Information("Processing {Count} function calls in round {Round}", functionCalls.Count, roundCount + 1);
 					var toolResults = new List<Part>();
+					// Freeze authorization for the whole batch, even if its first call loads a skill.
+					var declaredTools = skills.ActiveTools;
 					foreach (var part in functionCalls)
 					{
 						var functionCall = part.FunctionCall;
@@ -537,7 +594,7 @@ namespace OwnPlanner.Infrastructure.Adapters
 								toolName = nsSplit[1];
 								Log.Debug("Stripped namespace prefix from tool name: {Original} -> {Stripped}", functionCall.Name, toolName);
 							}
-							var result = await ExecuteToolCallAsync(toolName, argsDict, cancellationToken).ConfigureAwait(false);
+							var result = await ExecuteToolCallAsync(toolName, argsDict, skills, declaredTools, cancellationToken).ConfigureAwait(false);
 							Log.Debug("Tool {ToolName} executed successfully", toolName);
 							toolResults.Add(new Part
 							{
@@ -574,7 +631,7 @@ namespace OwnPlanner.Infrastructure.Adapters
 						break;
 					}
 					Log.Debug("Sending {Count} tool results back to model", toolResults.Count);
-					response = await _chat.SendMessage(toolResults).WaitAsync(cancellationToken);
+					response = await _chat.SendMessage(ConfigureRequest(new GenerateContentRequest(toolResults), skills), cancellationToken: cancellationToken);
 					LogUsageMetadata(response, $"tool-results-round-{roundCount + 1}");
 					roundCount++;
 				}
@@ -588,6 +645,8 @@ namespace OwnPlanner.Infrastructure.Adapters
 			}
 			catch (GeminiApiException ex)
 			{
+				// The SDK wraps transport cancellation in GeminiApiException.
+				cancellationToken.ThrowIfCancellationRequested();
 				if (ex.Message.Contains("required oneof field 'data' must have one initialized field"))
 				{
 					Log.Warning(ex, "GeminiApiException: Detected session corruption, resetting chat session and retrying...");

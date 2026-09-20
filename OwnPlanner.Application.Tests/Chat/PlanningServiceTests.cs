@@ -66,6 +66,20 @@ public class PlanningServiceTests
 	// --- SwitchModeAsync ---
 
 	[Fact]
+	public async Task General_ConfiguresCompactBaselineAndPermissionsWithoutPreloadingData()
+	{
+		await _svc.SwitchModeAsync(PlanningMode.General, TestContext.Current.CancellationToken);
+
+		Received.InOrder(() =>
+		{
+			_chatAdapter.ConfigureToolPolicy(Arg.Is<ChatToolPolicy>(policy =>
+					policy != null && policy.SkillIds.Count == 4 && policy.BaselineTools.Count == 4 && policy.AllowedTools.Contains("noteitem_create")));
+			_chatAdapter.ResetChatSession(Arg.Any<string>(), ModeConfig.All[PlanningMode.General].InitialTools);
+		});
+		await _mcpAdapter.DidNotReceiveWithAnyArgs().CallToolAsync(default!, default, TestContext.Current.CancellationToken);
+	}
+
+	[Fact]
 	public async Task SwitchModeAsync_UpdatesCurrentMode()
 	{
 		var ct = TestContext.Current.CancellationToken;
@@ -80,6 +94,7 @@ public class PlanningServiceTests
 	[InlineData(PlanningMode.DayWork)]
 	[InlineData(PlanningMode.Reflection)]
 	[InlineData(PlanningMode.SystemAnalysis)]
+	[InlineData(PlanningMode.General)]
 	public async Task SwitchModeAsync_CallsResetChatSession_ForEveryMode(PlanningMode mode)
 	{
 		var ct = TestContext.Current.CancellationToken;

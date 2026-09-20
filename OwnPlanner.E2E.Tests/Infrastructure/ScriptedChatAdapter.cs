@@ -9,6 +9,8 @@ internal sealed class ScriptedChatAdapter(
 	public DateTime CreatedTime { get; } = DateTime.UtcNow;
 	public DateTime LastAccessTime { get; private set; } = DateTime.UtcNow;
 	public int? CurrentContextLengthTokens { get; private set; }
+	// Scenarios are trusted test scripts rather than model-generated tool calls.
+	public void ConfigureToolPolicy(ChatToolPolicy policy) { }
 
 	public async Task<ChatTurnResult> GetResponse(string text, CancellationToken cancellationToken = default)
 	{
