@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NSubstitute;
 using OwnPlanner.Application.Telegram;
+using OwnPlanner.Application.Chat;
 using OwnPlanner.Application.Usage;
 using OwnPlanner.Web.Server.Controllers;
 using OwnPlanner.Web.Server.Models;
@@ -14,6 +15,47 @@ namespace OwnPlanner.Web.Server.Tests.Controllers;
 
 public sealed class TelegramControllerTests
 {
+	[Fact]
+	public async Task GeneralCommand_PersistsSelection_AndNewConversationPreservesIt()
+	{
+		var ct = TestContext.Current.CancellationToken;
+		var fixture = new Fixture();
+		var userId = Guid.NewGuid();
+		fixture.Integration.FindLinkedAccountAsync(100, 200, ct).Returns(new TelegramLinkedAccount(userId, 100, 200, PlanningMode.DayWork));
+		fixture.Integration.TryAdvanceChatUpdateAsync(userId, 42, ct).Returns(true);
+		var chat = Substitute.For<IPlanningService>();
+		fixture.Sessions.GetOrCreateSessionAsync("telegram:100", userId.ToString(), ct).Returns(chat);
+		var update = Fixture.PrivateTextUpdate(); update.Message!.Text = "/mode general";
+		await fixture.Controller.Webhook(update, ct);
+		await chat.Received(1).SwitchModeAsync(PlanningMode.General, ct);
+		await fixture.Integration.Received(1).SetModeAsync(userId, PlanningMode.General, ct);
+		fixture.Integration.ClearReceivedCalls();
+		update.Message.Text = "/new";
+		await fixture.Controller.Webhook(update, ct);
+		await fixture.Sessions.Received(1).RemoveSessionAsync("telegram:100");
+		await fixture.Integration.DidNotReceiveWithAnyArgs().SetModeAsync(default, default, ct);
+	}
+
+	[Theory]
+	[InlineData(PlanningMode.DayWork)]
+	[InlineData(PlanningMode.WeekPlanning)]
+	public async Task OrdinaryMessage_RestoresPersistedExplicitMode(PlanningMode mode)
+	{
+		var ct = TestContext.Current.CancellationToken;
+		var fixture = new Fixture();
+		var userId = Guid.NewGuid();
+		fixture.Integration.FindLinkedAccountAsync(100, 200, ct).Returns(new TelegramLinkedAccount(userId, 100, 200, mode));
+		fixture.Integration.TryAdvanceChatUpdateAsync(userId, 42, ct).Returns(true);
+		var chat = Substitute.For<IPlanningService>(); chat.CurrentMode.Returns(PlanningMode.General);
+		chat.GetResponseAsync("hello", ct).Returns(new ChatTurnResult("Response", 10));
+		fixture.Sessions.GetOrCreateSessionAsync("telegram:100", userId.ToString(), ct).Returns(chat);
+		await fixture.Controller.Webhook(Fixture.PrivateTextUpdate(), ct);
+		Received.InOrder(() => {
+			chat.SwitchModeAsync(mode, ct);
+			chat.GetResponseAsync("hello", ct);
+		});
+	}
+
 	[Fact]
 	public void ConnectionStatus_JsonContract_UsesPlanningModeName()
 	{

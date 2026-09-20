@@ -12,7 +12,7 @@ public sealed class ChatSkillRuntimeTests
 	public void General_StartsCompactWithDirectAgentsAndDiscoverableSkills()
 	{
 		var runtime = Create();
-		runtime.ActiveTools.Should().BeEquivalentTo("datetime_get_current", "skill_load", "task_planning_agent_call", "search_agent_call");
+		runtime.ActiveTools.Should().BeEquivalentTo("general_report_get", "datetime_get_current", "skill_load", "task_planning_agent_call", "search_agent_call");
 		foreach (var skill in ChatSkillRegistry.All.Values)
 		{
 			runtime.Catalog.Should().Contain(skill.Id).And.Contain(skill.Description);

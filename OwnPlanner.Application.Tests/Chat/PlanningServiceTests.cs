@@ -26,9 +26,24 @@ public class PlanningServiceTests
 	// --- default state ---
 
 	[Fact]
-	public void CurrentMode_BeforeSwitch_IsDayWork()
+	public async Task General_InitialSnapshotLoadsOnceAcrossTurns_AndExplicitModeSwitchIsPreserved()
 	{
+		var ct = TestContext.Current.CancellationToken;
+		await _svc.GetResponseAsync("I'm considering learning Spanish", ct);
+		await _svc.GetResponseAsync("Let's discuss my available time", ct);
+		await _mcpAdapter.Received(1).CallToolAsync("general_report_get", null, ct);
+		_chatAdapter.Received(1).ResetChatSession(Arg.Is<string>(p => p != null && p.Contains("Initial snapshot (not live state)")), Arg.Any<IReadOnlyList<string>>());
+		await _svc.SwitchModeAsync(PlanningMode.DayWork, ct);
+		await _svc.GetResponseAsync("Help with today", ct);
 		_svc.CurrentMode.Should().Be(PlanningMode.DayWork);
+		await _svc.SwitchModeAsync(PlanningMode.General, ct);
+		await _mcpAdapter.Received(2).CallToolAsync("general_report_get", null, ct);
+	}
+
+	[Fact]
+	public void CurrentMode_BeforeSwitch_IsGeneral()
+	{
+		_svc.CurrentMode.Should().Be(PlanningMode.General);
 	}
 
 	[Fact]
@@ -66,17 +81,17 @@ public class PlanningServiceTests
 	// --- SwitchModeAsync ---
 
 	[Fact]
-	public async Task General_ConfiguresCompactBaselineAndPermissionsWithoutPreloadingData()
+	public async Task General_ConfiguresCompactBaselineAndPreloadsOnlyGeneralReport()
 	{
 		await _svc.SwitchModeAsync(PlanningMode.General, TestContext.Current.CancellationToken);
 
 		Received.InOrder(() =>
 		{
 			_chatAdapter.ConfigureToolPolicy(Arg.Is<ChatToolPolicy>(policy =>
-					policy != null && policy.SkillIds.Count == 4 && policy.BaselineTools.Count == 4 && policy.AllowedTools.Contains("noteitem_create")));
+					policy != null && policy.SkillIds.Count == 4 && policy.BaselineTools.Count == 5 && policy.AllowedTools.Contains("noteitem_create")));
 			_chatAdapter.ResetChatSession(Arg.Any<string>(), ModeConfig.All[PlanningMode.General].InitialTools);
 		});
-		await _mcpAdapter.DidNotReceiveWithAnyArgs().CallToolAsync(default!, default, TestContext.Current.CancellationToken);
+		await _mcpAdapter.Received(1).CallToolAsync("general_report_get", null, TestContext.Current.CancellationToken);
 	}
 
 	[Fact]

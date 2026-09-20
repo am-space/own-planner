@@ -96,7 +96,7 @@ public sealed class TelegramController(
 			var token = command[7..].Trim().Split(' ', 2)[0];
 			var result = await integrationService.ConsumeConnectionTokenAsync(token, telegramUserId, chatId, cancellationToken);
 			await botClient.SendTextAsync(chatId, result == TelegramLinkResult.Linked
-				? "Telegram is connected to OwnPlanner. You're in Day mode. Send a planning message or /help."
+				? "Telegram is connected to OwnPlanner. You're in General mode. Send a planning message or /help."
 				: "That connection link is invalid, expired, or cannot be used. Create a new link in OwnPlanner Settings.", cancellationToken);
 			return;
 		}
@@ -142,7 +142,7 @@ public sealed class TelegramController(
 		{
 			case "/start":
 			case "/help":
-				await botClient.SendTextAsync(account.ChatId, "Commands: /mode <day|week|global|reflection|analysis>, /new, /status, /unlink. Send ordinary text to plan.", cancellationToken);
+				await botClient.SendTextAsync(account.ChatId, "Commands: /mode <general|day|week|global|reflection|analysis>, /new, /status, /unlink. Send ordinary text to plan.", cancellationToken);
 				break;
 			case "/new":
 				await sessionManager.RemoveSessionAsync(sessionId);
@@ -161,7 +161,7 @@ public sealed class TelegramController(
 				var argument = command.Split(' ', 2).ElementAtOrDefault(1)?.Trim();
 				if (!TryParseMode(argument, out var mode))
 				{
-					await botClient.SendTextAsync(account.ChatId, "Use /mode day, week, global, reflection, or analysis.", cancellationToken);
+					await botClient.SendTextAsync(account.ChatId, "Use /mode general, day, week, global, reflection, or analysis.", cancellationToken);
 					break;
 				}
 				var chat = await sessionManager.GetOrCreateSessionAsync(sessionId, account.UserId.ToString(), cancellationToken);
@@ -187,7 +187,7 @@ public sealed class TelegramController(
 	{
 		mode = value?.ToLowerInvariant() switch
 		{
-			"day" => PlanningMode.DayWork, "week" => PlanningMode.WeekPlanning,
+			"general" => PlanningMode.General, "day" => PlanningMode.DayWork, "week" => PlanningMode.WeekPlanning,
 			"global" => PlanningMode.GlobalPlanning, "reflection" => PlanningMode.Reflection,
 			"analysis" => PlanningMode.SystemAnalysis, _ => (PlanningMode)(-1),
 		};

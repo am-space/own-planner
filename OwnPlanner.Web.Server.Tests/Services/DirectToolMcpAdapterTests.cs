@@ -40,6 +40,8 @@ public sealed class DirectToolMcpAdapterTests : IDisposable
 		toolDetails.Should().Contain(tool => tool.Name == "taskitem_get");
 		toolDetails.Should().Contain(tool => tool.Name == "strategic_report_get");
 		toolDetails.Should().Contain(tool => tool.Name == "weekly_report_get");
+		var general = toolDetails.Single(tool => tool.Name == "general_report_get");
+		general.JsonSchema!.Value.GetProperty("properties").EnumerateObject().Should().BeEmpty();
 		toolDetails.Should().Contain(tool => tool.Name == "reflection_report_get");
 
 		var taskGetTool = toolDetails.Single(tool => tool.Name == "taskitem_get");
@@ -178,6 +180,23 @@ public sealed class DirectToolMcpAdapterTests : IDisposable
 
 		var reportA = await adapterA.CallToolAsync("weekly_report_get", cancellationToken: ct);
 		var reportB = await adapterB.CallToolAsync("weekly_report_get", cancellationToken: ct);
+
+		reportA.Should().Contain("User A weekly task").And.NotContain("User B weekly task");
+		reportB.Should().Contain("User B weekly task").And.NotContain("User A weekly task");
+	}
+
+	[Fact]
+	public async Task CallToolAsync_GeneralReport_IsIsolatedByAdapterUser()
+	{
+		var ct = TestContext.Current.CancellationToken;
+		await using var serviceProvider = BuildTenantServiceProvider();
+		await SeedUserWeeklyTaskAsync("user-a", "User A weekly task", ct);
+		await SeedUserWeeklyTaskAsync("user-b", "User B weekly task", ct);
+		await using var adapterA = CreateAdapter(serviceProvider, "user-a");
+		await using var adapterB = CreateAdapter(serviceProvider, "user-b");
+
+		var reportA = await adapterA.CallToolAsync("general_report_get", cancellationToken: ct);
+		var reportB = await adapterB.CallToolAsync("general_report_get", cancellationToken: ct);
 
 		reportA.Should().Contain("User A weekly task").And.NotContain("User B weekly task");
 		reportB.Should().Contain("User B weekly task").And.NotContain("User A weekly task");
@@ -507,6 +526,7 @@ public sealed class DirectToolMcpAdapterTests : IDisposable
 		services.AddSingleton<TimeProvider>(new FixedTimeProvider(TenantTestUtcNow));
 		services.AddScoped<IStrategicReportReader, StrategicReportReader>();
 		services.AddScoped<IWeeklyReportReader, WeeklyReportReader>();
+		services.AddScoped<IGeneralReportReader, GeneralReportReader>();
 		services.AddScoped<IReflectionReportReader, ReflectionReportReader>();
 		services.AddScoped<ITaskListRepository, TaskListRepository>();
 		services.AddScoped<ITaskItemRepository, TaskItemRepository>();

@@ -13,8 +13,8 @@ public sealed class PlanningService : IPlanningService
 	private readonly int _recentMessagesToKeep;
 	private readonly HistoryCompactionStrategy _compactionStrategy;
 
-	private PlanningMode _currentMode = PlanningMode.DayWork;
-	private ModeConfig _currentConfig = ModeConfig.All[PlanningMode.DayWork];
+	private PlanningMode _currentMode = PlanningMode.General;
+	private ModeConfig _currentConfig = ModeConfig.All[PlanningMode.General];
 	private bool _modeActivated;
 	private string _currentSystemPrompt = string.Empty;
 	// Plain-text transcript of completed turns, used to summarize/trim and rebuild the session on compaction.
@@ -245,7 +245,8 @@ public sealed class PlanningService : IPlanningService
 		if (string.IsNullOrEmpty(context))
 			return config.SystemPrompt;
 
-		return $"{config.SystemPrompt}\n\n## Current context\n\n{context}";
+		var heading = config.ModeId == PlanningMode.General ? "Initial snapshot (not live state)" : "Current context";
+		return $"{config.SystemPrompt}\n\n## {heading}\n\n{context}";
 	}
 
 	public async ValueTask DisposeAsync()

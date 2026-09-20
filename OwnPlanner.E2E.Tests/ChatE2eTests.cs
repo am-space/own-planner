@@ -11,6 +11,24 @@ namespace OwnPlanner.E2E.Tests;
 public sealed class ChatE2eTests(E2eWebApplicationFactory application) : E2ePageTest(application)
 {
 	[Fact]
+	public async Task General_IsDefault_PreservesSelectedModeOnReload_AndResetsOnClear()
+	{
+		await RegisterAsync(Page, CreateUser());
+		var selector = Page.GetByRole(AriaRole.Combobox, new() { Name = "Planning mode" });
+		await Expect(selector).ToContainTextAsync("General");
+		await Expect(Page.GetByText("Help me think through an idea", new() { Exact = true })).ToBeVisibleAsync();
+		await Expect(Page.GetByTestId("assistant-message")).ToHaveCountAsync(0);
+		await selector.ClickAsync();
+		await Page.GetByRole(AriaRole.Option, new() { Name = "Day Work", Exact = true }).ClickAsync();
+		await Expect(selector).ToContainTextAsync("Day Work");
+		await Page.ReloadAsync();
+		await Expect(selector).ToContainTextAsync("Day Work");
+		await Page.GetByRole(AriaRole.Button, new() { Name = "Clear", Exact = true }).ClickAsync();
+		await Expect(selector).ToContainTextAsync("General");
+		await Expect(Page.GetByText("Help me think through an idea", new() { Exact = true })).ToBeVisibleAsync();
+	}
+
+	[Fact]
 	public async Task ScriptedResponse_RendersThroughRealChatApi()
 	{
 		await RegisterAsync(Page, CreateUser());

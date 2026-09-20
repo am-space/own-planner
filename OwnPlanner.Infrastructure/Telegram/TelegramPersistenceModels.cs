@@ -18,7 +18,7 @@ public sealed class TelegramAccountLink
 	public Guid UserId { get; set; }
 	public long TelegramUserId { get; set; }
 	public long ChatId { get; set; }
-	public PlanningMode Mode { get; set; } = PlanningMode.DayWork;
+	public PlanningMode Mode { get; set; } = PlanningMode.General;
 	public DateTime ConnectedAtUtc { get; set; }
 	public long? LastProcessedUpdateId { get; set; }
 }
