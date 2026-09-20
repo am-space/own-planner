@@ -64,6 +64,30 @@ public sealed class GeneralReportBuilderTests
 		report.Direction.Goals.Select(g => g.Id).Should().Equal(goals.Take(2).Select(g => g.Id));
 	}
 
+	[Theory]
+	[InlineData(79, "", 79, true)]
+	[InlineData(78, "", 80, false)]
+	[InlineData(78, "extra", 80, true)]
+	[InlineData(80, "", 80, true)]
+	public void Build_TitleBoundsPreserveWholeEmojiInTaskAndGoalSamples(int prefixLength, string suffix, int expectedLength, bool truncated)
+	{
+		var prefix = new string('a', prefixLength);
+		var title = prefix + "\U0001F600" + suffix;
+		var expected = prefixLength == 78 ? prefix + "\U0001F600" : prefix;
+		var goal = new GeneralGoalRow(Guid.NewGuid(), title);
+		var report = GeneralReportBuilder.Build(Today, [Row(1, focus: Today, goal: goal.Id, title: title)], [goal], 0);
+
+		var taskSample = report.Tasks.Should().ContainSingle().Subject;
+		var goalSample = report.Direction.Goals.Should().ContainSingle().Subject;
+		taskSample.Title.Should().Be(expected).And.HaveLength(expectedLength);
+		goalSample.Title.Should().Be(expected).And.HaveLength(expectedLength);
+		taskSample.TitleTruncated.Should().Be(truncated);
+		goalSample.TitleTruncated.Should().Be(truncated);
+		var json = JsonSerializer.SerializeToElement(report, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+		json.GetProperty("tasks")[0].GetProperty("title").GetString().Should().Be(expected);
+		json.GetProperty("direction").GetProperty("goals")[0].GetProperty("title").GetString().Should().Be(expected);
+	}
+
 	[Fact]
 	public void Build_RepresentativeFixtureIsCompact_AndEmptyDataHasNoSamples()
 	{

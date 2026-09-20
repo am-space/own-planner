@@ -49,7 +49,13 @@ public static class GeneralReportBuilder
 				linkedGoals.Take(3).Select(g => new GeneralGoalSample(g.Id, Clip(g.Title), g.Title.Length > TitleLimit)).ToArray()),
 			Order(tasks.Where(t => sampleIds.Contains(t.Id))).Select(t => new GeneralTaskSample(t.Id, Clip(t.Title), t.Title.Length > TitleLimit, t.FocusAt, t.DueAt)).ToArray(), TitleLimit);
 	}
-	private static string Clip(string title) => title[..Math.Min(title.Length, TitleLimit)];
+	private static string Clip(string title)
+	{
+		var length = Math.Min(title.Length, TitleLimit);
+		if (length < title.Length && char.IsHighSurrogate(title[length - 1]) && char.IsLowSurrogate(title[length]))
+			length--;
+		return title[..length];
+	}
 	private static bool InWindow(DateTime? value, DateTime start, DateTime end) => value >= start && value < end;
 	private static IOrderedEnumerable<GeneralTaskRow> Order(IEnumerable<GeneralTaskRow> tasks) => tasks
 		.OrderBy(t => t.DueAt ?? DateTime.MaxValue).ThenBy(t => t.FocusAt ?? DateTime.MaxValue).ThenBy(t => t.Id);

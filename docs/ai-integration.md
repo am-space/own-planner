@@ -48,8 +48,8 @@ registered in-process, over HTTP MCP and in the stdio host.
 
 `tasks` is a shared sample table: references from Today and Commitments resolve to a single entry,
 so a task appearing in both sections has only one full sample. Maximum eight task and three goal
-samples; titles are capped at 80 UTF-16 code units with `titleTruncated` flags. Samples contain IDs
-for targeted retrieval. Tasks sort by earliest due date, then earliest focus date (absent dates last),
+samples; titles are capped at 80 UTF-16 code units without splitting surrogate pairs, with
+`titleTruncated` flags. Samples contain IDs for targeted retrieval. Tasks sort by earliest due date, then earliest focus date (absent dates last),
 then ID. Goals sort by ordinal full title, then ID. Counts do not depend on sample truncation.
 Representative fixtures target about 600–1,000 tokens using a rough character/4 diagnostic; actual
 tokenization varies by model and text. Fixed field/sample limits are the enforceable output bound.

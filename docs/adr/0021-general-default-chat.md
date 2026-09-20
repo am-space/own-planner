@@ -40,8 +40,8 @@ Direction samples active goals linked to today's focus or today's/upcoming incom
 
 Exact counts accompany fixed sample limits and truncation flags. At most five remaining focus IDs
 and three nearest-deadline IDs reference a deduplicated table of at most eight task samples; at most
-three linked active goals are sampled. Task and goal titles are capped at 80 UTF-16 code units.
-Descriptions and note bodies are excluded. Stable date/title orderings end with ID tie-breakers.
+three linked active goals are sampled. Task and goal titles are capped at 80 UTF-16 code units
+without splitting surrogate pairs. Descriptions and note bodies are excluded. Stable date/title orderings end with ID tie-breakers.
 [The reference contract](../ai-integration.md#general-initial-context-report) defines all predicates.
 
 ## Consequences

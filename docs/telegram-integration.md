@@ -44,7 +44,8 @@ Gemini flow, and user-bound tools as web chat. Responses are plain text and spli
 code units without dividing Unicode surrogate pairs. Supported commands are `/start`, `/help`,
 `/mode <general|day|week|global|reflection|analysis>`, `/new`, `/status`, and `/unlink`.
 
-New links start in General. Existing saved modes retain their numeric values and are not migrated.
+New links start in General. Modes are stored as names; existing saved names are unchanged and
+are not migrated.
 `/mode general` explicitly selects General; `/new` preserves the account’s saved selection.
 
 Telegram and web histories remain separate. `/new` removes only the Telegram session; `/unlink`
