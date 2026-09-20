@@ -73,14 +73,16 @@ automatic briefing, and is not appended again on ordinary turns or compaction. T
 targeted reads after mutations or when fresh state matters. General starter prompts invite
 exploration, capture, and attention review. Specialized modes retain their original tools and purpose.
 
-`ChatSkillRegistry` in Application defines four trusted skills:
+`ChatSkillRegistry` in Application defines six trusted skills:
 
 | Identifier | Purpose |
 |---|---|
+| `task_management` | Targeted task reads, edits, completion, reopening, recoverable Trash and restoration |
 | `notes` | Targeted note retrieval, capture, editing and organization |
-| `goals_organization` | Goals, contexts, task/note lists and strategic review |
-| `weekly_planning` | Seven-day workload report, task lookup, Trash lookup, restore and reopen |
+| `goals_organization` | Goals, contexts and task/note list structure |
+| `weekly_planning` | Seven-day workload, prioritization and scheduling guidance |
 | `reflection` | Current-state reflection report, captures, retrospective notes and goal status |
+| `strategic_review` | Read-only alignment and structural diagnosis |
 
 The model receives a short catalog of skills permitted by the active mode. `skill_load` takes one
 required string, `skillId`. Loading validates every referenced tool atomically, adds instructions to
@@ -106,10 +108,30 @@ Skill state is local to one request, and planner calls still use the host's auth
 `IMcpAdapter`. The web and Telegram paths use `DirectToolMcpAdapter`; the console's configured MCP
 adapter invokes the same stdio handlers. Like the agent calls, `skill_load` is a chat-local capability,
 not a public MCP server operation. Skills never accept tenant identifiers, database paths or code.
-Permanent deletion of tasks, notes, goals, contexts and lists is excluded from General. Supported task writes
-go through the existing task agent; explicit restore and reopen use the weekly skill's shared tools.
+Permanent deletion of tasks, notes, goals, contexts and lists is excluded from General. Clearly authorized simple task changes use `task_management` directly. Ambiguous targets require
+clarification; exploratory ideas invite discussion or proposal-only delegation. Multi-step planning
+can delegate with execution authorization already expressed by the user; it does not require another
+confirmation. Intent and routing are model instructions; declared permissions and proposal read-only
+behavior are independently enforced in code.
 
-See [ADR-0020](adr/0020-request-scoped-chat-skills.md) for the architectural decision.
+Specialized modes compose the same operation groups through `ChatCapabilities`, retaining their exact
+pre-#59 effective permission sets (including delegated writes in Global Planning):
+
+| Mode | Explicit baseline skills and additional capabilities |
+|---|---|
+| General | Five compact baseline tools; six skills loaded on demand |
+| Global Planning | Goals/organization, notes and strategic review; existing recovery, removal and delegation capabilities |
+| Week Planning | Weekly planning and task management; existing task-list maintenance |
+| Day Work | Narrow task-read/progress groups and quick capture; no full task skill or agents |
+| Reflection | Reflection; existing note-list capture processing and Search Agent |
+| System Analysis | Strategic review with the independent read-only policy |
+
+Full skills require every operation to fit the permission ceiling. Smaller internal groups avoid
+broadening Day Work or Reflection. Baseline skills reapply instructions each request; a host missing
+required tools omits that skill's instructions while retaining installed baseline tools. An explicit
+load of an incomplete skill still fails atomically. No model-selected skill persists across turns.
+
+See [ADR-0022](adr/0022-chat-capabilities-and-delegation.md) for the current architectural decision and measured scripted overhead.
 
 ## Adding a New Tool
 
@@ -133,8 +155,20 @@ deletion unless the task is already in Trash.
 ## Delegated Agents
 
 Global Planning and General expose the local `task_planning_agent_call` capability. It accepts a required
-planning objective and optional `contextId` and `taskListId` scopes. This capability is registered
-by the Gemini chat adapter rather than as a public MCP tool: the main planner decides what outcome
+planning objective and optional `contextId` and `taskListId` scopes, `behavior` and `brief`.
+`behavior` is `proposal` (mechanically read-only) or `execution` (authorized changes); omission retains
+execution for compatibility with existing chat-local calls. Unknown values and wrong types fail before
+scope lookups or specialist startup. The objective is limited to 2,000 UTF-16 code units.
+
+The optional brief has `constraints` and `userDecisions` (at most eight nonblank strings each,
+300 code units per string) and `entityReferences` (at most 16 objects: `kind` of `task`, `taskList`,
+`goal` or `context`, a nonempty UUID `id`, optional `label` up to 120 code units). Oversized or invalid
+briefs are rejected rather than truncated. Unknown brief fields are rejected; there is no history
+field. Entity references supply context and never grant scope or tenant access. The parent selects
+relevant context, and the specialist receives a bounded JSON object with objective, behavior, scopes
+and brief. No user/tenant selector is added to the schema.
+
+This capability is registered by the Gemini chat adapter rather than as a public MCP tool: the main planner decides what outcome
 to delegate, while the specialist performs the bounded task decomposition in a fresh Gemini
 session that receives no parent conversation history.
 
@@ -143,16 +177,24 @@ the authenticated `DirectToolMcpAdapter` and its user-bound `AppDbContext`; cons
 chat use their configured adapter. A provider-neutral `TaskPlanningMcpAdapter` wraps that adapter
 for each invocation. It exposes a server-owned allowlist, rejects recursive agent calls and
 reopen/restore/archive/permanent-delete operations, validates supplied scope IDs, and checks every
-task or task-list read and write against the active scope. The allowlist permits completing an active
-task and moving one to recoverable Trash. Both lifecycle mutations first resolve the target through
+task or task-list read and write against the active scope. Execution retains the existing delegated
+allowlist, including completing an active task and moving one to recoverable Trash. Proposal mode filters all mutation declarations and also
+rejects every write in `TaskPlanningMcpAdapter.CallToolAsync`, even if the specialist invents a call.
+It cannot recurse or call Search Agent. Both lifecycle mutations first resolve the target through
 the authenticated adapter and prove it belongs to any context or task-list scope. The trusted
 specialist instruction permits them only when the delegated objective explicitly expresses that
 intent and identifies the target sufficiently; ambiguous targets are returned as unresolved
 questions. Broad task queries that cannot be proven in scope are unavailable during scoped delegation.
 
 Each invocation has a configurable tool-call-round limit (eight by default) and propagates cancellation through scope
-validation and tool execution. Its structured result distinguishes status, a factual summary,
-attempted mutations, warnings, and unresolved questions. Nested Gemini usage metadata contributes
+validation and tool execution. Its structured result distinguishes status, a model summary,
+execution-confirmed `actions`, warnings, unresolved questions, and additive `proposedPlan` steps.
+Each proposed step has a description (1–500 code units) and optional task/list UUIDs; at most 20 steps
+are accepted. Summary is bounded to 2,000 code units; specialist warnings and questions to eight
+500-code-unit strings each. Model claims never populate `actions`. Steps are suggestions and never
+automatically applied. A completed proposal returns `proposed`; malformed proposal output returns
+`invalid_proposal` with no accepted steps. Existing execution status values remain unchanged;
+`limit_reached` and `failed` still distinguish incomplete delegations. Nested Gemini usage metadata contributes
 to the parent turn's token totals when the provider supplies it. Failures are returned as safe
 delegation results and do not reset the main conversation.
 

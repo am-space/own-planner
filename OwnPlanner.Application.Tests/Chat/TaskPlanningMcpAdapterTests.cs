@@ -7,6 +7,48 @@ namespace OwnPlanner.Application.Tests.Chat;
 public class TaskPlanningMcpAdapterTests
 {
 	[Fact]
+	public async Task Proposal_DeniesEveryWriteAndOtherAgentsEvenWhenInnerAdapterOffersThem()
+	{
+		var names = TaskPlanningMcpAdapter.WriteTools.Concat(["search_agent_call", "task_planning_agent_call"]);
+		var inner = new FakeMcpAdapter(names.Append("taskitem_get").ToArray());
+		var adapter = await TaskPlanningMcpAdapter.CreateAsync(inner, new TaskPlanningAgentRequest("Explore", Behavior: TaskPlanningBehavior.Proposal), TestContext.Current.CancellationToken);
+		(await adapter.ListToolDetailsAsync(TestContext.Current.CancellationToken)).Select(tool => tool.Name).Should().Equal("taskitem_get");
+		foreach (var name in names)
+		{
+			var act = () => adapter.CallToolAsync(name, cancellationToken: TestContext.Current.CancellationToken);
+			await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*not allowed*");
+		}
+		inner.Calls.Should().BeEmpty();
+		adapter.Actions.Should().BeEmpty();
+	}
+
+	[Fact]
+	public async Task Proposal_ScopedReadsCannotFollowAnOutOfScopeBriefReference()
+	{
+		var listId = Guid.NewGuid();
+		var outsideTask = Guid.NewGuid();
+		var inner = new FakeMcpAdapter("tasklist_get", "taskitem_get");
+		inner.Results["tasklist_get"] = JsonSerializer.Serialize(new { id = listId });
+		inner.Results["taskitem_get"] = JsonSerializer.Serialize(new { id = outsideTask, taskListId = Guid.NewGuid() });
+		var request = new TaskPlanningAgentRequest("Explore", TaskListId: listId, Behavior: TaskPlanningBehavior.Proposal,
+			Brief: new(EntityReferences: [new("task", outsideTask)]));
+		var adapter = await TaskPlanningMcpAdapter.CreateAsync(inner, request, TestContext.Current.CancellationToken);
+		var act = () => adapter.CallToolAsync("taskitem_get", new Dictionary<string, object?> { ["id"] = outsideTask }, TestContext.Current.CancellationToken);
+		await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*outside the delegated scope*");
+		adapter.Actions.Should().BeEmpty();
+	}
+
+	[Fact]
+	public async Task InvalidBrief_IsRejectedBeforeAnyScopeLookups()
+	{
+		var inner = new FakeMcpAdapter("context_get");
+		var request = new TaskPlanningAgentRequest(new string('x', 2001), ContextId: Guid.NewGuid());
+		var act = () => TaskPlanningMcpAdapter.CreateAsync(inner, request, TestContext.Current.CancellationToken);
+		await act.Should().ThrowAsync<InvalidOperationException>();
+		inner.Calls.Should().BeEmpty();
+	}
+
+	[Fact]
 	public async Task ListToolDetailsAsync_ExposesOnlyTrustedTools()
 	{
 		var inner = new FakeMcpAdapter(

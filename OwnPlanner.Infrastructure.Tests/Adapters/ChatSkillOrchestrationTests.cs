@@ -7,7 +7,7 @@ using OwnPlanner.Infrastructure.Adapters;
 
 namespace OwnPlanner.Infrastructure.Tests.Adapters;
 
-public sealed class ChatSkillOrchestrationTests
+public sealed partial class ChatSkillOrchestrationTests
 {
 	[Fact]
 	public async Task General_DiscussionThenRequestedCapture_UsesSnapshotAndSkillWithoutAutomaticWrites()
@@ -238,6 +238,7 @@ public sealed class ChatSkillOrchestrationTests
 	{
 		private readonly Queue<string> _responses = new(responses);
 		public List<JsonElement> Requests { get; } = [];
+		public List<string> EmittedToolCalls { get; } = [];
 		public Action<int>? OnRequest { get; set; }
 		public HttpClient CreateClient(string name) => new(this, disposeHandler: false);
 		protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
@@ -245,6 +246,9 @@ public sealed class ChatSkillOrchestrationTests
 			var json = await request.Content!.ReadAsStringAsync(cancellationToken);
 			Requests.Add(JsonSerializer.Deserialize<JsonElement>(json));
 			var response = _responses.Dequeue();
+			using var document = JsonDocument.Parse(response);
+			foreach (var part in document.RootElement.GetProperty("candidates")[0].GetProperty("content").GetProperty("parts").EnumerateArray())
+				if (part.TryGetProperty("functionCall", out var call)) EmittedToolCalls.Add(call.GetProperty("name").GetString()!);
 			OnRequest?.Invoke(Requests.Count);
 			cancellationToken.ThrowIfCancellationRequested();
 			return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(response, Encoding.UTF8, "application/json") };
@@ -254,6 +258,7 @@ public sealed class ChatSkillOrchestrationTests
 	private sealed class RecordingMcpAdapter(string? missingTool = null) : IMcpAdapter
 	{
 		public List<string> Calls { get; } = [];
+		public Dictionary<string, string> Results { get; } = [];
 		public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
 		public Task<IReadOnlyList<McpToolDefinition>> ListToolDetailsAsync(CancellationToken cancellationToken = default) =>
 			Task.FromResult<IReadOnlyList<McpToolDefinition>>(ModeConfig.All.Values.SelectMany(config => config.AllowedTools)
@@ -264,7 +269,7 @@ public sealed class ChatSkillOrchestrationTests
 		{
 			cancellationToken.ThrowIfCancellationRequested();
 			Calls.Add(toolName);
-			return Task.FromResult("{}");
+			return Task.FromResult(Results.GetValueOrDefault(toolName, "{}"));
 		}
 		public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 	}

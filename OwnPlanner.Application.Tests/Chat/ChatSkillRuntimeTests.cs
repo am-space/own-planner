@@ -9,6 +9,30 @@ public sealed class ChatSkillRuntimeTests
 	private static ChatSkillRuntime Create(ChatToolPolicy? policy = null) => new(policy ?? General, General.AllowedTools);
 
 	[Fact]
+	public void Catalog_HasSixResponsibilitiesAndRecoveryBelongsToTaskManagement()
+	{
+		ChatSkillRegistry.All.Keys.Should().BeEquivalentTo("task_management", "notes", "goals_organization", "weekly_planning", "reflection", "strategic_review");
+		ChatSkillRegistry.All["weekly_planning"].Tools.Should().NotContain(["taskitem_restore", "taskitem_reopen", "taskitem_list_trash"]);
+		ChatSkillRegistry.All["goals_organization"].Tools.Should().NotContain("strategic_report_get");
+		ChatSkillRegistry.All["strategic_review"].Tools.Should().OnlyContain(tool => ChatSkillRegistry.ReadTools.Contains(tool));
+		var runtime = Create();
+		runtime.Load("task_management");
+		runtime.ActiveTools.Should().Contain(["taskitem_create", "taskitem_update", "taskitem_assign", "taskitem_set_focus_date", "taskitem_set_important", "taskitem_complete", "taskitem_reopen", "taskitem_delete", "taskitem_list_trash", "taskitem_restore"]);
+		runtime.ActiveTools.Should().NotContain("taskitem_delete_permanently");
+	}
+
+	[Fact]
+	public void MissingBaselineSkillTools_PreserveInstalledToolsWithoutAdvertisingIncompleteSkill()
+	{
+		var policy = ChatToolPolicy.ForMode(ModeConfig.All[PlanningMode.Reflection]);
+		var runtime = new ChatSkillRuntime(policy, ["datetime_get_current", "goal_get"]);
+		runtime.ActiveTools.Should().BeEquivalentTo("datetime_get_current", "goal_get");
+		runtime.Instructions.Should().BeEmpty();
+		var load = () => runtime.Load("reflection");
+		load.Should().Throw<InvalidOperationException>().WithMessage("*required planner tools*");
+	}
+
+	[Fact]
 	public void General_StartsCompactWithDirectAgentsAndDiscoverableSkills()
 	{
 		var runtime = Create();

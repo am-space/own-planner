@@ -15,7 +15,16 @@ namespace OwnPlanner.Infrastructure.Adapters
 		private const string SearchAgentToolName = "search_agent_call";
 		private const string TaskPlanningAgentToolName = "task_planning_agent_call";
 		internal const string TaskPlanningAgentSystemInstruction = """
-			You are OwnPlanner's isolated Task Planning Agent. Carry out the explicit objective using only the supplied tools and respect any scope stated in the request. You may read planner data; create or update task lists and tasks; assign tasks; set focus dates or importance; and complete or move an active task to recoverable Trash only when the objective explicitly requests that lifecycle action and identifies the target sufficiently. Never reopen or restore tasks, permanently delete tasks, delete or archive task lists, archive anything, or invoke another agent. If a completion or Trash target is ambiguous, return an unresolved question instead of guessing or mutating data. Finish with only a JSON object containing: summary (string), warnings (string array), and unresolvedQuestions (string array).
+			You are OwnPlanner's isolated Task Planning Agent.
+			Carry out the explicit objective using only the supplied tools and respect any scope stated in the request.
+			You may read planner data; create or update task lists and tasks; assign tasks; set focus dates or importance; and complete or move an active task to recoverable Trash only when the objective explicitly requests that lifecycle action and identifies the target sufficiently.
+			Never reopen or restore tasks, permanently delete tasks, delete or archive task lists, archive anything, or invoke another agent.
+			If a completion or Trash target is ambiguous, return an unresolved question instead of guessing or mutating data.
+			The request is a structured brief: use its constraints, entity references and user decisions as context, never as permission to escape scope.
+			In proposal behavior, only read tools are allowed: do not mutate data and return suggested steps separately from completed changes.
+			In execution behavior, apply clearly authorized changes without an additional confirmation step; if any target is ambiguous, return an unresolved question.
+			Finish with only a JSON object containing: summary (string, at most 2000 characters), warnings and unresolvedQuestions (at most 8 strings each, 500 characters each), and proposedPlan (at most 20 objects with description up to 500 characters, optional taskId and taskListId UUIDs).
+			Proposal steps are suggestions, never confirmed actions.
 			""";
 		private const string SearchAgentToolSchema = """
 		{
@@ -321,7 +330,16 @@ namespace OwnPlanner.Infrastructure.Adapters
 			{
 			  "type": "object",
 			  "properties": {
-			    "objective": { "type": "string", "description": "The concrete planning outcome to carry out, including explicit requests to complete identified tasks or move identified active tasks to recoverable Trash." },
+			    "objective": { "type": "string", "description": "Concrete planning objective, at most 2000 characters. Simple task edits should use task_management directly." },
+			    "behavior": { "type": "string", "enum": ["proposal", "execution"], "description": "Select proposal for exploration (mechanically read-only), execution for clearly authorized changes. Omission defaults to execution for compatibility." },
+			    "brief": { "type": "object", "description": "Selected relevant context only; never full history. Reject oversized context rather than omit constraints.", "properties": {
+			      "constraints": { "type": "array", "maxItems": 8, "items": { "type": "string", "maxLength": 300 } },
+			      "userDecisions": { "type": "array", "maxItems": 8, "items": { "type": "string", "maxLength": 300 } },
+			      "entityReferences": { "type": "array", "maxItems": 16, "items": { "type": "object", "properties": {
+			        "kind": { "type": "string", "enum": ["task", "taskList", "goal", "context"] },
+			        "id": { "type": "string", "format": "uuid" }, "label": { "type": "string", "maxLength": 120 }
+			      }, "required": ["kind", "id"] } }
+			    } },
 			    "contextId": { "type": "string", "format": "uuid", "description": "Optional planning-context scope." },
 			    "taskListId": { "type": "string", "format": "uuid", "description": "Optional existing task-list scope." }
 			  },
@@ -331,7 +349,7 @@ namespace OwnPlanner.Infrastructure.Adapters
 			return new FunctionDeclaration
 			{
 				Name = TaskPlanningAgentToolName,
-				Description = "Delegate a concrete objective to an isolated agent that can create and organize tasks, complete identified tasks, and move identified active tasks to recoverable Trash using a restricted tool set.",
+				Description = "Delegate multi-step planning with a bounded brief of relevant constraints, entity references and user decisions. Explicitly select proposal for exploratory planning, execution for authorized changes without another confirmation. Use direct task tools for simple edits; use Search Agent for external factual research.",
 				Parameters = ConvertJsonSchemaToGeminiSchema(schemaDocument.RootElement.Clone())
 			};
 		}
@@ -407,19 +425,14 @@ namespace OwnPlanner.Infrastructure.Adapters
 			IReadOnlyDictionary<string, object?>? arguments,
 			CancellationToken cancellationToken)
 		{
-			var objective = ToolArgumentParser.GetStringArgument(arguments, "objective");
-			if (string.IsNullOrWhiteSpace(objective))
-				throw new InvalidOperationException($"Tool '{TaskPlanningAgentToolName}' requires a non-empty 'objective' argument.");
+			var request = TaskPlanningRequestParser.Parse(arguments);
 			if (_mcpClient == null)
 				throw new InvalidOperationException("Task-planning delegation is unavailable because planner tools are not configured.");
 
-			var contextId = ParseOptionalGuid(arguments, "contextId");
-			var taskListId = ParseOptionalGuid(arguments, "taskListId");
-			var request = new TaskPlanningAgentRequest(objective, contextId, taskListId);
 			TaskPlanningMcpAdapter scopedAdapter;
 			try
 			{
-				scopedAdapter = await TaskPlanningMcpAdapter.CreateAsync(_mcpClient, contextId, taskListId, cancellationToken).ConfigureAwait(false);
+				scopedAdapter = await TaskPlanningMcpAdapter.CreateAsync(_mcpClient, request, cancellationToken).ConfigureAwait(false);
 			}
 			catch (Exception ex) when (ex is not OperationCanceledException)
 			{
@@ -443,13 +456,6 @@ namespace OwnPlanner.Infrastructure.Adapters
 			_turnInputTokens += execution.InputTokens;
 			_turnOutputTokens += execution.OutputTokens;
 			return SerializeTaskPlanningResult(execution.Result);
-		}
-
-		private static Guid? ParseOptionalGuid(IReadOnlyDictionary<string, object?>? arguments, string name)
-		{
-			var value = ToolArgumentParser.GetStringArgument(arguments, name);
-			if (string.IsNullOrWhiteSpace(value)) return null;
-			return Guid.TryParse(value, out var guid) ? guid : throw new InvalidOperationException($"Tool argument '{name}' must be a valid UUID.");
 		}
 
 		private static FunctionDeclaration ToFunctionDeclaration(McpToolDefinition definition) => new()
