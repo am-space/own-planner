@@ -8,6 +8,13 @@ namespace OwnPlanner.Application.Chat;
 public interface IChatAdapter : IAsyncDisposable
 {
 	/// <summary>
+	/// Applies host-owned mode permissions and request-scoped skill configuration. Call when switching
+	/// modes before resetting the session; implementations must enforce this policy at execution time.
+	/// </summary>
+	/// <param name="policy">The active mode's baseline and maximum permitted capabilities.</param>
+	void ConfigureToolPolicy(ChatToolPolicy policy);
+
+	/// <summary>
 	/// Gets the UTC timestamp when the chat adapter instance was created.
 	/// This is used for session lifecycle tracking and cleanup decisions.
 	/// </summary>

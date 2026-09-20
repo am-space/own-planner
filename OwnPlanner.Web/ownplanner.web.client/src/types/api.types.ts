@@ -99,6 +99,7 @@ export interface ChatHealthResponse {
 }
 
 export type PlanningMode =
+  | 'General'
   | 'GlobalPlanning'
   | 'WeekPlanning'
   | 'DayWork'

@@ -6,5 +6,6 @@ public enum PlanningMode
 	WeekPlanning,
 	DayWork,
 	Reflection,
-	SystemAnalysis
+	SystemAnalysis,
+	General
 }

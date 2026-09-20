@@ -6,10 +6,11 @@ namespace OwnPlanner.Application.Tests.Chat;
 public class ModeConfigTests
 {
 	[Fact]
-	public void TaskPlanningAgent_IsExposedOnlyInGlobalPlanning()
+	public void TaskPlanningAgent_IsExposedOnlyInGlobalPlanningAndGeneral()
 	{
 		ModeConfig.All[PlanningMode.GlobalPlanning].AllowedTools.Should().Contain("task_planning_agent_call");
-		ModeConfig.All.Where(pair => pair.Key != PlanningMode.GlobalPlanning)
+		ModeConfig.All[PlanningMode.General].InitialTools.Should().Contain("task_planning_agent_call");
+		ModeConfig.All.Where(pair => pair.Key is not PlanningMode.GlobalPlanning and not PlanningMode.General)
 			.Should().OnlyContain(pair => !pair.Value.AllowedTools.Contains("task_planning_agent_call"));
 	}
 
@@ -33,8 +34,7 @@ public class ModeConfigTests
 	[MemberData(nameof(AllModes))]
 	public void AllowedTools_IsNonEmpty(PlanningMode mode)
 	{
-		// An empty allow-list disables filtering (every tool is exposed), which defeats the per-mode
-		// scoping. Each mode must declare the tools it needs.
+		// Each supported planning mode declares its intended capabilities explicitly.
 		ModeConfig.All[mode].AllowedTools.Should().NotBeEmpty();
 	}
 
@@ -53,7 +53,7 @@ public class ModeConfigTests
 		// The model must be able to re-call whatever it was preloaded with (e.g. to refresh state),
 		// so every preload tool has to be in the allow-list.
 		var config = ModeConfig.All[mode];
-		config.AllowedTools.Should().Contain(config.PreloadTools);
+		config.PreloadTools.Should().OnlyContain(tool => config.AllowedTools.Contains(tool));
 	}
 
 	[Theory]

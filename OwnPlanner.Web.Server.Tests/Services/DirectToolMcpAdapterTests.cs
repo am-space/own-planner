@@ -13,6 +13,7 @@ using OwnPlanner.Application.Reporting;
 using OwnPlanner.Application.Usage;
 using OwnPlanner.Domain.Tasks;
 using OwnPlanner.Infrastructure.Persistence;
+using OwnPlanner.Infrastructure.Adapters;
 using OwnPlanner.Infrastructure.Reporting;
 using OwnPlanner.Infrastructure.Repositories;
 using OwnPlanner.Web.Server.Services;
@@ -78,6 +79,7 @@ public sealed class DirectToolMcpAdapterTests : IDisposable
 		// Delegated agents are built-in chat capabilities, not MCP registrations.
 		registered.Add("search_agent_call");
 		registered.Add("task_planning_agent_call");
+		registered.Add("skill_load");
 
 		foreach (var (mode, config) in OwnPlanner.Application.Chat.ModeConfig.All)
 		{
@@ -271,6 +273,29 @@ public sealed class DirectToolMcpAdapterTests : IDisposable
 		ownDelete.Should().Contain("success");
 		otherDelete.Should().Contain("not found");
 		trash.Should().Contain("User A trash task").And.NotContain("User B private task");
+	}
+
+	[Fact]
+	public async Task DynamicSkills_UseAuthenticatedTenantForLoadedReadsAndWrites()
+	{
+		var ct = TestContext.Current.CancellationToken;
+		await using var services = BuildTenantServiceProvider();
+		var taskA = await SeedUserTaskIdAsync("user-a", "User A skill task", ct);
+		var taskB = await SeedUserTaskIdAsync("user-b", "User B private skill task", ct);
+		await using var adapterB = CreateAdapter(services, "user-b");
+		await adapterB.CallToolAsync("taskitem_complete", new Dictionary<string, object?> { ["id"] = taskB }, ct);
+		using var provider = new SkillTenantProvider(taskA, taskB);
+		await using var chat = new ChatServiceAdapter("AIza" + new string('x', 35), "test-model",
+			mcpAdapter: CreateAdapter(services, "user-a"), httpClientFactory: provider);
+		await using var planner = new PlanningService(chat, null, services.GetRequiredService<ILogger<PlanningService>>());
+		await planner.SwitchModeAsync(PlanningMode.General, ct);
+
+		await planner.GetResponseAsync("Look up tasks and reopen the other task", ct);
+
+		provider.LastRequest.Should().Contain("User A skill task").And.NotContain("User B private skill task").And.Contain("not found");
+		var otherTask = await adapterB.CallToolAsync("taskitem_get", new Dictionary<string, object?> { ["id"] = taskB }, ct);
+		using var document = JsonDocument.Parse(otherTask);
+		document.RootElement.GetProperty("isCompleted").GetBoolean().Should().BeTrue();
 	}
 
 	[Fact]
@@ -563,6 +588,32 @@ public sealed class DirectToolMcpAdapterTests : IDisposable
 
 	private sealed record TenantTestDirectory(string Path);
 
+	private sealed class SkillTenantProvider(Guid ownTask, Guid otherTask) : HttpMessageHandler, IHttpClientFactory
+	{
+		private int _round;
+		public string LastRequest { get; private set; } = "";
+		public HttpClient CreateClient(string name) => new(this, disposeHandler: false);
+		protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+		{
+			LastRequest = await request.Content!.ReadAsStringAsync(cancellationToken);
+			object[] parts = _round++ switch
+			{
+				0 => [new { functionCall = new { name = "skill_load", args = new { skillId = "weekly_planning" } } }],
+				1 => [
+					new { functionCall = new { name = "taskitem_get", args = new { id = ownTask } } },
+					new { functionCall = new { name = "taskitem_get", args = new { id = otherTask } } },
+					new { functionCall = new { name = "taskitem_reopen", args = new { id = otherTask } } }
+				],
+				_ => [new { text = "Finished" }]
+			};
+			var json = JsonSerializer.Serialize(new { candidates = new[] { new { content = new { role = "model", parts }, finishReason = "STOP" } } });
+			return new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+			{
+				Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json")
+			};
+		}
+	}
+
 	private sealed class FixedTimeProvider(DateTime utcNow) : TimeProvider
 	{
 		public override DateTimeOffset GetUtcNow() => new(utcNow);
@@ -598,6 +649,7 @@ public sealed class DirectToolMcpAdapterTests : IDisposable
 
 	private sealed class ToolReadingChatAdapter(IMcpAdapter mcpAdapter) : IChatAdapter
 	{
+		public void ConfigureToolPolicy(ChatToolPolicy policy) { }
 		public DateTime CreatedTime { get; } = DateTime.UtcNow;
 		public DateTime LastAccessTime { get; private set; } = DateTime.UtcNow;
 		public int? CurrentContextLengthTokens => 0;

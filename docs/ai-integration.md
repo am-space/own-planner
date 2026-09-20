@@ -30,12 +30,60 @@ When a user submits a prompt, the system executes the following loop:
 7.  **Resumption**: The Web Server appends the tool result to the conversation history and calls Gemini again so it can synthesize a final response for the user.
 8.  **Final Output**: Gemini produces natural language text based on the tool result, which is streamed or returned back to the UI.
 
+## Dynamic chat skills
+
+The backend General mode has a compact baseline: `datetime_get_current`, `skill_load`,
+`task_planning_agent_call`, and `search_agent_call`. Both agents are directly callable from the
+first request; neither requires a skill. General can be explicitly selected through the chat API
+or console. Day Work remains the default; General's UI selection, starter prompts, default rollout,
+and initial context report are tracked in [#54](https://github.com/am-space/own-planner/issues/54).
+Existing specialized modes retain their original declarations, preloads, and permission boundaries.
+
+`ChatSkillRegistry` in Application defines four trusted skills:
+
+| Identifier | Purpose |
+|---|---|
+| `notes` | Targeted note retrieval, capture, editing and organization |
+| `goals_organization` | Goals, contexts, task/note lists and strategic review |
+| `weekly_planning` | Seven-day workload report, task lookup, Trash lookup, restore and reopen |
+| `reflection` | Current-state reflection report, captures, retrospective notes and goal status |
+
+The model receives a short catalog of skills permitted by the active mode. `skill_load` takes one
+required string, `skillId`. Loading validates every referenced tool atomically, adds instructions to
+the next Gemini request's trusted `systemInstruction`, and adds actual function declarations to its
+`tools`. It does not query planner data. The tool response contains only `skillId` and
+`status: "loaded_for_current_request"`; instructions never enter tool results or replayed history.
+Unknown, denied and unavailable loads return short errors without activating partial capabilities.
+
+Skills remain active through all model/tool rounds of one user request and reset before the next
+user message. Repeated loads and overlapping declarations are deduplicated. A mode may configure
+baseline skills that are reapplied to every request. The catalog and instructions are request
+metadata; compaction, recovery and mode switches cannot retain loaded skill permissions. A failed
+or cancelled turn also discards its skill state.
+
+`ChatToolPolicy` distinguishes baseline declarations from the mode's maximum permitted tools.
+`ChatSkillRuntime` checks both permissions and tool availability at execution. Read-only policies
+use an explicit read allowlist, which excludes the task-writing agent. Every model response's batch
+is authorized against the declarations present before that batch: requesting a skill load and one
+of its newly available tools together does not authorize that tool, in either order. The model must
+wait for the next round. Skill loads consume the same bounded tool-call rounds as other calls.
+
+Skill state is local to one request, and planner calls still use the host's authenticated
+`IMcpAdapter`. The web and Telegram paths use `DirectToolMcpAdapter`; the console's configured MCP
+adapter invokes the same stdio handlers. Like the agent calls, `skill_load` is a chat-local capability,
+not a public MCP server operation. Skills never accept tenant identifiers, database paths or code.
+Permanent deletion of tasks, notes, goals, contexts and lists is excluded from General. Supported task writes
+go through the existing task agent; explicit restore and reopen use the weekly skill's shared tools.
+
+See [ADR-0020](adr/0020-request-scoped-chat-skills.md) for the architectural decision.
+
 ## Adding a New Tool
 
-To add a new skill to the AI:
+To add a new planner tool to the AI:
 1. Define the core logic in `OwnPlanner.Application`.
 2. Wrap it as a tool definition and handler in `OwnPlanner.Mcp.Tools` so the web server and stdio host can both reuse it.
-3. The orchestration layer will automatically expose this new tool schema to Gemini on the next chat session.
+3. Add it to the appropriate mode permission list and, when needed, a curated skill. The adapter
+   discovers its schema from the configured MCP host; discovery alone does not grant mode access.
 
 ## Task Trash tools
 
@@ -50,7 +98,7 @@ deletion unless the task is already in Trash.
 
 ## Delegated Agents
 
-Global Planning exposes the local `task_planning_agent_call` capability. It accepts a required
+Global Planning and General expose the local `task_planning_agent_call` capability. It accepts a required
 planning objective and optional `contextId` and `taskListId` scopes. This capability is registered
 by the Gemini chat adapter rather than as a public MCP tool: the main planner decides what outcome
 to delegate, while the specialist performs the bounded task decomposition in a fresh Gemini

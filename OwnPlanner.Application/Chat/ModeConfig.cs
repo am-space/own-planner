@@ -8,9 +8,33 @@ public sealed record ModeConfig(
 	bool CanWrite,
 	IReadOnlyList<string> StarterPrompts)
 {
+	/// <summary>Optional compact declaration baseline; AllowedTools remains the permission ceiling.</summary>
+	public IReadOnlyList<string>? InitialTools { get; init; }
+	public IReadOnlyList<string> SkillIds { get; init; } = [];
+	public IReadOnlyList<string> BaselineSkillIds { get; init; } = [];
+
 	public static readonly IReadOnlyDictionary<PlanningMode, ModeConfig> All =
 		new Dictionary<PlanningMode, ModeConfig>
 		{
+			[PlanningMode.General] = new ModeConfig(
+				ModeId: PlanningMode.General,
+				SystemPrompt: """
+					You are OwnPlanner's General personal planning assistant. Follow the user's request across time horizons.
+					Discuss exploratory ideas before making changes; write only when the user expresses intent.
+					Use the Task Planning Agent directly for supported task mutations and the Search Agent directly for research.
+					Load a relevant skill for additional instructions and tools. Retrieve data explicitly when needed.
+					Report only changes confirmed by tool results. Do not switch the user's mode automatically.
+					""",
+				PreloadTools: [],
+				AllowedTools: new[] { "datetime_get_current", "skill_load", "task_planning_agent_call", "search_agent_call" }
+					.Concat(ChatSkillRegistry.All.Values.SelectMany(skill => skill.Tools)).Distinct(StringComparer.Ordinal).ToArray(),
+				CanWrite: true,
+				StarterPrompts: [])
+			{
+				InitialTools = ["datetime_get_current", "skill_load", "task_planning_agent_call", "search_agent_call"],
+				SkillIds = ChatSkillRegistry.All.Keys.Order(StringComparer.Ordinal).ToArray()
+			},
+
 			[PlanningMode.GlobalPlanning] = new ModeConfig(
 				ModeId: PlanningMode.GlobalPlanning,
 				StarterPrompts: ["Review my goals and flag anything misaligned", "What contexts need attention?"],
