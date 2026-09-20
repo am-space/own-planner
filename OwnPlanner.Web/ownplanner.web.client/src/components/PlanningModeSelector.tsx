@@ -8,6 +8,7 @@ import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import type { PlanningMode } from '../types/api.types';
 
 const MODES: { value: PlanningMode; label: string }[] = [
+  { value: 'General', label: 'General' },
   { value: 'GlobalPlanning', label: 'Global Planning' },
   { value: 'WeekPlanning', label: 'Week Planning' },
   { value: 'DayWork', label: 'Day Work' },

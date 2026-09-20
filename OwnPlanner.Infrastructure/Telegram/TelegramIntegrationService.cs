@@ -98,7 +98,7 @@ public sealed class TelegramIntegrationService(
 		db.TelegramAccountLinks.Add(new TelegramAccountLink
 		{
 			Id = Guid.NewGuid(), UserId = token.UserId, TelegramUserId = telegramUserId, ChatId = chatId,
-			Mode = PlanningMode.DayWork, ConnectedAtUtc = now,
+			Mode = PlanningMode.General, ConnectedAtUtc = now,
 		});
 		await db.SaveChangesAsync(cancellationToken);
 		await transaction.CommitAsync(cancellationToken);

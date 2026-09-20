@@ -10,6 +10,26 @@ namespace OwnPlanner.Infrastructure.Tests.Adapters;
 public sealed class ChatSkillOrchestrationTests
 {
 	[Fact]
+	public async Task General_DiscussionThenRequestedCapture_UsesSnapshotAndSkillWithoutAutomaticWrites()
+	{
+		using var provider = new ScriptedProvider(Final("What motivates you, and how much time could you spend?"),
+			Calls(Call("skill_load", new { skillId = "notes" })),
+			Calls(Call("noteitem_create", new { title = "Spanish ideas", noteListId = OwnPlanner.Domain.WellKnownIds.InboxNoteList })),
+			Final("Captured your idea."));
+		var mcp = new RecordingMcpAdapter();
+		await using var adapter = CreateAdapter(provider, mcp);
+		await using var planning = new PlanningService(adapter, mcp, Microsoft.Extensions.Logging.Abstractions.NullLogger<PlanningService>.Instance);
+		await planning.GetResponseAsync("I'm considering learning Spanish", TestContext.Current.CancellationToken);
+		mcp.Calls.Should().Equal("general_report_get");
+		var prompt = provider.Requests[0].GetProperty("contents").ToString();
+		prompt.Should().Contain("write only when the user expresses intent").And.Contain("Do not automatically print a briefing").And.Contain("Initial snapshot");
+		await planning.GetResponseAsync("Capture that idea in a note", TestContext.Current.CancellationToken);
+		mcp.Calls.Should().Equal("general_report_get", "noteitem_create");
+		Names(provider.Requests[1]).Should().BeEquivalentTo(ModeConfig.All[PlanningMode.General].InitialTools!);
+		Names(provider.Requests[2]).Should().Contain("noteitem_create");
+	}
+
+	[Fact]
 	public async Task Load_UpdatesActualProviderDeclarationsAndInstructions_ThenResetsOnNextMessage()
 	{
 		using var provider = new ScriptedProvider(

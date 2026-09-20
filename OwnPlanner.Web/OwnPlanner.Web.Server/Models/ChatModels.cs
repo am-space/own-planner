@@ -58,7 +58,7 @@ namespace OwnPlanner.Web.Server.Models
 	public class SwitchModeRequest
 	{
 		/// <summary>
-		/// The planning mode to switch to (GlobalPlanning, WeekPlanning, DayWork, Reflection, SystemAnalysis)
+		/// The planning mode to switch to (General, GlobalPlanning, WeekPlanning, DayWork, Reflection, SystemAnalysis)
 		/// </summary>
 		public required string Mode { get; set; }
 	}

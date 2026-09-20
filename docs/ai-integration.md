@@ -30,14 +30,48 @@ When a user submits a prompt, the system executes the following loop:
 7.  **Resumption**: The Web Server appends the tool result to the conversation history and calls Gemini again so it can synthesize a final response for the user.
 8.  **Final Output**: Gemini produces natural language text based on the tool result, which is streamed or returned back to the UI.
 
+## General initial context report
+
+`general_report_get` is parameterless and read-only. `GeneralReportReader` reads the host-bound
+user database in one transaction without loading descriptions or note bodies. Application's
+`GeneralReportBuilder` owns the deterministic composition rules. The shared MCP handler is
+registered in-process, over HTTP MCP and in the stdio host.
+
+| Section | Contract |
+|---|---|
+| Time | `asOfUtc`, `timeZone: UTC`, `todayDate`, `upcomingStartDate` (tomorrow), and `upcomingEndExclusiveDate` (today + 8 days). All windows are half-open UTC calendar windows. |
+| Today | Exact count of eligible tasks with focus date in today, current completed count within that set, and at most five remaining task IDs. Completion means current state, not completion events today. |
+| Commitments | Incomplete tasks in three disjoint due-date buckets: before today (overdue), today, and [tomorrow, today + 8 days). A deadline earlier today stays in due-today. Up to three nearest deadlines across these buckets. |
+| Inbox | Unreviewed captures are notes currently in the non-archived system Inbox note list, regardless of age or pin status; this is a membership proxy, not a recorded review event. Unscheduled tasks are incomplete eligible tasks in the system Inbox with both focus and due dates absent. |
+| Direction | Exact active-goal count and exact linked-goal count; at most three active goals linked to today's focus tasks (including currently completed ones), or incomplete tasks due today/in the upcoming window. Overdue-only and unlinked goals do not enter this sample. |
+| Scope | Exclude trashed tasks and tasks in archived lists; missing-list tasks remain eligible, matching other reports. Each task sample group exposes exact total, limit and truncation flag. Direction exposes linked total, limit and truncation flag. |
+
+`tasks` is a shared sample table: references from Today and Commitments resolve to a single entry,
+so a task appearing in both sections has only one full sample. Maximum eight task and three goal
+samples; titles are capped at 80 UTF-16 code units with `titleTruncated` flags. Samples contain IDs
+for targeted retrieval. Tasks sort by earliest due date, then earliest focus date (absent dates last),
+then ID. Goals sort by ordinal full title, then ID. Counts do not depend on sample truncation.
+Representative fixtures target about 600–1,000 tokens using a rough character/4 diagnostic; actual
+tokenization varies by model and text. Fixed field/sample limits are the enforceable output bound.
+The reader projects all eligible task metadata for exact counts, so database work still scales with
+planner size. No user timezone or historical completion timeline is inferred.
+
+See [ADR-0021](adr/0021-general-default-chat.md).
+
 ## Dynamic chat skills
 
-The backend General mode has a compact baseline: `datetime_get_current`, `skill_load`,
-`task_planning_agent_call`, and `search_agent_call`. Both agents are directly callable from the
-first request; neither requires a skill. General can be explicitly selected through the chat API
-or console. Day Work remains the default; General's UI selection, starter prompts, default rollout,
-and initial context report are tracked in [#54](https://github.com/am-space/own-planner/issues/54).
-Existing specialized modes retain their original declarations, preloads, and permission boundaries.
+General is the default for new web/API and console chats, web resets and missing frontend mode
+values, and newly linked Telegram accounts. Explicit mode selections remain in force; persisted
+Telegram selections also survive `/new`. All six modes are selectable, including Day Work.
+General discusses exploratory ideas before writing and does not automatically switch modes.
+
+Its compact baseline is `general_report_get`, `datetime_get_current`, `skill_load`,
+`task_planning_agent_call`, and `search_agent_call`, alongside the compact skill catalog. Both
+agents are directly callable from the first request. Only the General report is preloaded on
+initialization or mode entry. The dated snapshot is labeled as initial context, does not trigger an
+automatic briefing, and is not appended again on ordinary turns or compaction. The assistant uses
+targeted reads after mutations or when fresh state matters. General starter prompts invite
+exploration, capture, and attention review. Specialized modes retain their original tools and purpose.
 
 `ChatSkillRegistry` in Application defines four trusted skills:
 

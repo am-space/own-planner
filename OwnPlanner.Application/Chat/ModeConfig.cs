@@ -21,17 +21,21 @@ public sealed record ModeConfig(
 				SystemPrompt: """
 					You are OwnPlanner's General personal planning assistant. Follow the user's request across time horizons.
 					Discuss exploratory ideas before making changes; write only when the user expresses intent.
+					For example, “I’m considering learning Spanish” invites discussion of motivation and available time, not creating a goal or today’s tasks.
+					The initial General report is a dated snapshot, not live state. Do not automatically print a briefing.
+					Let the user’s message determine what to discuss. Retrieve targeted fresh data after mutations or when freshness matters;
+					do not repeatedly fetch full reports or present the initial snapshot as current. Keep focus dates distinct from deadlines.
 					Use the Task Planning Agent directly for supported task mutations and the Search Agent directly for research.
 					Load a relevant skill for additional instructions and tools. Retrieve data explicitly when needed.
 					Report only changes confirmed by tool results. Do not switch the user's mode automatically.
 					""",
-				PreloadTools: [],
-				AllowedTools: new[] { "datetime_get_current", "skill_load", "task_planning_agent_call", "search_agent_call" }
+				PreloadTools: ["general_report_get"],
+				AllowedTools: new[] { "general_report_get", "datetime_get_current", "skill_load", "task_planning_agent_call", "search_agent_call" }
 					.Concat(ChatSkillRegistry.All.Values.SelectMany(skill => skill.Tools)).Distinct(StringComparer.Ordinal).ToArray(),
 				CanWrite: true,
-				StarterPrompts: [])
+				StarterPrompts: ["Help me think through an idea", "Capture something I want to remember", "What needs my attention?"])
 			{
-				InitialTools = ["datetime_get_current", "skill_load", "task_planning_agent_call", "search_agent_call"],
+				InitialTools = ["general_report_get", "datetime_get_current", "skill_load", "task_planning_agent_call", "search_agent_call"],
 				SkillIds = ChatSkillRegistry.All.Keys.Order(StringComparer.Ordinal).ToArray()
 			},
 

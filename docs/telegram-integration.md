@@ -42,7 +42,10 @@ Telegram retry is not replayed because planner mutations may already have occurr
 Ordinary text uses the same quota reservation, token accounting, context limits, planning modes,
 Gemini flow, and user-bound tools as web chat. Responses are plain text and split at 4,096 UTF-16
 code units without dividing Unicode surrogate pairs. Supported commands are `/start`, `/help`,
-`/mode <day|week|global|reflection|analysis>`, `/new`, `/status`, and `/unlink`.
+`/mode <general|day|week|global|reflection|analysis>`, `/new`, `/status`, and `/unlink`.
+
+New links start in General. Existing saved modes retain their numeric values and are not migrated.
+`/mode general` explicitly selects General; `/new` preserves the account’s saved selection.
 
 Telegram and web histories remain separate. `/new` removes only the Telegram session; `/unlink`
 removes the mapping and Telegram session without deleting planner data.

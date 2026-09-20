@@ -60,6 +60,7 @@ ADRs describe decisions as actually shipped. Start new records from [`adr/templa
 
 - [`ADR-0019`](adr/0019-scoped-chat-markdown-presentation.md) — scoped chat Markdown presentation
 - [`ADR-0020`](adr/0020-request-scoped-chat-skills.md) — request-scoped chat skills alongside directly callable agents
+- [`ADR-0021`](adr/0021-general-default-chat.md) — General default chat and bounded initial context
 
 ## Historical plans
 
@@ -71,6 +72,7 @@ linked ADR when determining current behavior.
 - [`archive/e2e-testing-plan.md`](archive/e2e-testing-plan.md)
 - [`archive/read-only-planner-workspace-plan.md`](archive/read-only-planner-workspace-plan.md)
 - [`archive/dynamic-chat-skills-plan.md`](archive/dynamic-chat-skills-plan.md)
+- [`archive/general-default-chat-plan.md`](archive/general-default-chat-plan.md)
 
 - [`archive/chat-markdown-styles-plan.md`](archive/chat-markdown-styles-plan.md)
 

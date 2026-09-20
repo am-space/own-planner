@@ -255,7 +255,7 @@ export default function SettingsPage() {
             <Box>
               <Typography>Connected</Typography>
               <Typography variant="body2" color="text.secondary">
-                Telegram user {telegram.telegramUserId} · {telegram.mode ?? 'DayWork'} mode · connected {formatDate(telegram.connectedAtUtc)}
+                Telegram user {telegram.telegramUserId} · {telegram.mode ?? 'General'} mode · connected {formatDate(telegram.connectedAtUtc)}
               </Typography>
             </Box>
             <Button color="error" variant="outlined" startIcon={<LinkOffIcon />} disabled={telegramBusy} onClick={handleDisconnectTelegram}>

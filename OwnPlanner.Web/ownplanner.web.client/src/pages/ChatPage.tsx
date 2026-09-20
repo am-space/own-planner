@@ -40,6 +40,7 @@ interface Message {
 }
 
 const MODE_LABELS: Record<string, string> = {
+    General: 'General',
     GlobalPlanning: 'Global Planning',
     WeekPlanning: 'Week Planning',
     DayWork: 'Day Work',
@@ -74,7 +75,7 @@ export default function ChatPage({ compact = false }: ChatPageProps) {
     const [aboutOpen, setAboutOpen] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
-    const [planningMode, setPlanningMode] = useState<PlanningMode>('DayWork');
+    const [planningMode, setPlanningMode] = useState<PlanningMode>('General');
     const [isSwitchingMode, setIsSwitchingMode] = useState(false);
     const [starterPrompts, setStarterPrompts] = useState<string[]>([]);
     const [showStarterPrompts, setShowStarterPrompts] = useState(false);
@@ -117,7 +118,7 @@ export default function ChatPage({ compact = false }: ChatPageProps) {
         const init = async () => {
             try {
                 const status = await apiService.getChatSessionStatus();
-                const initialMode = status.currentMode ?? 'DayWork';
+                const initialMode = status.currentMode ?? 'General';
 
                 setPlanningMode(initialMode);
                 setContextLengthTokens(status.contextLengthTokens);
@@ -128,9 +129,9 @@ export default function ChatPage({ compact = false }: ChatPageProps) {
 
                 if (!status.isActive) {
                     try {
-                        await apiService.switchPlanningMode('DayWork');
+                        await apiService.switchPlanningMode(initialMode);
                     } catch {
-                        // non-critical: server activates DayWork lazily on first message
+                        // non-critical: server activates General lazily on first message
                     }
                 }
 
@@ -140,11 +141,11 @@ export default function ChatPage({ compact = false }: ChatPageProps) {
                 setMaxContextLengthTokens(64 * 1024);
                 setContextResetLabel(null);
                 try {
-                    await apiService.switchPlanningMode('DayWork');
+                    await apiService.switchPlanningMode('General');
                 } catch {
-                    // non-critical: server activates DayWork lazily on first message
+                    // non-critical: server activates General lazily on first message
                 }
-                await fetchAndSetStarterPrompts('DayWork');
+                await fetchAndSetStarterPrompts('General');
             }
         };
         init();
@@ -164,14 +165,14 @@ export default function ChatPage({ compact = false }: ChatPageProps) {
         try {
             await apiService.clearChatSession();
             setMessages([]);
-            setPlanningMode('DayWork');
+            setPlanningMode('General');
             setContextLengthTokens(null);
             setContextResetLabel('Context cleared');
             setError(null);
             try {
-                await apiService.switchPlanningMode('DayWork');
+                await apiService.switchPlanningMode('General');
             } catch {
-                // non-critical: server activates DayWork lazily on first message
+                // non-critical: server activates General lazily on first message
             }
             // Fetch status to get the current configured maxContextLengthTokens
             try {
@@ -180,7 +181,7 @@ export default function ChatPage({ compact = false }: ChatPageProps) {
             } catch {
                 // Keep existing maxContextLengthTokens if status fetch fails
             }
-            await fetchAndSetStarterPrompts('DayWork');
+            await fetchAndSetStarterPrompts('General');
             // Refocus input after clearing
             inputRef.current?.focus();
         } catch (err) {

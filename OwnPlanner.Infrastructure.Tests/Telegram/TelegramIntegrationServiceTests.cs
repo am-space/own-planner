@@ -14,6 +14,21 @@ public sealed class TelegramIntegrationServiceTests
 {
 	private static readonly DateTimeOffset Now = new(2026, 8, 18, 12, 0, 0, TimeSpan.Zero);
 
+	[Theory]
+	[InlineData(PlanningMode.DayWork)]
+	[InlineData(PlanningMode.General)]
+	[InlineData(PlanningMode.WeekPlanning)]
+	public async Task SavedMode_SurvivesDatabaseReload(PlanningMode mode)
+	{
+		var ct = TestContext.Current.CancellationToken;
+		await using var fixture = await Fixture.CreateAsync(ct);
+		var link = await fixture.Service.CreateConnectionLinkAsync(fixture.UserA, ct);
+		await fixture.Service.ConsumeConnectionTokenAsync(new Uri(link.Url).Query[7..], 101, 201, ct);
+		await fixture.Service.SetModeAsync(fixture.UserA, mode, ct);
+		fixture.Db.ChangeTracker.Clear();
+		(await fixture.Service.FindLinkedAccountAsync(101, 201, ct))!.Mode.Should().Be(mode);
+	}
+
 	[Fact]
 	public async Task ConnectionToken_IsHashedSingleUse_AndCreatesDefaultModeLink()
 	{
@@ -29,8 +44,8 @@ public sealed class TelegramIntegrationServiceTests
 		var account = await fixture.Service.FindLinkedAccountAsync(101, 201, ct);
 		account.Should().NotBeNull();
 		account!.UserId.Should().Be(fixture.UserA);
-		account.Mode.Should().Be(PlanningMode.DayWork);
-		(await fixture.Service.GetStatusAsync(fixture.UserA, ct)).Mode.Should().Be("DayWork");
+		account.Mode.Should().Be(PlanningMode.General);
+		(await fixture.Service.GetStatusAsync(fixture.UserA, ct)).Mode.Should().Be("General");
 	}
 
 	[Fact]
