@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-20
 
-**Status:** Accepted
+**Status:** Superseded by ADR-0022
 
 **Deciders:** OwnPlanner maintainers
 

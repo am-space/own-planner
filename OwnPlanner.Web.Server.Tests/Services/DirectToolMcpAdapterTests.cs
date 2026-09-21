@@ -260,8 +260,10 @@ public sealed class DirectToolMcpAdapterTests : IDisposable
 			Arg.Any<CancellationToken>());
 	}
 
-	[Fact]
-	public async Task TaskPlanningDelegation_CannotResolveAnotherUsersTaskListScope()
+	[Theory]
+	[InlineData(TaskPlanningBehavior.Execution)]
+	[InlineData(TaskPlanningBehavior.Proposal)]
+	public async Task TaskPlanningDelegation_CannotResolveAnotherUsersTaskListScope(TaskPlanningBehavior behavior)
 	{
 		var ct = TestContext.Current.CancellationToken;
 		await using var serviceProvider = BuildTenantServiceProvider();
@@ -269,7 +271,7 @@ public sealed class DirectToolMcpAdapterTests : IDisposable
 		var userBListId = await SeedUserTaskAsync("user-b", "User B private task", ct);
 		await using var adapterA = CreateAdapter(serviceProvider, "user-a");
 
-		var act = () => OwnPlanner.Application.Chat.TaskPlanningMcpAdapter.CreateAsync(adapterA, null, userBListId, ct);
+		var act = () => OwnPlanner.Application.Chat.TaskPlanningMcpAdapter.CreateAsync(adapterA, new TaskPlanningAgentRequest("Plan", TaskListId: userBListId, Behavior: behavior), ct);
 
 		await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*not found in the authenticated planner*");
 	}
@@ -618,7 +620,7 @@ public sealed class DirectToolMcpAdapterTests : IDisposable
 			LastRequest = await request.Content!.ReadAsStringAsync(cancellationToken);
 			object[] parts = _round++ switch
 			{
-				0 => [new { functionCall = new { name = "skill_load", args = new { skillId = "weekly_planning" } } }],
+				0 => [new { functionCall = new { name = "skill_load", args = new { skillId = "task_management" } } }],
 				1 => [
 					new { functionCall = new { name = "taskitem_get", args = new { id = ownTask } } },
 					new { functionCall = new { name = "taskitem_get", args = new { id = otherTask } } },

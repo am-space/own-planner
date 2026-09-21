@@ -25,7 +25,10 @@ public sealed record ModeConfig(
 					The initial General report is a dated snapshot, not live state. Do not automatically print a briefing.
 					Let the user’s message determine what to discuss. Retrieve targeted fresh data after mutations or when freshness matters;
 					do not repeatedly fetch full reports or present the initial snapshot as current. Keep focus dates distinct from deadlines.
-					Use the Task Planning Agent directly for supported task mutations and the Search Agent directly for research.
+					For simple requested task edits, load task_management and use its tools directly; ask if the target is ambiguous.
+					Reserve Task Planning delegation for multi-step planning. Explicitly select proposal for exploratory ideas and execution for authorized changes.
+					Supply a concise brief with relevant constraints, entity references and user decisions; never forward the full conversation.
+					Do not ask again for confirmation of clearly authorized changes. Use the Search Agent directly for external factual research.
 					Load a relevant skill for additional instructions and tools. Retrieve data explicitly when needed.
 					Report only changes confirmed by tool results. Do not switch the user's mode automatically.
 					""",
@@ -62,17 +65,13 @@ public sealed record ModeConfig(
 					- Confirm all write actions taken
 					""",
 				PreloadTools: ["strategic_report_get"],
-				AllowedTools:
-				[
-					"goal_list", "goal_get", "goal_create", "goal_update", "goal_delete",
-					"context_list", "context_get", "context_create", "context_update", "context_delete",
-					"tasklist_all", "tasklist_get", "tasklist_create", "tasklist_update", "tasklist_archive", "tasklist_unarchive", "tasklist_delete",
-					"notelist_all", "notelist_get", "notelist_create", "notelist_update", "notelist_archive", "notelist_unarchive", "notelist_delete",
-					"noteitem_list_items", "noteitem_list_by_goal", "noteitem_get", "noteitem_create", "noteitem_update", "noteitem_assign", "noteitem_pin", "noteitem_unpin", "noteitem_delete",
-					"taskitem_list_items", "taskitem_list_by_goal", "taskitem_list_by_focus_date", "taskitem_get", "taskitem_list_trash", "taskitem_restore",
-					"strategic_report_get", "datetime_get_current", "search_agent_call", "task_planning_agent_call"
-				],
-				CanWrite: true),
+				AllowedTools: ChatCapabilities.Combine(ChatSkillRegistry.All["goals_organization"].Tools, ChatSkillRegistry.All["notes"].Tools, ChatSkillRegistry.All["strategic_review"].Tools, ChatCapabilities.TaskRecovery,
+					["goal_delete", "context_delete", "tasklist_delete", "notelist_delete", "noteitem_delete", "taskitem_list_by_goal", "datetime_get_current", "search_agent_call", "task_planning_agent_call"]),
+				CanWrite: true)
+			{
+				SkillIds = ["goals_organization", "notes", "strategic_review"],
+				BaselineSkillIds = ["goals_organization", "notes", "strategic_review"]
+			},
 
 			[PlanningMode.WeekPlanning] = new ModeConfig(
 				ModeId: PlanningMode.WeekPlanning,
@@ -99,15 +98,13 @@ public sealed record ModeConfig(
 					- Confirm all write actions taken
 					""",
 				PreloadTools: ["weekly_report_get"],
-				AllowedTools:
-				[
-					"goal_list", "goal_get",
-					"tasklist_all", "tasklist_get", "tasklist_create", "tasklist_update", "tasklist_archive", "tasklist_unarchive", "tasklist_delete",
-					"taskitem_list_items", "taskitem_list_by_focus_date", "taskitem_list_by_goal", "taskitem_get",
-					"taskitem_create", "taskitem_update", "taskitem_assign", "taskitem_set_focus_date", "taskitem_set_important", "taskitem_complete", "taskitem_reopen", "taskitem_delete", "taskitem_list_trash", "taskitem_restore",
-					"weekly_report_get", "datetime_get_current", "search_agent_call"
-				],
-				CanWrite: true),
+				AllowedTools: ChatCapabilities.Combine(ChatSkillRegistry.All["weekly_planning"].Tools, ChatSkillRegistry.All["task_management"].Tools, ChatCapabilities.TaskListWrite, ChatCapabilities.TaskListArchive,
+					["tasklist_delete", "datetime_get_current", "search_agent_call"]),
+				CanWrite: true)
+			{
+				SkillIds = ["weekly_planning", "task_management"],
+				BaselineSkillIds = ["weekly_planning", "task_management"]
+			},
 
 			[PlanningMode.DayWork] = new ModeConfig(
 				ModeId: PlanningMode.DayWork,
@@ -133,14 +130,8 @@ public sealed record ModeConfig(
 					- Confirm all write actions taken
 					""",
 				PreloadTools: ["taskitem_list_by_focus_date"],
-				AllowedTools:
-				[
-					"taskitem_list_by_focus_date", "taskitem_list_items", "taskitem_get",
-					"taskitem_create", "taskitem_complete", "taskitem_reopen", "taskitem_set_focus_date", "taskitem_set_important",
-					"tasklist_all", "tasklist_get",
-					"notelist_all", "noteitem_create",
-					"datetime_get_current"
-				],
+				AllowedTools: ChatCapabilities.Combine(ChatCapabilities.TaskRead, ChatCapabilities.TaskProgress, ChatCapabilities.TaskListRead,
+					["taskitem_list_by_focus_date", "taskitem_create", "notelist_all", "noteitem_create", "datetime_get_current"]),
 				CanWrite: true),
 
 			[PlanningMode.Reflection] = new ModeConfig(
@@ -170,16 +161,12 @@ public sealed record ModeConfig(
 					- Confirm all write actions taken
 					""",
 				PreloadTools: ["reflection_report_get"],
-				AllowedTools:
-				[
-					"goal_list", "goal_get", "goal_update",
-					"notelist_all", "notelist_get", "notelist_create", "notelist_update",
-					"noteitem_list_items", "noteitem_list_by_goal", "noteitem_get", "noteitem_create", "noteitem_update",
-					"tasklist_all", "tasklist_get",
-					"taskitem_list_items", "taskitem_list_by_goal", "taskitem_get",
-					"reflection_report_get", "datetime_get_current", "search_agent_call"
-				],
-				CanWrite: true),
+				AllowedTools: ChatCapabilities.Combine(ChatSkillRegistry.All["reflection"].Tools, ChatCapabilities.NoteListWrite, ["datetime_get_current", "search_agent_call"]),
+				CanWrite: true)
+			{
+				SkillIds = ["reflection"],
+				BaselineSkillIds = ["reflection"]
+			},
 
 			[PlanningMode.SystemAnalysis] = new ModeConfig(
 				ModeId: PlanningMode.SystemAnalysis,
@@ -207,16 +194,11 @@ public sealed record ModeConfig(
 					- Do not offer to fix anything
 					""",
 				PreloadTools: ["strategic_report_get"],
-				AllowedTools:
-				[
-					"goal_list", "goal_get",
-					"context_list", "context_get",
-					"tasklist_all", "tasklist_get",
-					"taskitem_list_items", "taskitem_list_by_focus_date", "taskitem_get",
-					"notelist_all", "notelist_get",
-					"noteitem_list_items", "noteitem_get",
-					"strategic_report_get", "datetime_get_current"
-				],
-				CanWrite: false),
+				AllowedTools: ChatCapabilities.Combine(ChatSkillRegistry.All["strategic_review"].Tools, ["datetime_get_current"]),
+				CanWrite: false)
+			{
+				SkillIds = ["strategic_review"],
+				BaselineSkillIds = ["strategic_review"]
+			},
 		};
 }

@@ -12,18 +12,33 @@ public static class ChatSkillRegistry
 
 	public static IReadOnlyDictionary<string, ChatSkill> All { get; } = new ChatSkill[]
 	{
+		new("task_management", "Retrieve and edit tasks; complete, reopen, move to Trash and restore.",
+			"Use targeted task and list lookups to identify the user's target. For simple clearly authorized edits, call task tools directly. Ask when the target or intended change is ambiguous; exploratory ideas do not authorize writes. taskitem_delete moves to recoverable Trash; inspect Trash with taskitem_list_trash and restore with taskitem_restore. Reopen completed tasks with taskitem_reopen. Never permanently delete tasks. Report only confirmed changes and refresh targeted data when needed. Where the mode exposes Task Planning delegation, reserve it for multi-step decomposition and planning; use proposal behavior for exploration and execution for authorized changes without an extra confirmation step.",
+			ChatCapabilities.Combine(ChatCapabilities.TaskListRead, ChatCapabilities.TaskRead, ChatCapabilities.TaskEdit, ChatCapabilities.TaskProgress, ChatCapabilities.TaskRecovery,
+				["taskitem_list_by_goal", "taskitem_list_by_focus_date", "taskitem_delete"])),
 		new("notes", "Capture, retrieve and organize notes.",
 			"Retrieve only the notes needed for the request. Discuss exploratory ideas before writing. Create, edit, assign or pin notes when requested, and report the changes actually completed. Loading this skill does not fetch note bodies.",
-			Array.AsReadOnly(new[] { "notelist_all", "notelist_get", "notelist_create", "notelist_update", "notelist_archive", "notelist_unarchive", "noteitem_list_items", "noteitem_list_by_goal", "noteitem_get", "noteitem_create", "noteitem_update", "noteitem_assign", "noteitem_pin", "noteitem_unpin" })),
-		new("goals_organization", "Manage goals, contexts and task/note lists.",
-			"Review direction and organization with targeted lookups. Change goals, contexts or lists only in response to user intent. Use the directly available Task Planning Agent for task mutations. Destructive context and list removal is unavailable.",
-			Array.AsReadOnly(new[] { "goal_list", "goal_get", "goal_create", "goal_update", "context_list", "context_get", "context_create", "context_update", "tasklist_all", "tasklist_get", "tasklist_create", "tasklist_update", "tasklist_archive", "tasklist_unarchive", "notelist_all", "notelist_get", "notelist_create", "notelist_update", "notelist_archive", "notelist_unarchive", "strategic_report_get" })),
-		new("weekly_planning", "Review workload and plan the next seven days; find and restore tasks.",
-			"Fetch the weekly report only when relevant. Keep flexible focus dates separate from due-date commitments and respect the report's UTC window. Use targeted task lookups and the directly available Task Planning Agent for supported mutations, including explicitly requested completion or recoverable Trash. Use taskitem_restore for an explicitly requested restore, and taskitem_reopen for reopening. Refresh targeted data after changes; do not repeatedly append full reports. Never permanently delete tasks.",
-			Array.AsReadOnly(new[] { "weekly_report_get", "goal_list", "goal_get", "tasklist_all", "tasklist_get", "taskitem_list_items", "taskitem_list_by_goal", "taskitem_list_by_focus_date", "taskitem_get", "taskitem_list_trash", "taskitem_restore", "taskitem_reopen" })),
-		new("reflection", "Review current completion evidence, carryover and Inbox captures.",
-			"Fetch the reflection report explicitly. Explain its current-state and historical limitations; never invent past completion transitions or goal states. Retrieve relevant captures as needed. Write a retrospective note or update goal status only when the user requests it. Use the directly available Task Planning Agent for supported task mutations.",
-			Array.AsReadOnly(new[] { "reflection_report_get", "goal_list", "goal_get", "goal_update", "notelist_all", "notelist_get", "noteitem_list_items", "noteitem_list_by_goal", "noteitem_get", "noteitem_create", "noteitem_update", "tasklist_all", "tasklist_get", "taskitem_list_items", "taskitem_list_by_goal", "taskitem_get" }))
+			ChatCapabilities.Combine(ChatCapabilities.NoteListRead, ChatCapabilities.NoteListWrite, ChatCapabilities.NoteListArchive,
+				ChatCapabilities.NoteRead, ChatCapabilities.NoteWrite, ChatCapabilities.NoteOrganize, ["noteitem_list_by_goal"])),
+		new("goals_organization", "Manage goals, contexts and task/note list structure.",
+			"Use targeted lookups to organize goals, contexts and lists only in response to user intent. For alignment and structural diagnosis use strategic_review. For task lifecycle operations use task_management where available. This skill supplies no destructive context or list removal tools.",
+			ChatCapabilities.Combine(ChatCapabilities.GoalRead, ChatCapabilities.GoalWrite, ChatCapabilities.ContextRead, ChatCapabilities.ContextWrite,
+				ChatCapabilities.TaskListRead, ChatCapabilities.TaskListWrite, ChatCapabilities.TaskListArchive,
+				ChatCapabilities.NoteListRead, ChatCapabilities.NoteListWrite, ChatCapabilities.NoteListArchive)),
+		new("weekly_planning", "Review workload, prioritize and schedule the coming week.",
+			"Use the weekly report when relevant, respecting its UTC window. Keep flexible focus dates separate from due-date commitments. Discuss priorities and capacity before speculative scheduling; apply changes when authorized. Task lifecycle rules belong to task_management. Use only the task operations available in this mode. Refresh targeted data after changes; prior workflow context does not make a dated report current. Do not repeatedly append full reports.",
+			ChatCapabilities.Combine(ChatCapabilities.GoalRead, ChatCapabilities.TaskListRead, ChatCapabilities.TaskRead,
+				["weekly_report_get", "taskitem_list_by_goal", "taskitem_list_by_focus_date"])),
+		new("reflection", "Review completion evidence, carryover, captures and retrospectives.",
+			"Use the reflection report when relevant. Explain its current-state and historical limitations; never invent past completion transitions or goal states. Retrieve relevant captures as needed. Write a retrospective note or update goal status only when requested. Suggest task changes without implying unavailable tools can execute them. Refresh targeted evidence when freshness matters.",
+			ChatCapabilities.Combine(ChatCapabilities.GoalRead, ChatCapabilities.NoteListRead, ChatCapabilities.NoteRead, ChatCapabilities.NoteWrite,
+				ChatCapabilities.TaskListRead, ChatCapabilities.TaskRead,
+				["reflection_report_get", "goal_update", "noteitem_list_by_goal", "taskitem_list_by_goal"])),
+		new("strategic_review", "Read-only alignment review and structural diagnosis.",
+			"Use the strategic report and targeted reads for goal alignment, orphaned goals, stale contexts and list structure. This skill supplies only read tools. Diagnose and propose improvements; applying requested changes requires separately permitted write capabilities. Respect read-only modes. A preloaded report is a dated snapshot; retrieve fresh targeted evidence when necessary and respect report limitations.",
+			ChatCapabilities.Combine(ChatCapabilities.GoalRead, ChatCapabilities.ContextRead, ChatCapabilities.TaskListRead,
+				ChatCapabilities.TaskRead, ChatCapabilities.NoteListRead, ChatCapabilities.NoteRead,
+				["strategic_report_get", "taskitem_list_by_focus_date"]))
 	}.ToFrozenDictionary(skill => skill.Id, StringComparer.Ordinal);
 
 	// Explicit rather than inferred from tool names: unknown capabilities fail closed in read-only modes.

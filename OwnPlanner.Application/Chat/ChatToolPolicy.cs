@@ -33,7 +33,13 @@ public sealed class ChatSkillRuntime
 		_canWrite = policy.CanWrite;
 		_active.UnionWith(policy.BaselineTools.Where(IsPermitted).Where(_available.Contains));
 		foreach (var id in policy.BaselineSkillIds)
+		{
+			// A partially configured host can still discuss and use its installed baseline tools.
+			// Do not attach a skill's instructions when its full capability set is unavailable.
+			if (ChatSkillRegistry.All.TryGetValue(id, out var skill) && skill.Tools.Any(tool => !_available.Contains(tool)))
+				continue;
 			Load(id);
+		}
 	}
 
 	public IReadOnlySet<string> ActiveTools => _active.ToFrozenSet(StringComparer.Ordinal);

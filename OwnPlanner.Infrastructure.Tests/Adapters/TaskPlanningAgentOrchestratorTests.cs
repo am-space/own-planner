@@ -8,6 +8,124 @@ namespace OwnPlanner.Infrastructure.Tests.Adapters;
 public sealed class TaskPlanningAgentOrchestratorTests
 {
 	[Fact]
+	public async Task Proposal_EnforcesStepAndStringArrayLimits()
+	{
+		var request = new TaskPlanningAgentRequest("Explore", Behavior: TaskPlanningBehavior.Proposal);
+		var responses = new[]
+		{
+			JsonSerializer.Serialize(new { summary = "Plan", proposedPlan = Enumerable.Repeat(new { description = "step" }, 21) }),
+			JsonSerializer.Serialize(new { summary = "Plan", proposedPlan = new[] { new { description = new string('x', 501) } } }),
+			JsonSerializer.Serialize(new { summary = "Plan", warnings = Enumerable.Repeat("warning", 9) })
+		};
+		foreach (var response in responses)
+		{
+			var tools = await TaskPlanningMcpAdapter.CreateAsync(new FakeMcpAdapter(), request, TestContext.Current.CancellationToken);
+			var execution = await TaskPlanningAgentOrchestrator.ExecuteAsync(request, tools,
+				new FakeSession(new DelegatedAgentResponse(response, [])), 2, TestContext.Current.CancellationToken);
+			execution.Result.Status.Should().Be("invalid_proposal");
+			execution.Result.ProposedPlan.Should().BeEmpty();
+		}
+	}
+
+	[Fact]
+	public async Task BoundedFallback_DoesNotSplitUnicodeSurrogatePairs()
+	{
+		var tools = await TaskPlanningMcpAdapter.CreateAsync(new FakeMcpAdapter(), null, null, TestContext.Current.CancellationToken);
+		var execution = await TaskPlanningAgentOrchestrator.ExecuteAsync(new("Plan"), tools,
+			new FakeSession(new DelegatedAgentResponse(new string('x', 1999) + "😀", [])), 2, TestContext.Current.CancellationToken);
+		execution.Result.Summary.Should().Be(new string('x', 1999));
+	}
+
+	[Fact]
+	public async Task Proposal_ReturnsSuggestionsSeparatelyFromActionsAndRetainsWriteDenial()
+	{
+		var inner = new FakeMcpAdapter("taskitem_create");
+		var request = new TaskPlanningAgentRequest("Explore", Behavior: TaskPlanningBehavior.Proposal);
+		var tools = await TaskPlanningMcpAdapter.CreateAsync(inner, request, TestContext.Current.CancellationToken);
+		var session = new FakeSession(
+			new DelegatedAgentResponse("", [new("taskitem_create", null)]),
+			new DelegatedAgentResponse("{\"summary\":\"Try this\",\"proposedPlan\":[{\"description\":\"First step\"}]}", []));
+		var execution = await TaskPlanningAgentOrchestrator.ExecuteAsync(request, tools, session, 2, TestContext.Current.CancellationToken);
+		execution.Result.Status.Should().Be("proposed");
+		execution.Result.Actions.Should().BeEmpty();
+		execution.Result.ProposedPlan.Should().ContainSingle().Which.Description.Should().Be("First step");
+		execution.Result.Warnings.Should().Contain(warning => warning.Contains("not allowed"));
+		inner.Calls.Should().BeEmpty();
+	}
+
+	[Theory]
+	[InlineData("not JSON")]
+	[InlineData("{}")]
+	[InlineData("{\"summary\":null}")]
+	[InlineData("{\"proposedPlan\":[{\"description\":\"First step\"}]}")]
+	[InlineData("{\"summary\":null,\"proposedPlan\":[{\"description\":\"First step\"}]}")]
+	[InlineData("[]")]
+	[InlineData("{\"summary\":42}")]
+	[InlineData("{\"summary\":\"Plan\",\"proposedPlan\":[null]}")]
+	[InlineData("{\"summary\":\"Plan\",\"proposedPlan\":[{\"description\":\"\"}]}")]
+	public async Task Proposal_MalformedStructuredResultNeverProducesAcceptedSteps(string response)
+	{
+		var request = new TaskPlanningAgentRequest("Explore", Behavior: TaskPlanningBehavior.Proposal);
+		var tools = await TaskPlanningMcpAdapter.CreateAsync(new FakeMcpAdapter(), request, TestContext.Current.CancellationToken);
+		var execution = await TaskPlanningAgentOrchestrator.ExecuteAsync(request, tools,
+			new FakeSession(new DelegatedAgentResponse(response, [])), 2, TestContext.Current.CancellationToken);
+		execution.Result.Status.Should().Be("invalid_proposal");
+		execution.Result.ProposedPlan.Should().BeEmpty();
+		execution.Result.Actions.Should().BeEmpty();
+		execution.Result.Warnings.Should().ContainSingle();
+	}
+
+	[Theory]
+	[InlineData("{\"proposedPlan\":[{\"description\":\"First step\"}]}")]
+	[InlineData("{\"summary\":null,\"proposedPlan\":[{\"description\":\"First step\"}]}")]
+	public async Task Proposal_AtRoundLimit_RejectsStepsWithoutAStringSummary(string response)
+	{
+		var request = new TaskPlanningAgentRequest("Explore", Behavior: TaskPlanningBehavior.Proposal);
+		var inner = new FakeMcpAdapter("datetime_get_current");
+		var tools = await TaskPlanningMcpAdapter.CreateAsync(inner, request, TestContext.Current.CancellationToken);
+		var call = new DelegatedAgentToolCall("datetime_get_current", null);
+		var session = new FakeSession(new DelegatedAgentResponse("", [call]), new DelegatedAgentResponse(response, [call]));
+
+		var execution = await TaskPlanningAgentOrchestrator.ExecuteAsync(request, tools, session, 1, TestContext.Current.CancellationToken);
+
+		execution.Result.Status.Should().Be("limit_reached");
+		execution.Result.ProposedPlan.Should().BeEmpty();
+		execution.Result.Actions.Should().BeEmpty();
+		execution.Result.Warnings.Should().Contain(warning => warning.Contains("limit of 1"))
+			.And.Contain(warning => warning.Contains("no proposal steps were accepted"));
+		inner.Calls.Should().ContainSingle();
+	}
+
+	[Theory]
+	[InlineData("{}", "{}")]
+	[InlineData("{\"summary\":null}", "")]
+	public async Task Execution_PreservesLegacySummaryFallbackAndConfirmedActions(string response, string expectedSummary)
+	{
+		var tools = await TaskPlanningMcpAdapter.CreateAsync(new FakeMcpAdapter("taskitem_create"), null, null, TestContext.Current.CancellationToken);
+		var session = new FakeSession(new DelegatedAgentResponse("", [new("taskitem_create", null)]), new DelegatedAgentResponse(response, []));
+
+		var execution = await TaskPlanningAgentOrchestrator.ExecuteAsync(new("Create a task"), tools, session, 1, TestContext.Current.CancellationToken);
+
+		execution.Result.Status.Should().Be("completed");
+		execution.Result.Summary.Should().Be(expectedSummary);
+		execution.Result.Actions.Should().ContainSingle().Which.ToolName.Should().Be("taskitem_create");
+		execution.Result.Warnings.Should().BeEmpty();
+	}
+
+	[Fact]
+	public async Task OversizedProposal_IsRejectedAndExecutionActionsRemainFactual()
+	{
+		var tools = await TaskPlanningMcpAdapter.CreateAsync(new FakeMcpAdapter("taskitem_create"), null, null, TestContext.Current.CancellationToken);
+		var session = new FakeSession(new DelegatedAgentResponse("", [new("taskitem_create", null)]),
+			new DelegatedAgentResponse(JsonSerializer.Serialize(new { summary = new string('x', 2100), proposedPlan = Enumerable.Repeat(new { description = "step" }, 21) }), []));
+		var execution = await TaskPlanningAgentOrchestrator.ExecuteAsync(new("Plan"), tools, session, 2, TestContext.Current.CancellationToken);
+		execution.Result.Summary.Length.Should().BeLessThanOrEqualTo(2000);
+		execution.Result.ProposedPlan.Should().BeEmpty();
+		execution.Result.Actions.Should().ContainSingle().Which.ToolName.Should().Be("taskitem_create");
+		execution.Result.Warnings.Should().ContainSingle();
+	}
+
+	[Fact]
 	public async Task ExecuteAsync_CompletesAfterExactlyFinalAllowedToolRound_AndAccountsUsage()
 	{
 		var inner = new FakeMcpAdapter("taskitem_create");

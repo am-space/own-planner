@@ -11,8 +11,10 @@ internal sealed record DelegatedAgentResponse(
 	long InputTokens = 0,
 	long OutputTokens = 0);
 
+/// <summary>A fresh specialist session receiving only a validated serialized brief and its own tool results.</summary>
 internal interface IDelegatedAgentSession
 {
+	/// <summary>Sends the bounded JSON objective, behavior, scopes and selected context without parent history.</summary>
 	Task<DelegatedAgentResponse> SendObjectiveAsync(string objective, CancellationToken cancellationToken);
 	Task<DelegatedAgentResponse> SendToolResultsAsync(IReadOnlyList<DelegatedAgentToolResult> results, CancellationToken cancellationToken);
 }
@@ -32,6 +34,9 @@ internal static class TaskPlanningAgentOrchestrator
 		ArgumentNullException.ThrowIfNull(tools);
 		ArgumentNullException.ThrowIfNull(session);
 		if (maxToolCallRounds <= 0) throw new ArgumentOutOfRangeException(nameof(maxToolCallRounds));
+		TaskPlanningRequestParser.Validate(request);
+		if (request.Behavior != tools.Behavior)
+			throw new InvalidOperationException("Delegation behavior does not match its execution policy.");
 
 		long inputTokens = 0;
 		long outputTokens = 0;
@@ -39,8 +44,16 @@ internal static class TaskPlanningAgentOrchestrator
 
 		try
 		{
-			var scope = $"Context scope: {request.ContextId?.ToString() ?? "none"}; task-list scope: {request.TaskListId?.ToString() ?? "none"}.";
-			var response = await session.SendObjectiveAsync($"Objective: {request.Objective}\n{scope}", cancellationToken).ConfigureAwait(false);
+			cancellationToken.ThrowIfCancellationRequested();
+			var brief = JsonSerializer.Serialize(new
+			{
+				request.Objective,
+				Behavior = request.Behavior == TaskPlanningBehavior.Proposal ? "proposal" : "execution",
+				request.ContextId,
+				request.TaskListId,
+				request.Brief
+			}, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+			var response = await session.SendObjectiveAsync(brief, cancellationToken).ConfigureAwait(false);
 			AddUsage(response, ref inputTokens, ref outputTokens);
 			var completedRounds = 0;
 
@@ -49,7 +62,7 @@ internal static class TaskPlanningAgentOrchestrator
 				if (response.ToolCalls.Count == 0)
 				{
 					return new TaskPlanningAgentExecution(
-						BuildResult("completed", response.Text, tools.Actions, warnings.Concat(tools.Warnings).ToList()),
+						BuildResult(request.Behavior == TaskPlanningBehavior.Proposal ? "proposed" : "completed", response.Text, tools.Actions, warnings.Concat(tools.Warnings).ToList(), request.Behavior),
 						inputTokens,
 						outputTokens);
 				}
@@ -58,7 +71,7 @@ internal static class TaskPlanningAgentOrchestrator
 				{
 					warnings.Add($"Delegation reached the configured limit of {maxToolCallRounds} tool-call rounds.");
 					return new TaskPlanningAgentExecution(
-						BuildResult("limit_reached", response.Text, tools.Actions, warnings.Concat(tools.Warnings).ToList()),
+						BuildResult("limit_reached", response.Text, tools.Actions, warnings.Concat(tools.Warnings).ToList(), request.Behavior),
 						inputTokens,
 						outputTokens);
 				}
@@ -113,7 +126,8 @@ internal static class TaskPlanningAgentOrchestrator
 		string status,
 		string modelText,
 		IReadOnlyList<TaskPlanningAgentAction> actions,
-		IReadOnlyList<string> executionWarnings)
+		IReadOnlyList<string> executionWarnings,
+		TaskPlanningBehavior behavior)
 	{
 		try
 		{
@@ -128,20 +142,36 @@ internal static class TaskPlanningAgentOrchestrator
 
 			using var document = JsonDocument.Parse(json);
 			var root = document.RootElement;
-			var summary = root.TryGetProperty("summary", out var summaryProperty) ? summaryProperty.GetString() ?? string.Empty : modelText;
+			var hasSummary = root.TryGetProperty("summary", out var summaryProperty);
+			if (behavior == TaskPlanningBehavior.Proposal && (!hasSummary || summaryProperty.ValueKind != JsonValueKind.String))
+				throw new JsonException();
+			var summary = hasSummary ? summaryProperty.GetString() ?? string.Empty : modelText;
+			if (summary.Length > 2000) throw new JsonException();
 			var warnings = executionWarnings.Concat(ReadStringArray(root, "warnings")).Distinct(StringComparer.Ordinal).ToList();
 			var questions = ReadStringArray(root, "unresolvedQuestions");
-			return new TaskPlanningAgentResult(status, summary, actions, warnings, questions);
+			var proposedPlan = root.TryGetProperty("proposedPlan", out var planProperty)
+				? planProperty.Deserialize<List<TaskPlanningProposedStep>>(new JsonSerializerOptions(JsonSerializerDefaults.Web)) ?? [] : [];
+			if (proposedPlan.Count > 20 || proposedPlan.Any(step => step is null || string.IsNullOrWhiteSpace(step.Description) || step.Description.Length > 500))
+				throw new JsonException();
+			return new TaskPlanningAgentResult(status, summary, actions, warnings, questions) { ProposedPlan = proposedPlan };
 		}
-		catch (JsonException)
+		catch (Exception ex) when (ex is JsonException or InvalidOperationException or NotSupportedException)
 		{
-			var questions = modelText.TrimEnd().EndsWith("?", StringComparison.Ordinal) ? new[] { modelText } : [];
-			return new TaskPlanningAgentResult(status, modelText, actions, executionWarnings, questions);
+			var length = Math.Min(modelText.Length, 2000);
+			if (length < modelText.Length && char.IsHighSurrogate(modelText[length - 1]) && char.IsLowSurrogate(modelText[length])) length--;
+			var text = modelText[..length];
+			var questions = text.TrimEnd().EndsWith("?", StringComparison.Ordinal) ? new[] { text } : [];
+			return new TaskPlanningAgentResult(status == "proposed" ? "invalid_proposal" : status, text, actions,
+				executionWarnings.Append("The specialist did not return a valid bounded structured result; no proposal steps were accepted.").ToList(), questions);
 		}
 	}
 
-	private static IReadOnlyList<string> ReadStringArray(JsonElement root, string propertyName) =>
-		root.TryGetProperty(propertyName, out var property) && property.ValueKind == JsonValueKind.Array
-			? property.EnumerateArray().Where(item => item.ValueKind == JsonValueKind.String).Select(item => item.GetString()!).ToList()
-			: [];
+	private static IReadOnlyList<string> ReadStringArray(JsonElement root, string propertyName)
+	{
+		if (!root.TryGetProperty(propertyName, out var property)) return [];
+		if (property.ValueKind != JsonValueKind.Array || property.GetArrayLength() > 8) throw new JsonException();
+		var values = property.EnumerateArray().Select(item => item.GetString()).ToArray();
+		if (values.Any(value => value is null || value.Length > 500)) throw new JsonException();
+		return values!;
+	}
 }

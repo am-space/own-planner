@@ -3,7 +3,8 @@ using System.Text.Json;
 namespace OwnPlanner.Application.Chat;
 
 /// <summary>Defines the objective and optional entity scope for one task-planning delegation.</summary>
-public sealed record TaskPlanningAgentRequest(string Objective, Guid? ContextId = null, Guid? TaskListId = null);
+public sealed record TaskPlanningAgentRequest(string Objective, Guid? ContextId = null, Guid? TaskListId = null,
+	TaskPlanningBehavior Behavior = TaskPlanningBehavior.Execution, TaskPlanningBrief? Brief = null);
 
 /// <summary>Describes one planner mutation attempted by the delegated task-planning agent.</summary>
 public sealed record TaskPlanningAgentAction(string ToolName, string Result);
@@ -14,7 +15,10 @@ public sealed record TaskPlanningAgentResult(
 	string Summary,
 	IReadOnlyList<TaskPlanningAgentAction> Actions,
 	IReadOnlyList<string> Warnings,
-	IReadOnlyList<string> UnresolvedQuestions);
+	IReadOnlyList<string> UnresolvedQuestions)
+{
+	public IReadOnlyList<TaskPlanningProposedStep> ProposedPlan { get; init; } = [];
+}
 
 /// <summary>
 /// Enforces the trusted task-planning tool allowlist and optional context/task-list boundary before
@@ -41,12 +45,15 @@ public sealed class TaskPlanningMcpAdapter : IMcpAdapter
 	private readonly List<TaskPlanningAgentAction> _actions = [];
 	private readonly List<string> _warnings = [];
 
-	private TaskPlanningMcpAdapter(IMcpAdapter inner, Guid? contextId, Guid? taskListId)
+	private TaskPlanningMcpAdapter(IMcpAdapter inner, Guid? contextId, Guid? taskListId, TaskPlanningBehavior behavior)
 	{
 		_inner = inner;
+		Behavior = behavior;
 		_contextId = contextId;
 		_taskListId = taskListId;
 	}
+
+	public TaskPlanningBehavior Behavior { get; }
 
 	public IReadOnlyList<TaskPlanningAgentAction> Actions => _actions;
 	public IReadOnlyList<string> Warnings => _warnings;
@@ -56,8 +63,17 @@ public sealed class TaskPlanningMcpAdapter : IMcpAdapter
 		Guid? contextId,
 		Guid? taskListId,
 		CancellationToken cancellationToken = default)
+		=> await CreateAsync(inner, new TaskPlanningAgentRequest("Task planning", contextId, taskListId), cancellationToken).ConfigureAwait(false);
+
+	/// <summary>Validates the brief and enforces proposal restrictions before resolving authenticated scope.</summary>
+	public static async Task<TaskPlanningMcpAdapter> CreateAsync(
+		IMcpAdapter inner, TaskPlanningAgentRequest request, CancellationToken cancellationToken = default)
 	{
 		ArgumentNullException.ThrowIfNull(inner);
+		TaskPlanningRequestParser.Validate(request);
+		cancellationToken.ThrowIfCancellationRequested();
+		var contextId = request.ContextId;
+		var taskListId = request.TaskListId;
 
 		if (contextId.HasValue)
 		{
@@ -73,7 +89,7 @@ public sealed class TaskPlanningMcpAdapter : IMcpAdapter
 				throw new InvalidOperationException("The supplied task list does not belong to the supplied context.");
 		}
 
-		return new TaskPlanningMcpAdapter(inner, contextId, taskListId);
+		return new TaskPlanningMcpAdapter(inner, contextId, taskListId, request.Behavior);
 	}
 
 	public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
@@ -81,12 +97,12 @@ public sealed class TaskPlanningMcpAdapter : IMcpAdapter
 	public async Task<IReadOnlyList<McpToolDefinition>> ListToolDetailsAsync(CancellationToken cancellationToken = default)
 	{
 		var definitions = await _inner.ListToolDetailsAsync(cancellationToken).ConfigureAwait(false);
-		return definitions.Where(definition => ReadTools.Contains(definition.Name) || WriteTools.Contains(definition.Name)).ToList();
+		return definitions.Where(definition => IsAllowed(definition.Name)).ToList();
 	}
 
 	public async Task<string> CallToolAsync(string toolName, IReadOnlyDictionary<string, object?>? arguments = null, CancellationToken cancellationToken = default)
 	{
-		if (!ReadTools.Contains(toolName) && !WriteTools.Contains(toolName))
+		if (!IsAllowed(toolName))
 			throw new InvalidOperationException($"Tool '{toolName}' is not allowed for task-planning delegation.");
 
 		var scopedArguments = arguments is null
@@ -104,6 +120,8 @@ public sealed class TaskPlanningMcpAdapter : IMcpAdapter
 		}
 		return result;
 	}
+
+	private bool IsAllowed(string name) => ReadTools.Contains(name) || (Behavior == TaskPlanningBehavior.Execution && WriteTools.Contains(name));
 
 	public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 
