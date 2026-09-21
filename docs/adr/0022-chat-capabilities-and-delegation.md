@@ -55,7 +55,10 @@ HTTP/MCP schemas and persisted mode identifiers are unchanged. No migration is n
 Results add `proposedPlan`, at most 20 steps with bounded descriptions and optional task/list IDs.
 Suggestions are never automatically executed and model output cannot populate factual `actions`.
 Completed proposals return `proposed`; malformed structured proposal output returns `invalid_proposal`
-and no accepted steps. Existing execution statuses remain compatible. Prompts govern conversational
+and no accepted steps. Proposal summaries must be non-null strings, including when evaluating
+partial results at the round limit; malformed partial proposals retain `limit_reached` without accepted
+steps. Execution preserves its legacy missing/null-summary fallback and confirmed actions.
+Existing execution statuses remain compatible. Prompts govern conversational
 intent; policy mechanically governs capabilities, proposal writes and scope.
 
 ## Verification and measurements

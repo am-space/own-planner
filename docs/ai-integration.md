@@ -190,10 +190,12 @@ Each invocation has a configurable tool-call-round limit (eight by default) and 
 validation and tool execution. Its structured result distinguishes status, a model summary,
 execution-confirmed `actions`, warnings, unresolved questions, and additive `proposedPlan` steps.
 Each proposed step has a description (1–500 code units) and optional task/list UUIDs; at most 20 steps
-are accepted. Summary is bounded to 2,000 code units; specialist warnings and questions to eight
-500-code-unit strings each. Model claims never populate `actions`. Steps are suggestions and never
+are accepted. Proposal results require a non-null string `summary`, bounded to 2,000 code units;
+specialist warnings and questions are limited to eight 500-code-unit strings each. Model claims never populate `actions`. Steps are suggestions and never
 automatically applied. A completed proposal returns `proposed`; malformed proposal output returns
-`invalid_proposal` with no accepted steps. Existing execution status values remain unchanged;
+`invalid_proposal` with no accepted steps. Round-limited proposals retain `limit_reached` but discard
+malformed steps. Execution retains its legacy missing/null-summary fallback and confirmed actions.
+Existing execution status values remain unchanged;
 `limit_reached` and `failed` still distinguish incomplete delegations. Nested Gemini usage metadata contributes
 to the parent turn's token totals when the provider supplies it. Failures are returned as safe
 delegation results and do not reset the main conversation.

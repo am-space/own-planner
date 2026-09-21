@@ -55,10 +55,14 @@ public sealed class TaskPlanningAgentOrchestratorTests
 
 	[Theory]
 	[InlineData("not JSON")]
+	[InlineData("{}")]
+	[InlineData("{\"summary\":null}")]
+	[InlineData("{\"proposedPlan\":[{\"description\":\"First step\"}]}")]
+	[InlineData("{\"summary\":null,\"proposedPlan\":[{\"description\":\"First step\"}]}")]
 	[InlineData("[]")]
 	[InlineData("{\"summary\":42}")]
-	[InlineData("{\"proposedPlan\":[null]}")]
-	[InlineData("{\"proposedPlan\":[{\"description\":\"\"}]}")]
+	[InlineData("{\"summary\":\"Plan\",\"proposedPlan\":[null]}")]
+	[InlineData("{\"summary\":\"Plan\",\"proposedPlan\":[{\"description\":\"\"}]}")]
 	public async Task Proposal_MalformedStructuredResultNeverProducesAcceptedSteps(string response)
 	{
 		var request = new TaskPlanningAgentRequest("Explore", Behavior: TaskPlanningBehavior.Proposal);
@@ -69,6 +73,43 @@ public sealed class TaskPlanningAgentOrchestratorTests
 		execution.Result.ProposedPlan.Should().BeEmpty();
 		execution.Result.Actions.Should().BeEmpty();
 		execution.Result.Warnings.Should().ContainSingle();
+	}
+
+	[Theory]
+	[InlineData("{\"proposedPlan\":[{\"description\":\"First step\"}]}")]
+	[InlineData("{\"summary\":null,\"proposedPlan\":[{\"description\":\"First step\"}]}")]
+	public async Task Proposal_AtRoundLimit_RejectsStepsWithoutAStringSummary(string response)
+	{
+		var request = new TaskPlanningAgentRequest("Explore", Behavior: TaskPlanningBehavior.Proposal);
+		var inner = new FakeMcpAdapter("datetime_get_current");
+		var tools = await TaskPlanningMcpAdapter.CreateAsync(inner, request, TestContext.Current.CancellationToken);
+		var call = new DelegatedAgentToolCall("datetime_get_current", null);
+		var session = new FakeSession(new DelegatedAgentResponse("", [call]), new DelegatedAgentResponse(response, [call]));
+
+		var execution = await TaskPlanningAgentOrchestrator.ExecuteAsync(request, tools, session, 1, TestContext.Current.CancellationToken);
+
+		execution.Result.Status.Should().Be("limit_reached");
+		execution.Result.ProposedPlan.Should().BeEmpty();
+		execution.Result.Actions.Should().BeEmpty();
+		execution.Result.Warnings.Should().Contain(warning => warning.Contains("limit of 1"))
+			.And.Contain(warning => warning.Contains("no proposal steps were accepted"));
+		inner.Calls.Should().ContainSingle();
+	}
+
+	[Theory]
+	[InlineData("{}", "{}")]
+	[InlineData("{\"summary\":null}", "")]
+	public async Task Execution_PreservesLegacySummaryFallbackAndConfirmedActions(string response, string expectedSummary)
+	{
+		var tools = await TaskPlanningMcpAdapter.CreateAsync(new FakeMcpAdapter("taskitem_create"), null, null, TestContext.Current.CancellationToken);
+		var session = new FakeSession(new DelegatedAgentResponse("", [new("taskitem_create", null)]), new DelegatedAgentResponse(response, []));
+
+		var execution = await TaskPlanningAgentOrchestrator.ExecuteAsync(new("Create a task"), tools, session, 1, TestContext.Current.CancellationToken);
+
+		execution.Result.Status.Should().Be("completed");
+		execution.Result.Summary.Should().Be(expectedSummary);
+		execution.Result.Actions.Should().ContainSingle().Which.ToolName.Should().Be("taskitem_create");
+		execution.Result.Warnings.Should().BeEmpty();
 	}
 
 	[Fact]

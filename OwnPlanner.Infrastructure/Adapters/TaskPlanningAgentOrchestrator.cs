@@ -62,7 +62,7 @@ internal static class TaskPlanningAgentOrchestrator
 				if (response.ToolCalls.Count == 0)
 				{
 					return new TaskPlanningAgentExecution(
-						BuildResult(request.Behavior == TaskPlanningBehavior.Proposal ? "proposed" : "completed", response.Text, tools.Actions, warnings.Concat(tools.Warnings).ToList()),
+						BuildResult(request.Behavior == TaskPlanningBehavior.Proposal ? "proposed" : "completed", response.Text, tools.Actions, warnings.Concat(tools.Warnings).ToList(), request.Behavior),
 						inputTokens,
 						outputTokens);
 				}
@@ -71,7 +71,7 @@ internal static class TaskPlanningAgentOrchestrator
 				{
 					warnings.Add($"Delegation reached the configured limit of {maxToolCallRounds} tool-call rounds.");
 					return new TaskPlanningAgentExecution(
-						BuildResult("limit_reached", response.Text, tools.Actions, warnings.Concat(tools.Warnings).ToList()),
+						BuildResult("limit_reached", response.Text, tools.Actions, warnings.Concat(tools.Warnings).ToList(), request.Behavior),
 						inputTokens,
 						outputTokens);
 				}
@@ -126,7 +126,8 @@ internal static class TaskPlanningAgentOrchestrator
 		string status,
 		string modelText,
 		IReadOnlyList<TaskPlanningAgentAction> actions,
-		IReadOnlyList<string> executionWarnings)
+		IReadOnlyList<string> executionWarnings,
+		TaskPlanningBehavior behavior)
 	{
 		try
 		{
@@ -141,7 +142,10 @@ internal static class TaskPlanningAgentOrchestrator
 
 			using var document = JsonDocument.Parse(json);
 			var root = document.RootElement;
-			var summary = root.TryGetProperty("summary", out var summaryProperty) ? summaryProperty.GetString() ?? string.Empty : modelText;
+			var hasSummary = root.TryGetProperty("summary", out var summaryProperty);
+			if (behavior == TaskPlanningBehavior.Proposal && (!hasSummary || summaryProperty.ValueKind != JsonValueKind.String))
+				throw new JsonException();
+			var summary = hasSummary ? summaryProperty.GetString() ?? string.Empty : modelText;
 			if (summary.Length > 2000) throw new JsonException();
 			var warnings = executionWarnings.Concat(ReadStringArray(root, "warnings")).Distinct(StringComparer.Ordinal).ToList();
 			var questions = ReadStringArray(root, "unresolvedQuestions");
