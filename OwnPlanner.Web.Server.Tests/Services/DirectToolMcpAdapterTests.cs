@@ -22,7 +22,7 @@ using OwnPlanner.Web.Server.Models;
 
 namespace OwnPlanner.Web.Server.Tests.Services;
 
-public sealed class DirectToolMcpAdapterTests : IDisposable
+public sealed partial class DirectToolMcpAdapterTests : IDisposable
 {
 	private static readonly DateTime TenantTestUtcNow = new(2026, 8, 19, 12, 0, 0, DateTimeKind.Utc);
 	private readonly string _tempDirectory = Path.Combine(Path.GetTempPath(), "ownplanner-direct-tool-tests", Guid.NewGuid().ToString("N"));
@@ -43,6 +43,10 @@ public sealed class DirectToolMcpAdapterTests : IDisposable
 		var general = toolDetails.Single(tool => tool.Name == "general_report_get");
 		general.JsonSchema!.Value.GetProperty("properties").EnumerateObject().Should().BeEmpty();
 		toolDetails.Should().Contain(tool => tool.Name == "reflection_report_get");
+
+		var updateSchema = toolDetails.Single(tool => tool.Name == "taskitem_update").JsonSchema!.Value;
+		updateSchema.GetProperty("properties").GetProperty("clearDueAt").GetProperty("type").GetString().Should().Be("boolean");
+		updateSchema.GetProperty("required").EnumerateArray().Select(item => item.GetString()).Should().Equal("id");
 
 		var taskGetTool = toolDetails.Single(tool => tool.Name == "taskitem_get");
 		taskGetTool.JsonSchema.Should().NotBeNull();

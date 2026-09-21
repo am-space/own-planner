@@ -39,6 +39,75 @@ public class TaskItemToolsTests
 		JsonSerializer.SerializeToElement(result, new JsonSerializerOptions(JsonSerializerDefaults.Web));
 
 	[Fact]
+	public void UpdateTask_McpSdkSchema_ExposesOptionalClearDueAt()
+	{
+		var tool = ModelContextProtocol.Server.McpServerTool.Create(
+			typeof(TaskItemTools).GetMethod(nameof(TaskItemTools.UpdateTask))!, _tools,
+			new() { SerializerOptions = TaskToolSerialization.Options });
+		tool.ProtocolTool.Name.Should().Be("taskitem_update");
+		var schema = tool.ProtocolTool.InputSchema;
+		schema.GetProperty("properties").GetProperty("clearDueAt").GetProperty("type").GetString().Should().Be("boolean");
+		schema.GetProperty("required").EnumerateArray().Select(x => x.GetString()).Should().Equal("id");
+		tool.ProtocolTool.Description.Should().Contain("clearDueAt=true");
+	}
+
+	[Fact]
+	public void SdkSerialization_RetainsNullDeadlineOnlyForFullTaskResults()
+	{
+		var dto = Task();
+		var full = JsonSerializer.SerializeToElement(dto, TaskToolSerialization.Options);
+		full.GetProperty("dueAt").ValueKind.Should().Be(JsonValueKind.Null);
+		full.TryGetProperty("description", out _).Should().BeFalse();
+		var list = new TaskItemListDto(dto.Id, dto.Title, null, false, false, null, null, dto.TaskListId, null, null);
+		JsonSerializer.SerializeToElement(list, TaskToolSerialization.Options).TryGetProperty("dueAt", out _).Should().BeFalse();
+	}
+
+	[Theory]
+	[InlineData(null)]
+	[InlineData("2026-09-20")]
+	[InlineData("not a date")]
+	public async Task UpdateTask_ClearDueAt_SkipsParsingAndReturnsNullDeadline(string? dueAt)
+	{
+		var dto = Task();
+		_service.UpdateAsync(dto.Id, ct: Arg.Any<CancellationToken>(), clearDueAt: true).Returns(dto);
+
+		var json = AsJson(await _tools.UpdateTask(dto.Id, dueAt: dueAt, clearDueAt: true));
+
+		json.GetProperty("dueAt").ValueKind.Should().Be(JsonValueKind.Null);
+		json.GetProperty("id").GetGuid().Should().Be(dto.Id);
+		await _service.Received(1).UpdateAsync(dto.Id, ct: Arg.Any<CancellationToken>(), clearDueAt: true);
+	}
+
+	[Theory]
+	[InlineData(null)]
+	[InlineData("")]
+	[InlineData("2026-09-20")]
+	public async Task UpdateTask_WithoutClearing_PreservesOrdinaryDateParsing(string? dueAt)
+	{
+		var id = Guid.NewGuid();
+		await _tools.UpdateTask(id, dueAt: dueAt);
+		await _service.Received(1).UpdateAsync(id, dueAt: string.IsNullOrEmpty(dueAt) ? null : new DateTime(2026, 9, 20), ct: Arg.Any<CancellationToken>());
+	}
+
+	[Fact]
+	public async Task UpdateTask_InvalidDate_ReturnsErrorBeforeAnyMutation()
+	{
+		var json = AsJson(await _tools.UpdateTask(Guid.NewGuid(), title: "Must not change", dueAt: "invalid"));
+		json.GetProperty("error").GetString().Should().Be("Invalid date format for dueAt");
+		_service.ReceivedCalls().Should().BeEmpty();
+	}
+
+	[Fact]
+	public async Task UpdateTask_ClearMissingTask_ReturnsApplicationError()
+	{
+		var id = Guid.NewGuid();
+		_service.UpdateAsync(id, ct: Arg.Any<CancellationToken>(), clearDueAt: true)
+			.Returns(System.Threading.Tasks.Task.FromException<TaskItemDto>(new KeyNotFoundException("Task not found")));
+		var json = AsJson(await _tools.UpdateTask(id, clearDueAt: true));
+		json.GetProperty("error").GetString().Should().Be("Task not found");
+	}
+
+	[Fact]
 	public async Task ListTasks_ReturnsPagingEnvelope()
 	{
 		var page = new PagedResult<TaskItemDto>([Task(), Task()], TotalCount: 10, Offset: 0, Limit: 25);

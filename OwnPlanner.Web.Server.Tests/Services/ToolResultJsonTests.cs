@@ -35,12 +35,12 @@ public sealed class ToolResultJsonTests
 	}
 
 	[Fact]
-	public void Serialize_OmitsNullFields()
+	public void Serialize_OmitsNullFieldsExceptExplicitTaskDeadline()
 	{
 		var json = Serialize(SampleTask(description: null, dueAt: null, goalId: null));
 
 		json.TryGetProperty("description", out _).Should().BeFalse();
-		json.TryGetProperty("dueAt", out _).Should().BeFalse();
+		json.GetProperty("dueAt").ValueKind.Should().Be(JsonValueKind.Null);
 		json.TryGetProperty("goalId", out _).Should().BeFalse();
 		json.TryGetProperty("completedAt", out _).Should().BeFalse();
 	}
