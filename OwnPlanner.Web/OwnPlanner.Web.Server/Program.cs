@@ -243,7 +243,7 @@ namespace OwnPlanner.Web.Server
 						// requests or subscriptions, so make the v2 transport choice explicit.
 						options.Stateless = true;
 					})
-					.WithTools<TaskItemTools>()
+					.WithTools<TaskItemTools>(serializerOptions: TaskToolSerialization.Options)
 					.WithTools<TaskListTools>()
 					.WithTools<NoteListTools>()
 					.WithTools<NoteItemTools>()

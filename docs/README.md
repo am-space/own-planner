@@ -62,12 +62,14 @@ ADRs describe decisions as actually shipped. Start new records from [`adr/templa
 - [`ADR-0020`](adr/0020-request-scoped-chat-skills.md) — request-scoped chat skills alongside directly callable agents
 - [`ADR-0021`](adr/0021-general-default-chat.md) — General default chat and bounded initial context
 - [`ADR-0022`](adr/0022-chat-capabilities-and-delegation.md) — shared mode capabilities, direct task management and bounded proposals
+- [`ADR-0023`](adr/0023-explicit-task-deadline-clearing.md) — explicit deadline clearing with compatible partial updates
 
 ## Historical plans
 
 Archived plans preserve the original intent but may differ from the final implementation. Prefer the
 linked ADR when determining current behavior.
 
+- [`archive/clear-task-deadline-plan.md`](archive/clear-task-deadline-plan.md)
 - [`archive/email-sending-plan.md`](archive/email-sending-plan.md)
 - [`archive/task-list-token-reduction-plan.md`](archive/task-list-token-reduction-plan.md)
 - [`archive/e2e-testing-plan.md`](archive/e2e-testing-plan.md)

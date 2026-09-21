@@ -58,6 +58,22 @@ planner size. No user timezone or historical completion timeline is inferred.
 
 See [ADR-0021](adr/0021-general-default-chat.md).
 
+## Clearing task deadlines
+
+Use `taskitem_update` with `id` and `clearDueAt: true` to remove a deadline. The optional flag
+is false by default. Clearing takes precedence over any supplied `dueAt`, including an invalid
+string; ordinary invalid nonempty dates still return an error before any task mutation.
+Omitted/null `dueAt` without clearing leaves the deadline unchanged; valid dates set or replace it.
+Clearing does not alter the planned focus date or other fields unless independently requested.
+
+The shared handler serves in-process chat, HTTP MCP and stdio. Full task responses and subsequent
+`taskitem_get` reads explicitly include `dueAt: null` when absent, including the direct adapter;
+compact task-list responses still omit null fields. General's task-management skill and Task
+Planning execution use the explicit flag and confirm removal from the tool result. Proposal and
+read-only modes cannot write. Refresh deadline reports after clearing; prior reports are snapshots.
+There is no separate HTTP task-update endpoint or client deadline editor, and no database migration.
+See [ADR-0023](adr/0023-explicit-task-deadline-clearing.md).
+
 ## Dynamic chat skills
 
 General is the default for new web/API and console chats, web resets and missing frontend mode

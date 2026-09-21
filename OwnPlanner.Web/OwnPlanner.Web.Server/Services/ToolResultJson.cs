@@ -2,6 +2,7 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
+using OwnPlanner.Mcp.Tools;
 
 namespace OwnPlanner.Web.Server.Services;
 
@@ -9,7 +10,7 @@ namespace OwnPlanner.Web.Server.Services;
 /// Serializer options for tool results sent back to the model. Trims context-only noise so large
 /// list results don't dominate the chat context:
 /// <list type="bullet">
-/// <item>null fields are omitted (e.g. an unset <c>description</c>, <c>dueAt</c>, or <c>goalId</c>) — note
+/// <item>null fields are omitted except <c>TaskItemDto.DueAt</c>, which explicitly confirms a cleared deadline — note
 /// this drops nulls only, not empty strings;</item>
 /// <item>the audit timestamps <c>CreatedAt</c>/<c>UpdatedAt</c> are dropped — they are never used by the
 /// model (ordering happens server-side). Functional dates such as <c>dueAt</c>/<c>focusAt</c> are kept,
@@ -28,7 +29,7 @@ internal static class ToolResultJson
 		Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
 		TypeInfoResolver = new DefaultJsonTypeInfoResolver
 		{
-			Modifiers = { DropAuditTimestamps }
+			Modifiers = { DropAuditTimestamps, TaskToolSerialization.KeepTaskDeadline }
 		}
 	};
 

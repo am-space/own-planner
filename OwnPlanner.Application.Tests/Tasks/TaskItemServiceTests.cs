@@ -13,6 +13,59 @@ public class TaskItemServiceTests
 
 	public TaskItemServiceTests() => _svc = new TaskItemService(_repo, _taskListRepo);
 
+	[Theory]
+	[InlineData(false, false)]
+	[InlineData(false, true)]
+	[InlineData(true, false)]
+	[InlineData(true, true)]
+	public async Task UpdateAsync_ClearDueAt_PreservesUnrelatedFields(bool hasDeadline, bool completed)
+	{
+		var ct = TestContext.Current.CancellationToken;
+		var item = new TaskItem("Title", Guid.NewGuid(), "Description",
+			hasDeadline ? new DateTime(2026, 9, 20) : null, true, Guid.NewGuid());
+		item.SetFocusAt(new DateTime(2026, 9, 21));
+		if (completed) item.Complete();
+		_repo.GetAsync(item.Id, ct).Returns(item);
+		var before = await _svc.GetAsync(item.Id, ct);
+
+		var result = await _svc.UpdateAsync(item.Id, ct: ct, clearDueAt: true);
+
+		result.DueAt.Should().BeNull();
+		result.Should().BeEquivalentTo(before!, options => options.Excluding(x => x.DueAt).Excluding(x => x.UpdatedAt));
+		await _repo.Received(1).UpdateAsync(item, ct);
+	}
+
+	[Fact]
+	public async Task UpdateAsync_ClearDueAt_TakesPrecedenceAndAllowsOtherUpdates()
+	{
+		var ct = TestContext.Current.CancellationToken;
+		var item = new TaskItem("Old", Guid.NewGuid(), dueAt: new DateTime(2026, 9, 20));
+		_repo.GetAsync(item.Id, ct).Returns(item);
+		var goal = Guid.NewGuid();
+
+		var result = await _svc.UpdateAsync(item.Id, "New", "Updated", new DateTime(2026, 10, 1), true, goal, false, ct, clearDueAt: true);
+
+		result.DueAt.Should().BeNull();
+		result.Title.Should().Be("New");
+		result.Description.Should().Be("Updated");
+		result.IsImportant.Should().BeTrue();
+		result.GoalId.Should().Be(goal);
+	}
+
+	[Fact]
+	public async Task UpdateAsync_NullOrOmittedDatePreservesDeadline_AndPositionalCallerCanReplaceIt()
+	{
+		var ct = TestContext.Current.CancellationToken;
+		var original = new DateTime(2026, 9, 20);
+		var item = new TaskItem("Title", Guid.NewGuid(), dueAt: original);
+		_repo.GetAsync(item.Id, ct).Returns(item);
+
+		(await _svc.UpdateAsync(item.Id, ct: ct)).DueAt.Should().Be(original);
+		(await _svc.UpdateAsync(item.Id, dueAt: null, ct: ct)).DueAt.Should().Be(original);
+		(await _svc.UpdateAsync(item.Id, null, null, original.AddDays(1), null, null, false, ct))
+			.DueAt.Should().Be(original.AddDays(1));
+	}
+
 	[Fact]
 	public async Task DeleteAsync_TrashesTaskAndIsIdempotent()
 	{

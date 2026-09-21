@@ -60,13 +60,13 @@ public class TaskItemTools
 		return ToEnvelope(page);
 	}
 
-	[McpServerTool(Name = "taskitem_update"), Description("Update a task. Provide id and the fields to update (title, description, dueAt, or goalId). dueAt is for real deadlines only. Set clearGoalId=true to remove the goal association.")]
-	public async Task<object> UpdateTask(Guid id, string? title = null, string? description = null, string? dueAt = null, Guid? goalId = null, bool clearGoalId = false)
+	[McpServerTool(Name = "taskitem_update"), Description("Update a task. Provide id and the fields to update (title, description, dueAt, or goalId). dueAt is for real deadlines only. Set clearDueAt=true to remove the deadline without changing the focus date; clearing takes precedence over dueAt, even an invalid date. Omitted/null dueAt leaves the deadline unchanged. Set clearGoalId=true to remove the goal association.")]
+	public async Task<object> UpdateTask(Guid id, string? title = null, string? description = null, string? dueAt = null, Guid? goalId = null, bool clearGoalId = false, bool clearDueAt = false)
 	{
 		try
 		{
 			DateTime? dueDate = null;
-			if (!string.IsNullOrEmpty(dueAt))
+			if (!clearDueAt && !string.IsNullOrEmpty(dueAt))
 			{
 				if (DateTime.TryParse(dueAt, out var parsed))
 					dueDate = parsed;
@@ -74,7 +74,7 @@ public class TaskItemTools
 					return new { error = "Invalid date format for dueAt" };
 			}
 
-			var dto = await _service.UpdateAsync(id, title, description, dueDate, goalId: goalId, clearGoalId: clearGoalId);
+			var dto = await _service.UpdateAsync(id, title, description, dueDate, goalId: goalId, clearGoalId: clearGoalId, clearDueAt: clearDueAt);
 			return dto;
 		}
 		catch (KeyNotFoundException ex)

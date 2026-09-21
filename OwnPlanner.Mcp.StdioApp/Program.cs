@@ -134,7 +134,7 @@ namespace OwnPlanner.Mcp.StdioApp
 					services
 						.AddMcpServer()
 						.WithStdioServerTransport()
-						.WithTools<TaskItemTools>()
+						.WithTools<TaskItemTools>(serializerOptions: TaskToolSerialization.Options)
 						.WithTools<TaskListTools>()
 						.WithTools<NoteListTools>()
 						.WithTools<NoteItemTools>()

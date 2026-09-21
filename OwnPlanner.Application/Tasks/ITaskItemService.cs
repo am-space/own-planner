@@ -9,7 +9,10 @@ public interface ITaskItemService
 	Task<IReadOnlyList<TaskItemDto>> ListAsync(bool includeCompleted = true, CancellationToken ct = default);
 	Task<IReadOnlyList<TaskItemDto>> ListByTaskListAsync(Guid taskListId, bool includeCompleted = true, CancellationToken ct = default);
 	Task<IReadOnlyList<TaskItemDto>> ListByGoalAsync(Guid goalId, bool includeCompleted = true, CancellationToken ct = default);
-	Task<TaskItemDto> UpdateAsync(Guid id, string? title = null, string? description = null, DateTime? dueAt = null, bool? isImportant = null, Guid? goalId = null, bool clearGoalId = false, CancellationToken ct = default);
+	/// <summary>Updates supplied fields; omitted or null values leave existing values unchanged.</summary>
+	/// <remarks>clearDueAt clears the deadline even when dueAt is supplied; focus date is unaffected.
+	/// clearGoalId similarly takes precedence over goalId. clearDueAt follows ct to preserve positional callers.</remarks>
+	Task<TaskItemDto> UpdateAsync(Guid id, string? title = null, string? description = null, DateTime? dueAt = null, bool? isImportant = null, Guid? goalId = null, bool clearGoalId = false, CancellationToken ct = default, bool clearDueAt = false);
 	Task AssignToListAsync(Guid taskId, Guid taskListId, CancellationToken ct = default);
 	Task CompleteAsync(Guid id, CancellationToken ct = default);
 	Task ReopenAsync(Guid id, CancellationToken ct = default);
