@@ -3,11 +3,14 @@ using OwnPlanner.Domain.Contexts;
 using OwnPlanner.Domain.Goals;
 using OwnPlanner.Domain.Tasks;
 using OwnPlanner.Domain.Notes;
+using OwnPlanner.Domain.WeeklyReviews;
 
 namespace OwnPlanner.Infrastructure.Persistence;
 
 public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {
+	public DbSet<WeeklyReviewPreferences> WeeklyReviewPreferences => Set<WeeklyReviewPreferences>();
+	public DbSet<WeeklyReviewState> WeeklyReviews => Set<WeeklyReviewState>();
 	public DbSet<TaskItem> TaskItems => Set<TaskItem>();
 	public DbSet<TaskList> TaskLists => Set<TaskList>();
 	public DbSet<NoteList> NoteLists => Set<NoteList>();
@@ -17,6 +20,13 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
 	protected override void OnModelCreating(ModelBuilder modelBuilder)
 	{
+		var preferences = modelBuilder.Entity<WeeklyReviewPreferences>();
+		preferences.HasKey(p => p.Id);
+		preferences.Property(p => p.Id).ValueGeneratedNever();
+		var review = modelBuilder.Entity<WeeklyReviewState>();
+		review.HasKey(r => r.Id);
+		review.HasIndex(r => r.TargetWeek).IsUnique();
+
 		// TaskItem configuration
 		var task = modelBuilder.Entity<TaskItem>();
 		task.HasKey(t => t.Id);

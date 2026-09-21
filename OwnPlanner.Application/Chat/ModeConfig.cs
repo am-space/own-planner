@@ -31,14 +31,16 @@ public sealed record ModeConfig(
 					Do not ask again for confirmation of clearly authorized changes. Use the Search Agent directly for external factual research.
 					Load a relevant skill for additional instructions and tools. Retrieve data explicitly when needed.
 					Report only changes confirmed by tool results. Do not switch the user's mode automatically.
+					After addressing a suitable planning request, call weekly_review_offer and append only its returned invitation if any.
+					Skip this check for urgent or unrelated work. For weekly reminders or carryover review load weekly_planning.
 					""",
 				PreloadTools: ["general_report_get"],
-				AllowedTools: new[] { "general_report_get", "datetime_get_current", "skill_load", "task_planning_agent_call", "search_agent_call" }
+				AllowedTools: new[] { "general_report_get", "datetime_get_current", "weekly_review_offer", "skill_load", "task_planning_agent_call", "search_agent_call" }
 					.Concat(ChatSkillRegistry.All.Values.SelectMany(skill => skill.Tools)).Distinct(StringComparer.Ordinal).ToArray(),
 				CanWrite: true,
 				StarterPrompts: ["Help me think through an idea", "Capture something I want to remember", "What needs my attention?"])
 			{
-				InitialTools = ["general_report_get", "datetime_get_current", "skill_load", "task_planning_agent_call", "search_agent_call"],
+				InitialTools = ["general_report_get", "datetime_get_current", "weekly_review_offer", "skill_load", "task_planning_agent_call", "search_agent_call"],
 				SkillIds = ChatSkillRegistry.All.Keys.Order(StringComparer.Ordinal).ToArray()
 			},
 

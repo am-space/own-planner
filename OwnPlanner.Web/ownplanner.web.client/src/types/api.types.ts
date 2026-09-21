@@ -274,3 +274,29 @@ export interface PlannerFilterOptions {
   contexts: PlannerContextOption[];
   goals: PlannerGoalOption[];
 }
+
+export interface WeeklyReviewPreferences {
+  enabled: boolean;
+  timeZoneId: string | null;
+  weekStart: number;
+  reminderTime: string;
+  channel: string;
+}
+export interface WeeklyReviewState {
+  id: string;
+  targetWeek: string;
+  timeZoneId: string;
+  status: string;
+}
+export interface WeeklyReviewView {
+  review: WeeklyReviewState;
+  report: {
+    carryoverCount: number;
+    overdueCount: number;
+    dueInTargetWeekCount: number;
+    totalCount: number;
+    offset: number;
+    limit: number;
+    tasks: { id: string; title: string; carryover: boolean; overdue: boolean; dueInTargetWeek: boolean }[];
+  };
+}

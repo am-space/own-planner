@@ -517,7 +517,7 @@ public sealed partial class DirectToolMcpAdapterTests : IDisposable
 			serviceProvider.GetRequiredService<ILogger<DirectToolMcpAdapter>>());
 	}
 
-	private ServiceProvider BuildTenantServiceProvider()
+	private ServiceProvider BuildTenantServiceProvider(Action<IServiceCollection>? configure = null)
 	{
 		Directory.CreateDirectory(_tempDirectory);
 		var inboxSeeder = Substitute.For<IInboxSeeder>();
@@ -532,6 +532,9 @@ public sealed partial class DirectToolMcpAdapterTests : IDisposable
 		services.AddSingleton<TimeProvider>(new FixedTimeProvider(TenantTestUtcNow));
 		services.AddScoped<IStrategicReportReader, StrategicReportReader>();
 		services.AddScoped<IWeeklyReportReader, WeeklyReportReader>();
+		services.AddScoped<OwnPlanner.Application.WeeklyReviews.IWeeklyReviewStore, OwnPlanner.Infrastructure.WeeklyReviews.WeeklyReviewStore>();
+		services.AddScoped<OwnPlanner.Application.WeeklyReviews.IWeeklyReviewService, OwnPlanner.Application.WeeklyReviews.WeeklyReviewService>();
+		services.AddScoped<OwnPlanner.Application.WeeklyReviews.WeeklyReviewActions>();
 		services.AddScoped<IGeneralReportReader, GeneralReportReader>();
 		services.AddScoped<IReflectionReportReader, ReflectionReportReader>();
 		services.AddScoped<ITaskListRepository, TaskListRepository>();
@@ -539,6 +542,7 @@ public sealed partial class DirectToolMcpAdapterTests : IDisposable
 		services.AddScoped<ITaskListService, TaskListService>();
 		services.AddScoped<ITaskItemService, TaskItemService>();
 		services.AddSingleton(new TenantTestDirectory(_tempDirectory));
+		configure?.Invoke(services);
 		return services.BuildServiceProvider();
 	}
 

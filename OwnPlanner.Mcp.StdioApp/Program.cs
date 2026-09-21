@@ -10,6 +10,7 @@ using OwnPlanner.Application.Inbox;
 using OwnPlanner.Application.Tasks;
 using OwnPlanner.Application.Notes;
 using OwnPlanner.Application.Reporting;
+using OwnPlanner.Application.WeeklyReviews;
 using OwnPlanner.Domain.Contexts;
 using OwnPlanner.Domain.Goals;
 using OwnPlanner.Domain.Notes;
@@ -17,6 +18,7 @@ using OwnPlanner.Domain.Tasks;
 using OwnPlanner.Infrastructure.Persistence;
 using OwnPlanner.Infrastructure.Repositories;
 using OwnPlanner.Infrastructure.Reporting;
+using OwnPlanner.Infrastructure.WeeklyReviews;
 using OwnPlanner.Mcp.Tools;
 
 namespace OwnPlanner.Mcp.StdioApp
@@ -117,6 +119,9 @@ namespace OwnPlanner.Mcp.StdioApp
 					services.AddScoped<IGoalService, GoalService>();
 					services.AddScoped<IPlanningContextService, PlanningContextService>();
 					services.AddSingleton(TimeProvider.System);
+					services.AddScoped<IWeeklyReviewStore, WeeklyReviewStore>();
+					services.AddScoped<IWeeklyReviewService, WeeklyReviewService>();
+					services.AddScoped<WeeklyReviewActions>();
 					services.AddScoped<IStrategicReportReader, StrategicReportReader>();
 					services.AddScoped<IWeeklyReportReader, WeeklyReportReader>();
 					services.AddScoped<IGeneralReportReader, GeneralReportReader>();
@@ -142,6 +147,7 @@ namespace OwnPlanner.Mcp.StdioApp
 						.WithTools<PlanningContextTools>()
 						.WithTools<StrategicReportTools>()
 						.WithTools<WeeklyReportTools>()
+						.WithTools<WeeklyReviewTools>(serializerOptions: TaskToolSerialization.Options)
 						.WithTools<GeneralReportTools>()
 						.WithTools<ReflectionReportTools>()
 						.WithTools<DateTimeTools>();

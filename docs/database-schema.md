@@ -33,3 +33,12 @@ and reflection reports explicitly select only rows where it is null. Trash queri
 where it is set. Restoring verifies that `TaskListId` still resolves in the current user's database
 before re-establishing `ActiveTaskListId`; a missing list is reported rather than replaced silently.
 Only an already-trashed row can be permanently deleted.
+
+## Weekly review data
+
+Per-user `WeeklyReviewPreferences` stores the explicit timezone, week start, local reminder time,
+channel and disabled-by-default opt-in. `WeeklyReviews` stores target calendar dates and frozen UTC
+boundaries, lifecycle state, deferral and separate delivery/offer claims. A unique target-week index
+and serialized SQLite transitions coordinate workers. `AddWeeklyReviews` is an additive AppDbContext
+migration; no auth schema changes are required. These rows follow planner export and account erasure.
+See [weekly review](weekly-review.md) for selection and expiration rules.

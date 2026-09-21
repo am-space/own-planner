@@ -32,6 +32,9 @@ import type {
   TelegramConnectionStatus,
   TelegramConnectionLink,
   TrashedTask,
+  WeeklyReviewPreferences,
+  WeeklyReviewView,
+  WeeklyReviewState,
 } from '../types/api.types';
 
 /**
@@ -62,6 +65,38 @@ export class ApiError extends Error {
 
 class ApiService {
   private baseUrl = '/api';
+
+  private async weeklyReviewRequest<T>(path: string, method = 'GET', body?: object): Promise<T> {
+    const response = await fetch(`${this.baseUrl}/weekly-review/${path}`, {
+      method, credentials: 'include',
+      headers: body ? { 'Content-Type': 'application/json' } : undefined,
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({})) as { message?: string };
+      throw new ApiError(error.message || 'Weekly review request failed', response.status);
+    }
+    return await response.json() as T;
+  }
+
+  getWeeklyReviewPreferences(): Promise<WeeklyReviewPreferences> {
+    return this.weeklyReviewRequest('settings');
+  }
+
+  saveWeeklyReviewPreferences(preferences: WeeklyReviewPreferences): Promise<WeeklyReviewPreferences> {
+    return this.weeklyReviewRequest('settings', 'PUT', preferences);
+  }
+
+  openWeeklyReview(reviewId?: string, offset = 0): Promise<WeeklyReviewView> {
+    const query = new URLSearchParams({ offset: String(offset) });
+    if (reviewId) query.set('reviewId', reviewId);
+    return this.weeklyReviewRequest(`open?${query}`, 'POST');
+  }
+
+  transitionWeeklyReview(id: string, action: string, localTime?: string): Promise<WeeklyReviewState> {
+    return this.weeklyReviewRequest(`${encodeURIComponent(id)}/transition`, 'POST', { action, localTime });
+  }
+
 
   private async getPlannerJson<T>(
     path: string,

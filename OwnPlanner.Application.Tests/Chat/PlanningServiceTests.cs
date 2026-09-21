@@ -88,7 +88,7 @@ public class PlanningServiceTests
 		Received.InOrder(() =>
 		{
 			_chatAdapter.ConfigureToolPolicy(Arg.Is<ChatToolPolicy>(policy =>
-					policy != null && policy.SkillIds.Count == 6 && policy.BaselineTools.Count == 5 && policy.AllowedTools.Contains("noteitem_create")));
+					policy != null && policy.SkillIds.Count == 6 && policy.BaselineTools.Count == 6 && policy.AllowedTools.Contains("noteitem_create")));
 			_chatAdapter.ResetChatSession(Arg.Any<string>(), ModeConfig.All[PlanningMode.General].InitialTools);
 		});
 		await _mcpAdapter.Received(1).CallToolAsync("general_report_get", null, TestContext.Current.CancellationToken);
