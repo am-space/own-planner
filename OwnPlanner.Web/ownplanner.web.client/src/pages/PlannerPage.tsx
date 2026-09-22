@@ -557,7 +557,7 @@ function CollectionWithInspector<T extends { id: string }>({
       sx={{ display: 'flex', flexDirection: 'column', width: useOverlayInspector ? '100%' : inspectorWidth, maxWidth: '100%', height: '100%', overflow: 'hidden', bgcolor: 'background.paper', borderLeft: useOverlayInspector ? 0 : 1, borderColor: 'divider' }}
     >
       <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, p: 2 }}>
-        <Typography ref={headingRef} tabIndex={-1} variant="h6" component="h2" sx={{ flex: 1, outline: 'none' }}>
+        <Typography ref={headingRef} tabIndex={-1} variant="h6" component="h2" sx={{ flex: 1, minWidth: 0, overflowWrap: 'anywhere', outline: 'none' }}>
           {detailTitle}
         </Typography>
         <IconButton aria-label="Close details" onClick={handleClose}><CloseIcon /></IconButton>
