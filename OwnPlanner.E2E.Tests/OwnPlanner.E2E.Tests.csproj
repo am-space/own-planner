@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\OwnPlanner.Web\OwnPlanner.Web.Server\OwnPlanner.Web.Server.csproj" />
+    <ProjectReference Include="..\OwnPlanner.Mcp.StdioApp\OwnPlanner.Mcp.StdioApp.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <ItemGroup>
