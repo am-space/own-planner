@@ -105,7 +105,7 @@ To target an already-running deployment directly:
 
 ```sh
 OWNPLANNER_BASE_URL=http://127.0.0.1:8080 \
-  dotnet test OwnPlanner.Deployment.Tests --filter 'Category=DeploymentSmoke'
+  dotnet test --project OwnPlanner.Deployment.Tests --filter-trait 'Category=DeploymentSmoke'
 ```
 
 For a local HTTPS endpoint with a development certificate, explicitly set

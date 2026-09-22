@@ -1,7 +1,8 @@
 # Testing OwnPlanner
 
-OwnPlanner uses focused xUnit v3 projects for its .NET layers, frontend lint/build checks, and a
-deterministic Playwright browser suite for cross-layer application behavior.
+OwnPlanner uses xUnit.net v3 (the `xunit.v3` 4.0.1 package) with Microsoft Testing Platform (MTP)
+for its .NET layers, frontend lint/build checks, and a deterministic Playwright browser suite.
+The package version is 4.x; the upstream framework and Playwright integration still use the v3 name.
 
 ## Standard verification
 
@@ -23,6 +24,47 @@ Then use the verification command that matches the change:
 The E2E results file is written to `TestResults/E2E/e2e.trx`. On a browser-test failure, a full-page
 screenshot, Playwright trace, and current E2E server log are retained in the same gitignored
 directory and uploaded by CI. Passing tests discard their traces and screenshots.
+
+## .NET runner and focused tests
+
+`global.json` selects MTP through the .NET 10 SDK. All seven test projects enable
+`UseMicrosoftTestingPlatformRunner` and use executable output. VSTest's `Microsoft.NET.Test.Sdk`
+and `xunit.runner.visualstudio` packages are no longer required. Use an MTP-capable IDE runner or
+the repository's CLI commands; legacy VSTest invocations are unsupported.
+
+```sh
+# Project, class, method, and discovery examples (from the repository root)
+dotnet test --project OwnPlanner.Application.Tests
+dotnet test --project OwnPlanner.Domain.Tests --filter-class "OwnPlanner.Domain.Tests.Tasks.TaskItemTests"
+dotnet test --project OwnPlanner.Domain.Tests --filter-method "*Ctor_Valid_SetsProperties"
+dotnet test --solution OwnPlanner.sln --list-tests
+```
+
+Use `--project` / `--solution` rather than positional paths. MTP uses xUnit's
+`--filter-trait`, `--filter-not-trait`, `--filter-class`, and `--filter-method` options instead
+of VSTest's `--filter` expressions. Multiple excluded traits follow one `--filter-not-trait`.
+
+The backend phase builds the solution, then runs each root `OwnPlanner.*.Tests` project except
+`OwnPlanner.E2E.Tests` and `OwnPlanner.Deployment.Tests`. Each invocation excludes `Category=E2E`,
+`Category=DeploymentSmoke`, and `Category=LiveAi`. Running projects separately preserves MTP's
+failure for unexpectedly empty test discovery without treating intentionally excluded suites as
+errors. New backend projects matching that convention are picked up automatically.
+
+The E2E phase selects only `Category=E2E`. TRX reports use xUnit's built-in
+`--report-xunit-trx --report-xunit-trx-filename e2e.trx` with an explicit results directory;
+CI's artifact path remains `TestResults/E2E`. Deployment wrappers use the same report options
+and retain their existing filenames under `TestResults/Deployment`.
+
+Projects that previously referenced `coverlet.collector` now reference `coverlet.MTP`. To collect
+coverage explicitly:
+
+```sh
+dotnet test --project OwnPlanner.Domain.Tests --coverlet --results-directory TestResults/Coverage
+```
+
+The runner migration preserved discovery of 705 backend cases, 18 E2E cases, and two opt-in
+deployment cases. No test-source changes were required. See
+[ADR-0025](adr/0025-microsoft-testing-platform.md) for the compatibility decision.
 
 ## E2E runtime model
 
@@ -84,10 +126,10 @@ screenshots and traces are retained in `TestResults/Deployment/`; the wrapper sc
 container logs on failure before cleanup. See [`docker.md`](docker.md) for commands and secret
 handling.
 
-Run `python3 -m unittest discover -s scripts/tests -v` to check wrapper isolation and cleanup
-with mocked Docker and .NET commands. These regression tests cover successful runs, failed
-container startup, and rejection of a live test authorized only through `.env`; they do not
-start containers or contact Gemini.
+Run `python3 -m unittest discover -s scripts/tests -v` to check verification phase selection,
+report arguments, failure propagation, and deployment wrapper isolation with mocked commands.
+These regression tests also cover failed container startup and rejection of a live test authorized
+only through `.env`; they do not start containers or contact Gemini.
 
 ## Current browser coverage
 

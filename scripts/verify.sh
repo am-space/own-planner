@@ -64,9 +64,17 @@ verify_backend() {
   echo "Building .NET solution..."
   dotnet build "$REPO_ROOT/OwnPlanner.sln" --no-restore -c Release --disable-build-servers -m:1
 
-  echo "Testing .NET solution..."
-  dotnet test "$REPO_ROOT/OwnPlanner.sln" --no-build --no-restore -c Release --verbosity normal \
-    --filter "Category!=E2E&Category!=DeploymentSmoke&Category!=LiveAi" --disable-build-servers -m:1
+  # Run each backend project separately: MTP must fail if any selected project discovers no tests.
+  # E2E and deployment-only projects have dedicated entry points and would be empty after filtering.
+  local project
+  for project in "$REPO_ROOT"/OwnPlanner.*.Tests/*.csproj; do
+    case "$(basename "$project")" in
+      OwnPlanner.E2E.Tests.csproj|OwnPlanner.Deployment.Tests.csproj) continue ;;
+    esac
+    echo "Testing $(basename "$project")..."
+    dotnet test --project "$project" --no-build --no-restore -c Release \
+      --filter-not-trait "Category=E2E" "Category=DeploymentSmoke" "Category=LiveAi"
+  done
 }
 
 verify_e2e() {
@@ -82,10 +90,9 @@ verify_e2e() {
     --no-restore -c Release --disable-build-servers -m:1
 
   echo "Running E2E tests..."
-  dotnet test "$REPO_ROOT/OwnPlanner.E2E.Tests/OwnPlanner.E2E.Tests.csproj" \
-    --no-build --no-restore -c Release --filter "Category=E2E" \
-    --logger "trx;LogFileName=e2e.trx" --results-directory "$REPO_ROOT/TestResults/E2E" \
-    --disable-build-servers -m:1
+  dotnet test --project "$REPO_ROOT/OwnPlanner.E2E.Tests/OwnPlanner.E2E.Tests.csproj" \
+    --no-build --no-restore -c Release --filter-trait "Category=E2E" \
+    --report-xunit-trx --report-xunit-trx-filename e2e.trx --results-directory "$REPO_ROOT/TestResults/E2E"
 }
 
 case "$selection" in

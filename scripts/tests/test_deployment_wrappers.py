@@ -64,6 +64,17 @@ if "port" in sys.argv:
                     self.assertIn("--volumes", cleanup[0]["args"])
                     tests = [c for c in commands if c["tool"] == "dotnet"]
                     self.assertEqual(len(tests), 0 if fail == "true" else 1)
+                    if tests:
+                        args = tests[0]["args"]
+                        if wrapper == "docker-smoke-test.sh":
+                            category, report = "DeploymentSmoke", "deployment-smoke.trx"
+                        else:
+                            category, report = "LiveAi", "deployment-live-ai.trx"
+                        self.assertEqual(args[:2], ["test", "--project"])
+                        self.assertEqual(args[args.index("--filter-trait") + 1], f"Category={category}")
+                        self.assertIn("--report-xunit-trx", args)
+                        self.assertEqual(args[args.index("--report-xunit-trx-filename") + 1], report)
+                        self.assertEqual(args[args.index("--results-directory") + 1], str(self.root / "TestResults/Deployment"))
 
     def test_dotenv_key_alone_does_not_authorize_live_test(self):
         (self.root / ".env").write_text("GEMINI_API_KEY=fake-dotenv-key\n")
