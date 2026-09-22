@@ -27,6 +27,7 @@ import DeleteForeverIcon from '@mui/icons-material/DeleteForever';
 import DownloadIcon from '@mui/icons-material/Download';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import LinkOffIcon from '@mui/icons-material/LinkOff';
+import WeeklyReviewSettings from '../components/settings/WeeklyReviewSettings';
 import { apiService } from '../services/api';
 import type { PersonalAccessTokenCreatedResponse, PersonalAccessTokenResponse, TelegramConnectionLink, TelegramConnectionStatus } from '../types/api.types';
 
@@ -456,6 +457,8 @@ export default function SettingsPage() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <WeeklyReviewSettings />
 
       <Snackbar
         open={copyNotice !== null}

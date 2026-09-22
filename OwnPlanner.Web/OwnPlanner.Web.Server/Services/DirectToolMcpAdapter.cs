@@ -233,6 +233,7 @@ public sealed class DirectToolMcpAdapter(
 			typeof(PlanningContextTools),
 			typeof(StrategicReportTools),
 			typeof(WeeklyReportTools),
+			typeof(WeeklyReviewTools),
 			typeof(GeneralReportTools),
 			typeof(ReflectionReportTools),
 			typeof(DateTimeTools)

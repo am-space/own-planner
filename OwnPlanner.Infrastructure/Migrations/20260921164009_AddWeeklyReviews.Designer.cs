@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using OwnPlanner.Infrastructure.Persistence;
 
@@ -10,9 +11,11 @@ using OwnPlanner.Infrastructure.Persistence;
 namespace OwnPlanner.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260921164009_AddWeeklyReviews")]
+    partial class AddWeeklyReviews
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.10");
@@ -274,7 +277,7 @@ namespace OwnPlanner.Infrastructure.Migrations
                     b.ToTable("TaskLists");
                 });
 
-            modelBuilder.Entity("OwnPlanner.Infrastructure.WeeklyReviews.WeeklyReviewPreferencesRow", b =>
+            modelBuilder.Entity("OwnPlanner.Domain.WeeklyReviews.WeeklyReviewPreferences", b =>
                 {
                     b.Property<int>("Id")
                         .HasColumnType("INTEGER");
@@ -298,10 +301,10 @@ namespace OwnPlanner.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("WeeklyReviewPreferences", (string)null);
+                    b.ToTable("WeeklyReviewPreferences");
                 });
 
-            modelBuilder.Entity("OwnPlanner.Infrastructure.WeeklyReviews.WeeklyReviewRow", b =>
+            modelBuilder.Entity("OwnPlanner.Domain.WeeklyReviews.WeeklyReviewState", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -351,7 +354,7 @@ namespace OwnPlanner.Infrastructure.Migrations
                     b.HasIndex("TargetWeek")
                         .IsUnique();
 
-                    b.ToTable("WeeklyReviews", (string)null);
+                    b.ToTable("WeeklyReviews");
                 });
 
             modelBuilder.Entity("OwnPlanner.Domain.Notes.NoteItem", b =>

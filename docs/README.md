@@ -18,6 +18,7 @@ describe.
 | [`testing.md`](testing.md) | Local, CI, and deterministic browser E2E verification |
 | [`planner-workspace.md`](planner-workspace.md) | Read-only planner UI, HTTP contract, and tenant-safe read path |
 | [`telegram-integration.md`](telegram-integration.md) | Private Telegram bot setup, identity, delivery, and cleanup |
+| [`weekly-review.md`](weekly-review.md) | Local-calendar carryover reviews, reminders, settings and delivery policy |
 | [`chat-presentation.md`](chat-presentation.md) | Scoped Markdown and responsive chat styles |
 
 ## Plans
@@ -64,11 +65,14 @@ ADRs describe decisions as actually shipped. Start new records from [`adr/templa
 - [`ADR-0022`](adr/0022-chat-capabilities-and-delegation.md) — shared mode capabilities, direct task management and bounded proposals
 - [`ADR-0023`](adr/0023-explicit-task-deadline-clearing.md) — explicit deadline clearing with compatible partial updates
 
+- [`ADR-0024`](adr/0024-shared-weekly-carryover-review.md) — shared local-calendar weekly carryover review
+
 ## Historical plans
 
 Archived plans preserve the original intent but may differ from the final implementation. Prefer the
 linked ADR when determining current behavior.
 
+- [`archive/weekly-carryover-review-plan.md`](archive/weekly-carryover-review-plan.md)
 - [`archive/clear-task-deadline-plan.md`](archive/clear-task-deadline-plan.md)
 - [`archive/email-sending-plan.md`](archive/email-sending-plan.md)
 - [`archive/task-list-token-reduction-plan.md`](archive/task-list-token-reduction-plan.md)

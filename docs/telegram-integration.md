@@ -62,3 +62,20 @@ message payload.
 The existing account export is intentionally a planner-data export of the isolated per-user SQLite
 database. It does not include central authentication/security metadata, including credentials,
 personal access tokens, usage counters, Telegram identifiers, token hashes, or processed update IDs.
+
+## Weekly review reminders and commands
+
+The optional [weekly review](weekly-review.md) sends counts-only reminders when explicitly enabled in
+Settings or chat. It shares lifecycle state with web chat and never changes tasks automatically.
+`/review` opens the current review in any saved mode without switching modes. Explicit controls:
+
+- `/review enable Europe/London 1 18:00` selects a timezone, Monday week start (0=Sunday…6=Saturday),
+  and 18:00 on the last day, and opts in. Use the user's own selected timezone.
+- `/review disable` suppresses automatic reminders while retaining settings/history.
+- `/review finish` or `/review skip` finishes or skips the current target week.
+- `/review defer 2026-09-22T18:00` defers to a definite local time in the review timezone, before its
+  target week ends. Natural-language deferral is also available in General/Week Planning chat.
+
+For task discussion/actions use General or Week Planning; commands never change task data.
+The host checks current account/link ownership before sending and bounds retries. See the weekly
+review reference for ambiguous-delivery limitations, missed-review fallback and timezone changes.

@@ -26,11 +26,13 @@ using OwnPlanner.Application.Planner;
 using OwnPlanner.Application.Tasks;
 using OwnPlanner.Application.Usage;
 using OwnPlanner.Application.Telegram;
+using OwnPlanner.Application.WeeklyReviews;
 using OwnPlanner.Mcp.Tools;
 using OwnPlanner.Web.Server.Authentication;
 using OwnPlanner.Web.Server.Configuration;
 using OwnPlanner.Web.Server.Services;
 using OwnPlanner.Infrastructure.Telegram;
+using OwnPlanner.Infrastructure.WeeklyReviews;
 
 namespace OwnPlanner.Web.Server
 {
@@ -108,6 +110,9 @@ namespace OwnPlanner.Web.Server
 				builder.Services.AddScoped<IUserQuotaOverrideRepository, UserQuotaOverrideRepository>();
 				builder.Services.AddScoped<IPlannerReadStore, PlannerReadStore>();
 				builder.Services.AddSingleton(TimeProvider.System);
+				builder.Services.AddScoped<IWeeklyReviewStore, WeeklyReviewStore>();
+				builder.Services.AddScoped<IWeeklyReviewService, WeeklyReviewService>();
+				builder.Services.AddScoped<WeeklyReviewActions>();
 				builder.Services.AddScoped<OwnPlanner.Application.Reporting.IStrategicReportReader, OwnPlanner.Infrastructure.Reporting.StrategicReportReader>();
 				builder.Services.AddScoped<OwnPlanner.Application.Reporting.IWeeklyReportReader, OwnPlanner.Infrastructure.Reporting.WeeklyReportReader>();
 				builder.Services.AddScoped<OwnPlanner.Application.Reporting.IGeneralReportReader, OwnPlanner.Infrastructure.Reporting.GeneralReportReader>();
@@ -140,6 +145,10 @@ namespace OwnPlanner.Web.Server
 				}
 				builder.Services.AddScoped<ITelegramIntegrationService, TelegramIntegrationService>();
 				builder.Services.AddSingleton<TelegramChatLock>();
+				builder.Services.AddSingleton<WeeklyReviewTelegramHandler>();
+				builder.Services.AddSingleton<IWeeklyReminderHost, WeeklyReminderHost>();
+				builder.Services.AddSingleton<WeeklyReminderDispatcher>();
+				builder.Services.AddHostedService<WeeklyReminderWorker>();
 				builder.Services.AddScoped<TelegramWebhookSecretFilter>();
 				// Telegram requires the bot token in the request path. Use a dedicated client without the
 				// IHttpClientFactory logging handlers so request logs can never expose that credential.
@@ -251,6 +260,7 @@ namespace OwnPlanner.Web.Server
 					.WithTools<PlanningContextTools>()
 					.WithTools<StrategicReportTools>()
 					.WithTools<WeeklyReportTools>()
+					.WithTools<WeeklyReviewTools>(serializerOptions: TaskToolSerialization.Options)
 					.WithTools<GeneralReportTools>()
 					.WithTools<ReflectionReportTools>()
 					.WithTools<DateTimeTools>();

@@ -19,7 +19,8 @@ public sealed class TelegramController(
 	IUsageQuotaService usageQuotaService,
 	TelegramChatLock chatLock,
 	IOptions<TelegramOptions> options,
-	ILogger<TelegramController> logger) : ControllerBase
+	ILogger<TelegramController> logger,
+	WeeklyReviewTelegramHandler? weeklyReview = null) : ControllerBase
 {
 	private readonly TelegramOptions _options = options.Value;
 
@@ -140,9 +141,13 @@ public sealed class TelegramController(
 		var verb = command.Split(' ', 2)[0].Split('@', 2)[0].ToLowerInvariant();
 		switch (verb)
 		{
+			case "/review" when weeklyReview is not null:
+				await botClient.SendTextAsync(account.ChatId, await weeklyReview.HandleAsync(account,
+					command.Split(' ', 2).ElementAtOrDefault(1) ?? "", cancellationToken), cancellationToken);
+				break;
 			case "/start":
 			case "/help":
-				await botClient.SendTextAsync(account.ChatId, "Commands: /mode <general|day|week|global|reflection|analysis>, /new, /status, /unlink. Send ordinary text to plan.", cancellationToken);
+				await botClient.SendTextAsync(account.ChatId, "Commands: /mode <general|day|week|global|reflection|analysis>, /new, /status, /unlink, /review. Send ordinary text to plan.", cancellationToken);
 				break;
 			case "/new":
 				await sessionManager.RemoveSessionAsync(sessionId);
