@@ -35,6 +35,6 @@ published_address="$(docker compose --project-directory "$REPO_ROOT" port app 80
 
 OWNPLANNER_BASE_URL="http://$published_address" \
 OWNPLANNER_RUN_LIVE_AI=true \
-  dotnet test "$PROJECT" --filter "Category=LiveAi" \
-  --logger "trx;LogFileName=deployment-live-ai.trx" \
+  dotnet test --project "$PROJECT" --filter-trait "Category=LiveAi" \
+  --report-xunit-trx --report-xunit-trx-filename deployment-live-ai.trx \
   --results-directory "$REPO_ROOT/TestResults/Deployment"

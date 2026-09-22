@@ -1,7 +1,7 @@
 # ADR-0017: Supported runtime and dependency baselines
 
 **Date:** 2026-08-20
-**Status:** Accepted
+**Status:** Superseded by ADR-0025
 **Deciders:** OwnPlanner maintainers
 
 ---

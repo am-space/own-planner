@@ -27,6 +27,6 @@ mkdir -p "$REPO_ROOT/TestResults"
 published_address="$(docker compose --project-directory "$REPO_ROOT" port app 8080)"
 
 OWNPLANNER_BASE_URL="http://$published_address" \
-  dotnet test "$PROJECT" --filter "Category=DeploymentSmoke" \
-  --logger "trx;LogFileName=deployment-smoke.trx" \
+  dotnet test --project "$PROJECT" --filter-trait "Category=DeploymentSmoke" \
+  --report-xunit-trx --report-xunit-trx-filename deployment-smoke.trx \
   --results-directory "$REPO_ROOT/TestResults/Deployment"

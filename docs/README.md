@@ -67,6 +67,8 @@ ADRs describe decisions as actually shipped. Start new records from [`adr/templa
 
 - [`ADR-0024`](adr/0024-shared-weekly-carryover-review.md) — shared local-calendar weekly carryover review
 
+- [`ADR-0025`](adr/0025-microsoft-testing-platform.md) — xUnit package 4.x and native Microsoft Testing Platform verification
+
 ## Historical plans
 
 Archived plans preserve the original intent but may differ from the final implementation. Prefer the

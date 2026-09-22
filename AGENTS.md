@@ -20,9 +20,9 @@ Run from the repo root unless noted.
 ./scripts/verify.sh --frontend
 
 # Single test project, class, or method
-dotnet test OwnPlanner.Application.Tests/OwnPlanner.Application.Tests.csproj
-dotnet test --filter "FullyQualifiedName~OwnPlanner.Domain.Tests.SomeClass"
-dotnet test --filter "DisplayName~my_test_name"
+dotnet test --project OwnPlanner.Application.Tests/OwnPlanner.Application.Tests.csproj
+dotnet test --project OwnPlanner.Domain.Tests --filter-class "OwnPlanner.Domain.Tests.Tasks.TaskItemTests"
+dotnet test --project OwnPlanner.Domain.Tests --filter-method "*Ctor_Valid_SetsProperties"
 
 # Run the web server (auto-launches the Vite dev server via SpaProxy)
 dotnet run --project OwnPlanner.Web/OwnPlanner.Web.Server   # http://localhost:5079
@@ -123,7 +123,7 @@ Read the closest applicable `AGENTS.md` before changing a component:
 
 ## Conventions
 
-- Testing stack: xUnit v3 + FluentAssertions + NSubstitute. Keep tests in the test project matching the layer under change.
+- Testing stack: xUnit.net v3 (package 4.x) with Microsoft Testing Platform + FluentAssertions + NSubstitute. Keep tests in the test project matching the layer under change.
 - Follow existing style, naming, and folder conventions; prefer existing abstractions over new patterns. Keep changes small and scoped.
 - Preserve nullability annotations and existing async APIs; keep parameter ordering consistent across similar APIs.
 - When adding or changing an interface, add/update XML doc comments describing intent and contracts.
