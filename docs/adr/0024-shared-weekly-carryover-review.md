@@ -20,7 +20,17 @@ while planning data is isolated per user. Deadline removal is supplied by
 Application owns calendar calculations, validated preferences, review eligibility and lifecycle,
 counts-only notification text, and guarded task actions. Infrastructure owns SQL counts/pages,
 transactional persistence and delivery dispatch. A web-host worker supplies trusted active linked
-accounts and creates initialized user scopes. It rechecks the original link before delivery.
+accounts and creates initialized user scopes. Dispatch processes at most four users concurrently,
+with independent scopes and cancellation, so one slow send does not block every subsequent user.
+It rechecks the original link before delivery.
+
+Preferences and review state are Application workflow snapshots, not Domain planner entities.
+Infrastructure owns separate `WeeklyReviewPreferencesRow` and `WeeklyReviewRow` persistence models
+and maps them explicitly to the snapshots. This preserves the singleton integer key and existing
+wire shapes without introducing exceptions to Domain's `EntityBase` convention. The generated
+`SeparateWeeklyReviewPersistenceModels` migration updates the EF model snapshot with no SQL changes.
+Reading settings returns detached data/defaults without inserting rows and is advertised as read-only
+and idempotent in MCP metadata.
 
 `AddWeeklyReviews` adds preferences and review rows to AppDbContext. No planning state or task
 content is stored in AuthDbContext. Timezones require explicit selection. Weeks use local calendar
@@ -68,7 +78,8 @@ the task/list and checks its reported revision before using the existing task se
 
 | File | Role |
 | --- | --- |
-| `OwnPlanner.Domain/WeeklyReviews/WeeklyReviewState.cs` | Per-user stored preferences and state |
+| `OwnPlanner.Application/WeeklyReviews/WeeklyReviewState.cs` | Workflow snapshots and public result shapes |
+| `OwnPlanner.Infrastructure/WeeklyReviews/WeeklyReviewPersistenceModels.cs` | Per-user persistence rows and explicit snapshot mapping |
 | `OwnPlanner.Application/WeeklyReviews/` | Calendar, service, task action guards and host contracts |
 | `OwnPlanner.Infrastructure/WeeklyReviews/` | Transactional store and delivery dispatcher |
 | `OwnPlanner.Mcp.Tools/WeeklyReviewTools.cs` | Shared AI contracts |

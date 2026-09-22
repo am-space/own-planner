@@ -1,5 +1,4 @@
 using System.Globalization;
-using OwnPlanner.Domain.WeeklyReviews;
 
 namespace OwnPlanner.Application.WeeklyReviews;
 
@@ -8,7 +7,7 @@ public sealed class WeeklyReviewService(IWeeklyReviewStore store, TimeProvider c
 	private DateTime Now => clock.GetUtcNow().UtcDateTime;
 
 	public Task<WeeklyReviewPreferences> GetPreferencesAsync(CancellationToken ct = default) =>
-		store.UpdateAsync((preferences, _) => preferences, ct);
+		store.GetPreferencesAsync(ct);
 
 	public Task<WeeklyReviewPreferences> ConfigureAsync(bool enabled, string? timeZoneId, int weekStart, string reminderTime,
 		string channel = "telegram", CancellationToken ct = default)

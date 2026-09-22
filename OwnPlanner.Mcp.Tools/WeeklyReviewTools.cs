@@ -7,7 +7,7 @@ namespace OwnPlanner.Mcp.Tools;
 [McpServerToolType]
 public sealed class WeeklyReviewTools(IWeeklyReviewService service, WeeklyReviewActions actions)
 {
-	[McpServerTool(Name = "weekly_review_settings_get"), Description("Read weekly review preferences. If timezone is absent, ask the user to select one before configuring or opening a review.")]
+	[McpServerTool(Name = "weekly_review_settings_get", ReadOnly = true, Idempotent = true), Description("Read weekly review preferences. If timezone is absent, ask the user to select one before configuring or opening a review.")]
 	public async Task<object> Settings(CancellationToken ct = default) => await service.GetPreferencesAsync(ct);
 
 	[McpServerTool(Name = "weekly_review_configure"), Description("Set explicit weekly reminder preferences only when requested. enabled opts in/out; timeZoneId is a user-selected timezone such as Europe/London; weekStart 0=Sunday..6=Saturday; reminderTime HH:mm on the last day of that week. Only telegram channel is supported. Defaults: Monday week, 18:00. Omitted preference fields preserve existing values. Disabling preserves preferences and review history.")]
@@ -28,12 +28,12 @@ public sealed class WeeklyReviewTools(IWeeklyReviewService service, WeeklyReview
 				throw new ArgumentException("targetWeek must be yyyy-MM-dd from the reminder.");
 			target = date;
 		}
-		return await service.OpenAsync(ParseId(reviewId), offset, limit, ct, target);
+		return await service.OpenAsync(ParseId(reviewId, nameof(reviewId)), offset, limit, ct, target);
 	}
 
 	[McpServerTool(Name = "weekly_review_transition"), Description("On explicit user request, complete, skip, or defer a review by reviewId. Completing one task does not finish a review. For defer resolve a definite future localTime yyyy-MM-ddTHH:mm in the review's timezone, before its target week ends. Ask when ambiguous. 'Tomorrow' means the next local calendar day; retain the original target week. For disable reminders use weekly_review_configure with enabled=false and preserve existing preferences.")]
 	public async Task<object> Transition(string reviewId, string action, string? localTime = null, CancellationToken ct = default) =>
-		await service.TransitionAsync(ParseId(reviewId) ?? throw new ArgumentException("reviewId is required."), action, localTime, ct);
+		await service.TransitionAsync(ParseRequiredId(reviewId, nameof(reviewId)), action, localTime, ct);
 
 	[McpServerTool(Name = "weekly_review_offer"), Description("After answering a suitable planning request, check once for an eligible missed weekly reminder or due deferral. Do not call during urgent/unrelated work or switch modes. Returns a counts-only invitation or no invitation; repeat only the returned invitation. This claims the offer across web/Telegram but never changes tasks. Delivered, finished, skipped, disabled and previously offered reviews are suppressed.")]
 	public async Task<object> Offer(CancellationToken ct = default) => new { invitation = await service.OfferAsync(ct) };
@@ -58,8 +58,12 @@ public sealed class WeeklyReviewTools(IWeeklyReviewService service, WeeklyReview
 				throw new ArgumentException("dueAt must include an explicit UTC offset or Z.");
 			deadline = parsed.UtcDateTime;
 		}
-		return await actions.ApplyAsync(ParseId(reviewId)!.Value, ParseId(taskId)!.Value, version.UtcDateTime, action, focus, deadline, ct);
+		return await actions.ApplyAsync(ParseRequiredId(reviewId, nameof(reviewId)), ParseRequiredId(taskId, nameof(taskId)), version.UtcDateTime, action, focus, deadline, ct);
 	}
 
-	private static Guid? ParseId(string? value) => value is null ? null : Guid.TryParse(value, out var id) ? id : throw new ArgumentException("reviewId must be a UUID.");
+	private static Guid? ParseId(string? value, string parameterName) => value is null ? null :
+		Guid.TryParse(value, out var id) ? id : throw new ArgumentException($"{parameterName} must be a UUID.", parameterName);
+
+	private static Guid ParseRequiredId(string? value, string parameterName) =>
+		ParseId(value, parameterName) ?? throw new ArgumentException($"{parameterName} is required.", parameterName);
 }

@@ -66,7 +66,9 @@ still possible. Opening/accepting a review does not authorize any task operation
 
 ## Delivery and fallback
 
-The host runs a one-minute scheduler tick. It enumerates active, linked accounts from central auth
+The host runs a one-minute scheduler tick, processing up to four users concurrently with isolated
+scopes and cancellation. One slow send therefore leaves capacity for other users. It enumerates
+active, linked accounts from central auth
 records and uses the same initialized per-user planner context as chat. Before sending it rechecks
 that the original Telegram link still belongs to that active user and that reminders remain enabled.
 No route, body, tool argument or model output selects the background user's database or destination.
@@ -99,7 +101,7 @@ Additive cookie-authenticated endpoints under `/api/weekly-review`:
 
 | Endpoint | Behavior |
 | --- | --- |
-| `GET settings` | Current preferences, disabled/unconfigured by default |
+| `GET settings` | Read-only preferences lookup; unconfigured defaults create no rows |
 | `PUT settings` | Explicit enabled, timezone, week start (0=Sunday…6=Saturday), HH:mm, telegram channel |
 | `POST open?reviewId=&targetWeek=&offset=&limit=` | Open/resume and retrieve a fresh page |
 | `POST {id}/transition` | Body: action complete/skip/defer and optional localTime yyyy-MM-ddTHH:mm |
@@ -114,3 +116,9 @@ not alter tasks or central auth records. Initialization applies it lazily to use
 users reached through scheduling. Review state and preferences are included in the existing planner
 SQLite export and removed with the account's planner database. Standalone stdio exposes the same
 preferences and workflow, but has no hosted Telegram scheduler.
+
+The persistence row types belong to Infrastructure; Application owns detached workflow snapshots and
+state transitions. `SeparateWeeklyReviewPersistenceModels` updates the EF snapshot for that separation
+without changing tables, columns or existing data. Settings retain the same JSON fields and the MCP
+getter publishes read-only and idempotent hints. Review-opening and offer tools still update workflow
+state and are not labelled read-only.

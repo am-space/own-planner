@@ -7,34 +7,37 @@ namespace OwnPlanner.Infrastructure.WeeklyReviews;
 /// <summary>One scheduler tick; eligibility and claims live in Application and the per-user transaction.</summary>
 public sealed class WeeklyReminderDispatcher(IWeeklyReminderHost host, ILogger<WeeklyReminderDispatcher> logger)
 {
+	internal const int MaximumConcurrentUsers = 4;
+
 	public async Task RunOnceAsync(CancellationToken ct)
 	{
-		foreach (var user in await host.GetLinkedUsersAsync(ct))
+		await Parallel.ForEachAsync(await host.GetLinkedUsersAsync(ct),
+			new ParallelOptions { MaxDegreeOfParallelism = MaximumConcurrentUsers, CancellationToken = ct },
+			async (user, userToken) =>
 		{
-			ct.ThrowIfCancellationRequested();
 			try
 			{
 				await host.WithUserAsync(user, async (service, send) =>
 				{
-					var claim = await service.ClaimReminderAsync(ct);
+					var claim = await service.ClaimReminderAsync(userToken);
 					if (claim is null) return;
 					try
 					{
-						await send(claim.Text, ct);
-						await service.FinishDeliveryAsync(claim, true, ct: ct);
+						await send(claim.Text, userToken);
+						await service.FinishDeliveryAsync(claim, true, ct: userToken);
 					}
-					catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+					catch (OperationCanceledException) when (userToken.IsCancellationRequested) { throw; }
 					catch (Exception ex)
 					{
 						// Only an explicit rate-limit rejection is safely retryable. A timeout or 5xx may have delivered.
 						await service.FinishDeliveryAsync(claim, false,
-							ex is HttpRequestException { StatusCode: HttpStatusCode.TooManyRequests }, ct);
+							ex is HttpRequestException { StatusCode: HttpStatusCode.TooManyRequests }, userToken);
 						logger.LogWarning("Weekly reminder delivery did not complete ({FailureType})", ex.GetType().Name);
 					}
-				}, ct);
+				}, userToken);
 			}
-			catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+			catch (OperationCanceledException) when (userToken.IsCancellationRequested) { throw; }
 			catch (Exception ex) { logger.LogWarning("Weekly reminder processing failed ({FailureType})", ex.GetType().Name); }
-		}
+		});
 	}
 }

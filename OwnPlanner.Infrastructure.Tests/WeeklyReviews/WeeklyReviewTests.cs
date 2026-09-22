@@ -2,6 +2,8 @@ using System.Net;
 using System.Text.Json;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.Logging.Abstractions;
 using OwnPlanner.Application.Tasks;
 using OwnPlanner.Application.WeeklyReviews;
@@ -45,6 +47,51 @@ public sealed class WeeklyReviewTests : IAsyncLifetime
 		return task;
 	}
 	private Task Enable(string zone = "UTC", int weekStart = 1) => Service.ConfigureAsync(true, zone, weekStart, "18:00", ct: Ct);
+
+	[Fact]
+	public async Task ReadingDefaultPreferencesDoesNotPersistRows_AndSnapshotsAreDetached()
+	{
+		var defaults = await Service.GetPreferencesAsync(Ct);
+		defaults.Enabled.Should().BeFalse();
+		defaults.Id.Should().Be(1);
+		await using (var db = await _factory.CreateAsync(Ct))
+		{
+			(await db.WeeklyReviewPreferences.CountAsync(Ct)).Should().Be(0);
+			(await db.WeeklyReviews.CountAsync(Ct)).Should().Be(0);
+		}
+		await Enable("Europe/London", 0);
+		var snapshot = await Service.GetPreferencesAsync(Ct);
+		snapshot.TimeZoneId = "UTC";
+		(await Service.GetPreferencesAsync(Ct)).TimeZoneId.Should().Be("Europe/London");
+	}
+
+	[Fact]
+	public async Task PersistenceModelMigrationPreservesExistingReviewAndPreferenceData()
+	{
+		var factory = new Factory(Path.Combine(_directory, "upgrade.db"));
+		await using (var db = await factory.CreateAsync(Ct))
+			await db.GetService<IMigrator>().MigrateAsync("20260921164009_AddWeeklyReviews", Ct);
+		var store = new WeeklyReviewStore(factory);
+		var original = await store.UpdateAsync((preferences, reviews) =>
+		{
+			preferences.Enabled = true; preferences.TimeZoneId = "Europe/London";
+			preferences.WeekStart = 0; preferences.ReminderTime = "17:30";
+			var review = WeeklyReviewCalendar.Create(preferences, _clock.Now, false);
+			review.Status = "deferred"; review.DeferredUntilUtc = _clock.Now.AddHours(2);
+			review.Occurrence = 3; review.Delivery = "claimed"; review.Attempts = 2;
+			review.RetryAtUtc = _clock.Now.AddMinutes(5); review.OfferedInChat = true;
+			reviews.Add(review);
+			return (preferences, review);
+		}, Ct);
+		await using (var db = await factory.CreateAsync(Ct))
+			await db.Database.MigrateAsync(Ct);
+		(await store.GetPreferencesAsync(Ct)).Should().BeEquivalentTo(original.preferences);
+		var persisted = await store.UpdateAsync((_, reviews) => reviews.Single(), Ct);
+		persisted.Should().BeEquivalentTo(original.review);
+		// Persistence types never become public results, and no Domain audit fields appear on the wire.
+		JsonSerializer.SerializeToElement(persisted).EnumerateObject().Select(p => p.Name)
+			.Should().NotContain(["CreatedAt", "UpdatedAt"]);
+	}
 
 	[Fact]
 	public async Task OptInEmptySelectionAndMissingTimezone_AreSafe()

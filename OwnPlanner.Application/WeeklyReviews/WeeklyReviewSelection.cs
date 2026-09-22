@@ -1,6 +1,5 @@
 using System.Linq.Expressions;
 using OwnPlanner.Domain.Tasks;
-using OwnPlanner.Domain.WeeklyReviews;
 
 namespace OwnPlanner.Application.WeeklyReviews;
 

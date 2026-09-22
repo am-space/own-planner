@@ -1,5 +1,3 @@
-using OwnPlanner.Domain.WeeklyReviews;
-
 namespace OwnPlanner.Application.WeeklyReviews;
 
 public sealed record WeeklyReviewTask(Guid Id, string Title, Guid TaskListId, DateTime? FocusAt, DateTime? DueAt,
@@ -12,6 +10,8 @@ public sealed record WeeklyReminderClaim(Guid ReviewId, int Occurrence, string T
 /// <summary>Serializes per-user review transitions in a database transaction; callbacks never perform network I/O.</summary>
 public interface IWeeklyReviewStore
 {
+	/// <summary>Reads a detached snapshot or unconfigured defaults without creating or updating any rows.</summary>
+	Task<WeeklyReviewPreferences> GetPreferencesAsync(CancellationToken ct = default);
 	/// <summary>Runs a short state transition atomically, persisting changed preferences and review rows.</summary>
 	Task<T> UpdateAsync<T>(Func<WeeklyReviewPreferences, IList<WeeklyReviewState>, T> transition, CancellationToken ct = default);
 	/// <summary>Returns exact counts and a bounded, stable page of active incomplete tasks with selection reasons.</summary>

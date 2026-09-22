@@ -4,7 +4,6 @@ using ModelContextProtocol.Server;
 using NSubstitute;
 using OwnPlanner.Application.Tasks;
 using OwnPlanner.Application.WeeklyReviews;
-using OwnPlanner.Domain.WeeklyReviews;
 using OwnPlanner.Mcp.Tools;
 
 namespace OwnPlanner.Mcp.Tools.Tests;
@@ -31,6 +30,28 @@ public sealed class WeeklyReviewToolsTests
 				properties.GetProperty("enabled").GetProperty("type").GetString().Should().Be("boolean");
 			}
 		}
+	}
+
+	[Fact]
+	public void SettingsGetterPublishesReadOnlyAndIdempotentAnnotations()
+	{
+		var method = typeof(WeeklyReviewTools).GetMethod(nameof(WeeklyReviewTools.Settings))!;
+		var annotations = McpServerTool.Create(method, Tools).ProtocolTool.Annotations!;
+		annotations.ReadOnlyHint.Should().BeTrue();
+		annotations.IdempotentHint.Should().BeTrue();
+	}
+
+	[Theory]
+	[InlineData("bad", "00000000-0000-0000-0000-000000000001", "reviewId")]
+	[InlineData("00000000-0000-0000-0000-000000000001", "bad", "taskId")]
+	[InlineData(null, "00000000-0000-0000-0000-000000000001", "reviewId")]
+	[InlineData("00000000-0000-0000-0000-000000000001", null, "taskId")]
+	public async Task InvalidOrMissingIdIdentifiesTheActualParameter(string? reviewId, string? taskId, string parameterName)
+	{
+		var action = () => Tools.Apply(reviewId!, taskId!, "2026-09-20T00:00:00Z", "complete", ct: TestContext.Current.CancellationToken);
+		var error = await action.Should().ThrowAsync<ArgumentException>();
+		error.Which.ParamName.Should().Be(parameterName);
+		error.Which.Message.Should().StartWith(parameterName);
 	}
 
 	[Fact]

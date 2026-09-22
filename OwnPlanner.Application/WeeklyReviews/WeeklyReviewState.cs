@@ -1,6 +1,6 @@
-namespace OwnPlanner.Domain.WeeklyReviews;
+namespace OwnPlanner.Application.WeeklyReviews;
 
-/// <summary>Local calendar preferences in one user's planner database. Enabling requires an explicit timezone.</summary>
+/// <summary>Application snapshot of local calendar preferences. Enabling requires an explicit timezone.</summary>
 public sealed class WeeklyReviewPreferences
 {
 	public int Id { get; set; } = 1;
@@ -11,7 +11,7 @@ public sealed class WeeklyReviewPreferences
 	public string Channel { get; set; } = "telegram";
 }
 
-/// <summary>A shared review with frozen calendar boundaries and a separately claimed delivery occurrence.</summary>
+/// <summary>Application snapshot of a shared review and its delivery occurrence. Persistence mapping belongs to Infrastructure.</summary>
 public sealed class WeeklyReviewState
 {
 	public Guid Id { get; set; } = Guid.NewGuid();

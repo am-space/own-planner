@@ -87,10 +87,28 @@ public sealed partial class DirectToolMcpAdapterTests
 				await adapter.CallToolAsync("taskitem_set_focus_date", new Dictionary<string, object?> { ["id"] = id, ["focusDate"] = TenantTestUtcNow.ToString("O") }, ct);
 			}
 		}
+		var bothDeliveries = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+		var arrivals = 0;
+		var accessor = services.GetRequiredService<IPlannerSessionContextAccessor>();
+		bot.SendTextAsync(Arg.Any<long>(), Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(async call =>
+		{
+			var expectedUser = call.Arg<long>() == 201 ? userA.Id : userB.Id;
+			accessor.Current!.UserId.Should().Be(expectedUser.ToString());
+			if (Interlocked.Increment(ref arrivals) == 2) bothDeliveries.TrySetResult();
+			await bothDeliveries.Task.WaitAsync(TimeSpan.FromSeconds(10), call.Arg<CancellationToken>());
+			accessor.Current!.UserId.Should().Be(expectedUser.ToString());
+		});
 		var dispatcher = services.GetRequiredService<WeeklyReminderDispatcher>();
 		await dispatcher.RunOnceAsync(ct); await dispatcher.RunOnceAsync(ct);
-		await bot.Received(1).SendTextAsync(201, Arg.Is<string>(s => s != null && s.Contains("1 unfinished") && !s.Contains("PRIVATE")), ct);
-		await bot.Received(1).SendTextAsync(202, Arg.Is<string>(s => s != null && s.Contains("2 unfinished") && !s.Contains("PRIVATE")), ct);
+		arrivals.Should().Be(2);
+		foreach (var user in new[] { userA, userB })
+		{
+			await using var adapter = CreateAdapter(services, user.Id.ToString());
+			var view = ParseJsonElement(await adapter.CallToolAsync("weekly_review_open", cancellationToken: ct));
+			view.GetProperty("review").GetProperty("delivery").GetString().Should().Be("delivered");
+		}
+		await bot.Received(1).SendTextAsync(201, Arg.Is<string>(s => s != null && s.Contains("1 unfinished") && !s.Contains("PRIVATE")), Arg.Any<CancellationToken>());
+		await bot.Received(1).SendTextAsync(202, Arg.Is<string>(s => s != null && s.Contains("2 unfinished") && !s.Contains("PRIVATE")), Arg.Any<CancellationToken>());
 		var host = services.GetRequiredService<IWeeklyReminderHost>();
 		await host.WithUserAsync(userA.Id, async (_, send) =>
 		{

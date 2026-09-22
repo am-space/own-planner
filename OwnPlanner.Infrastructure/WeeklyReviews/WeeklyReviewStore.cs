@@ -1,27 +1,43 @@
 using Microsoft.EntityFrameworkCore;
 using OwnPlanner.Application.WeeklyReviews;
-using OwnPlanner.Domain.WeeklyReviews;
 using OwnPlanner.Infrastructure.Persistence;
 
 namespace OwnPlanner.Infrastructure.WeeklyReviews;
 
 public sealed class WeeklyReviewStore(IPlannerDbContextFactory factory) : IWeeklyReviewStore
 {
+	public async Task<WeeklyReviewPreferences> GetPreferencesAsync(CancellationToken ct = default)
+	{
+		await using var db = await factory.CreateAsync(ct);
+		var row = await db.WeeklyReviewPreferences.AsNoTracking().SingleOrDefaultAsync(ct);
+		return row?.ToSnapshot() ?? new WeeklyReviewPreferences();
+	}
+
 	public async Task<T> UpdateAsync<T>(Func<WeeklyReviewPreferences, IList<WeeklyReviewState>, T> transition, CancellationToken ct = default)
 	{
 		await using var db = await factory.CreateAsync(ct);
 		// SQLite's non-deferred transaction obtains the writer reservation before reading state.
 		await using var transaction = await db.Database.BeginTransactionAsync(ct);
-		var preferences = await db.WeeklyReviewPreferences.SingleOrDefaultAsync(ct);
-		if (preferences is null)
+		var preferencesRow = await db.WeeklyReviewPreferences.SingleOrDefaultAsync(ct);
+		if (preferencesRow is null)
 		{
-			preferences = new WeeklyReviewPreferences();
-			db.WeeklyReviewPreferences.Add(preferences);
+			preferencesRow = new WeeklyReviewPreferencesRow();
+			db.WeeklyReviewPreferences.Add(preferencesRow);
 		}
-		var reviews = await db.WeeklyReviews.ToListAsync(ct);
-		var known = reviews.Select(r => r.Id).ToHashSet();
+		var preferences = preferencesRow.ToSnapshot();
+		var rows = await db.WeeklyReviews.ToDictionaryAsync(r => r.Id, ct);
+		var reviews = rows.Values.Select(r => r.ToSnapshot()).ToList();
 		var result = transition(preferences, reviews);
-		db.WeeklyReviews.AddRange(reviews.Where(r => !known.Contains(r.Id)));
+		preferencesRow.Apply(preferences);
+		foreach (var snapshot in reviews)
+		{
+			if (!rows.TryGetValue(snapshot.Id, out var row))
+			{
+				row = new WeeklyReviewRow { Id = snapshot.Id };
+				db.WeeklyReviews.Add(row);
+			}
+			row.Apply(snapshot);
+		}
 		await db.SaveChangesAsync(ct);
 		await transaction.CommitAsync(ct);
 		return result;

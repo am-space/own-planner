@@ -67,3 +67,15 @@ tests, frontend lint/build and backend suites). After the final preference-prese
 and stdio smoke checks passed again. Changed documentation links and the complete diff were checked. No live Telegram/Gemini calls are required. Existing npm audit, Vite bundle-size,
 and ASP.NET obsolete-test-host warnings remain unrelated to this change. See ADR-0024 for the
 best-effort delivery/offer policy and concurrent-edit limits.
+
+PR review follow-up (2026-09-22): bounded dispatcher concurrency to four isolated user scopes; made
+settings reads non-mutating and annotated them for MCP; corrected parameter-specific ID errors;
+separated Infrastructure storage rows from Application workflow snapshots. A CLI-generated empty
+migration preserves existing data and updates EF's model snapshot. Regression coverage includes
+slow sends, the concurrency bound, cancellation/disposal, interleaved tenant delivery, upgrade data
+preservation, read-only defaults and MCP annotations/errors.
+
+Review-fix validation: setup and full verification passed (705 backend tests, 18 browser E2E tests,
+frontend lint/build). Real HTTP MCP and stdio checks confirmed the getter's safety annotations and
+unchanged review/deadline result shapes. EF reports no pending model changes; upgrade coverage
+preserves the previous migration's stored preferences and review fields.

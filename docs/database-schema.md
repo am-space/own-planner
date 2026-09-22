@@ -42,3 +42,8 @@ boundaries, lifecycle state, deferral and separate delivery/offer claims. A uniq
 and serialized SQLite transitions coordinate workers. `AddWeeklyReviews` is an additive AppDbContext
 migration; no auth schema changes are required. These rows follow planner export and account erasure.
 See [weekly review](weekly-review.md) for selection and expiration rules.
+
+Weekly review persistence uses Infrastructure row types mapped to Application workflow snapshots.
+The singleton preference key and review identifiers retain their original columns and values.
+`SeparateWeeklyReviewPersistenceModels` is a snapshot-only migration with empty Up/Down operations;
+existing planner data needs no conversion.

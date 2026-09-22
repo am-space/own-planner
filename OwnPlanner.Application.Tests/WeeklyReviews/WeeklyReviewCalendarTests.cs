@@ -1,6 +1,5 @@
 using FluentAssertions;
 using OwnPlanner.Application.WeeklyReviews;
-using OwnPlanner.Domain.WeeklyReviews;
 
 namespace OwnPlanner.Application.Tests.WeeklyReviews;
 
