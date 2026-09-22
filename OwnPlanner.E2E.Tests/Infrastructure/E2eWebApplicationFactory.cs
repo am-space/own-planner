@@ -15,10 +15,14 @@ public sealed class E2eWebApplicationFactory : WebApplicationFactory<Program>, I
 {
 	private readonly string _temporaryRoot = Path.Combine(Path.GetTempPath(), "ownplanner-e2e", Guid.NewGuid().ToString("N"));
 	private readonly Dictionary<string, string?> _previousEnvironment = new(StringComparer.Ordinal);
+	private readonly string _environment;
 	private HttpClient? _startupClient;
 
-	public E2eWebApplicationFactory()
+	public E2eWebApplicationFactory() : this("E2E") { }
+
+	internal E2eWebApplicationFactory(string environment)
 	{
+		_environment = environment;
 		Directory.CreateDirectory(_temporaryRoot);
 		AuthDatabasePath = ResolveTemporaryPath("ownplanner-auth.db");
 		UserDatabaseDirectory = ResolveTemporaryPath("users");
@@ -45,7 +49,7 @@ public sealed class E2eWebApplicationFactory : WebApplicationFactory<Program>, I
 			"OwnPlanner.Web",
 			"ownplanner.web.client",
 			"dist");
-		builder.UseEnvironment("E2E");
+		builder.UseEnvironment(_environment);
 		builder.UseContentRoot(Path.Combine(repositoryRoot, "OwnPlanner.Web", "OwnPlanner.Web.Server"));
 		builder.UseWebRoot(frontendDistributionPath);
 		builder.ConfigureAppConfiguration((_, configuration) =>
@@ -121,7 +125,7 @@ public sealed class E2eWebApplicationFactory : WebApplicationFactory<Program>, I
 		Environment.SetEnvironmentVariable(name, value);
 	}
 
-	private static string FindRepositoryRoot()
+	internal static string FindRepositoryRoot()
 	{
 		for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
 		{

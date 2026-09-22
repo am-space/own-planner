@@ -133,6 +133,23 @@ only through `.env`; they do not start containers or contact Gemini.
 
 ## Current browser coverage
 
+Dependency compatibility checks also run under `Category=E2E`:
+
+- `McpTransportE2eTests` connects an MCP v2 client to the real bearer-authenticated HTTP host and
+  to the built stdio process. It checks discovery, representative task schemas and result envelopes,
+  explicit null deadlines, Unicode, cross-user isolation, token rejection/revocation, stateless HTTP,
+  in-process result parity (excluding intentionally omitted audit timestamps), and persisted reads
+  after a stdio restart. The E2E project builds the stdio host through a project dependency.
+- `OpenApiE2eTests` starts an isolated Development host and requests `/openapi/v1.json`, checking
+  JSON content, the OpenAPI version, and representative existing routes. Production exposure is
+  unchanged: this endpoint remains Development-only.
+- `DependencyUiE2eTests` exercises registration, chat, Tasks/Goals/Notes searches and inspectors,
+  Settings token creation, navigation/assistant controls, and logout in light/dark themes at desktop
+  and mobile widths. Long titles must wrap within the inspector and leave its close button usable.
+
+See [dependency-baselines.md](dependency-baselines.md) for supported versions, deferred upgrades,
+and repeatable package audit commands.
+
 The initial suite covers:
 
 - unauthenticated protected-route redirection;

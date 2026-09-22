@@ -16,6 +16,7 @@ describe.
 | [`email-configuration.md`](email-configuration.md) | Transactional email configuration and deliverability |
 | [`docker.md`](docker.md) | Container build and operating notes |
 | [`testing.md`](testing.md) | Local, CI, and deterministic browser E2E verification |
+| [`dependency-baselines.md`](dependency-baselines.md) | Supported dependency majors, compatibility exclusions, and audit commands |
 | [`planner-workspace.md`](planner-workspace.md) | Read-only planner UI, HTTP contract, and tenant-safe read path |
 | [`telegram-integration.md`](telegram-integration.md) | Private Telegram bot setup, identity, delivery, and cleanup |
 | [`weekly-review.md`](weekly-review.md) | Local-calendar carryover reviews, reminders, settings and delivery policy |
