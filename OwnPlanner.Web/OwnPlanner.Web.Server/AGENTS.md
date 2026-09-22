@@ -25,5 +25,5 @@ Infrastructure.
 
 - Put controller, authentication, session, and adapter tests in `OwnPlanner.Web.Server.Tests`.
 - For authentication or data-resolution changes, cover unauthenticated access and two-user isolation.
-- Run `dotnet test OwnPlanner.Web.Server.Tests/OwnPlanner.Web.Server.Tests.csproj`; also run MCP tool
+- Run `dotnet test --project OwnPlanner.Web.Server.Tests/OwnPlanner.Web.Server.Tests.csproj`; also run MCP tool
   tests when shared schemas, arguments, or serialization are affected.

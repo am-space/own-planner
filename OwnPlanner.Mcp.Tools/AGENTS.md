@@ -21,5 +21,5 @@ in-process adapter and the stdio host.
   `OwnPlanner.Mcp.Tools.Tests`.
 - When changing a contract, test exact externally visible names and JSON shapes, plus both host paths
   when transport behavior could differ.
-- Run `dotnet test OwnPlanner.Mcp.Tools.Tests/OwnPlanner.Mcp.Tools.Tests.csproj` and build
+- Run `dotnet test --project OwnPlanner.Mcp.Tools.Tests/OwnPlanner.Mcp.Tools.Tests.csproj` and build
   `OwnPlanner.Mcp.StdioApp` plus the web server when shared registration or serialization changes.

@@ -36,7 +36,9 @@ Run one side while iterating:
 | Cross-layer feature | Focused tests for each slice as it is completed | All |
 | Documentation only | Link/path inspection and `git diff --check` | Full build only when the docs affect generated or validated content |
 
-Use repository-standard `dotnet test --filter ...` commands for focused .NET tests. Do not replace the canonical scripts with a second verification workflow.
+Use repository-standard MTP commands such as `dotnet test --project <test-project> --filter-class "<class>"`
+or `--filter-method "<method-pattern>"` for focused .NET tests. Do not use VSTest `--filter`
+expressions or replace the canonical scripts with a second verification workflow.
 
 ## Acceptance Review
 

@@ -29,5 +29,5 @@ generated migration and snapshot, and verify that it targets only the intended d
 - Put repository, adapter, and context tests in `OwnPlanner.Infrastructure.Tests`.
 - For changes to context selection or account export/deletion, cover two users and prove that one
   cannot read, mutate, export, or delete the other's data.
-- Run `dotnet test OwnPlanner.Infrastructure.Tests/OwnPlanner.Infrastructure.Tests.csproj` and build
+- Run `dotnet test --project OwnPlanner.Infrastructure.Tests/OwnPlanner.Infrastructure.Tests.csproj` and build
   every directly affected entry point.
