@@ -130,15 +130,15 @@ can delegate with execution authorization already expressed by the user; it does
 confirmation. Intent and routing are model instructions; declared permissions and proposal read-only
 behavior are independently enforced in code.
 
-Specialized modes compose the same operation groups through `ChatCapabilities`, retaining their exact
-pre-#59 effective permission sets (including delegated writes in Global Planning):
+Specialized modes compose operation groups through `ChatCapabilities`. Their original permissions
+are retained, with additive weekly-review and task goal-link capabilities described below:
 
 | Mode | Explicit baseline skills and additional capabilities |
 |---|---|
 | General | Five compact baseline tools; six skills loaded on demand |
-| Global Planning | Goals/organization, notes and strategic review; existing recovery, removal and delegation capabilities |
+| Global Planning | Goals/organization, notes and strategic review; existing recovery, removal and delegation capabilities; focused task goal linking |
 | Week Planning | Weekly planning and task management; existing task-list maintenance |
-| Day Work | Narrow task-read/progress groups and quick capture; no full task skill or agents |
+| Day Work | Narrow task-read/progress groups, quick capture, goal reads and focused task goal linking; no full task skill or agents |
 | Reflection | Reflection; existing note-list capture processing and Search Agent |
 | System Analysis | Strategic review with the independent read-only policy |
 
@@ -167,6 +167,35 @@ planning reports. `taskitem_list_trash` returns the authenticated user's paged T
 Permanent deletion is intentionally not an MCP tool. It is available only through the authenticated
 web Trash flow after explicit user confirmation, and the Application service rejects permanent
 deletion unless the task is already in Trash.
+
+## Goal links for newly created tasks
+
+General, Week Planning, Day Work and Global Planning delegation share Application's
+`TaskGoalLinkGuidance`. An explicitly named goal is resolved and passed as `goalId` when creating the
+task. Otherwise the assistant creates tasks unlinked, reads current active goals for relevant planning
+work, and offers at most one short sentence suggesting a link. With several candidates it names at
+most two or makes no suggestion. Batch creation and delegated plan decomposition produce one
+combined suggestion for successful unlinked tasks. Urgent or clearly unrelated capture skips optional
+goal reads and questions.
+
+The user confirms the specific task-to-goal choice before `taskitem_link_goal` is called. A bare yes
+to two alternatives requires clarification. Declined tasks are remembered in the conversation and
+not suggested again; compaction instructions preserve pending choices and declines. If task IDs are
+unavailable after compaction, the assistant resolves the targets using existing reads and asks when
+ambiguous. Suggestions never automatically link tasks or sweep existing unlinked work.
+
+The focused shared tool takes required `taskId` and `goalId`, returning the existing task DTO or an
+`error`. Application rechecks task/list availability, Active goal status and conflicting associations,
+then changes only the goal association. An identical active link is idempotent. The web in-process
+adapter, HTTP MCP endpoint and stdio host expose the same handler and authenticated repositories.
+General loads goal reads and linking through `task_management`; Day Work adds just goal reads and
+this focused mutation, while Global Planning can apply confirmation after delegated creation.
+Reflection and System Analysis receive no additional writes.
+
+Relevance and natural-language consent follow trusted model instructions. Deterministic tests cover
+instruction delivery, scripted conversations, mutation validation and real web/Telegram tool and
+database paths; they do not evaluate live Gemini matching quality. See
+[ADR-0028](adr/0028-task-goal-link-suggestions.md) for the decision and limits.
 
 ## Delegated Agents
 

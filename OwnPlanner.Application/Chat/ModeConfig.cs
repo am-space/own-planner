@@ -33,7 +33,7 @@ public sealed record ModeConfig(
 					Report only changes confirmed by tool results. Do not switch the user's mode automatically.
 					After addressing a suitable planning request, call weekly_review_offer and append only its returned invitation if any.
 					Skip this check for urgent or unrelated work. For weekly reminders or carryover review load weekly_planning.
-					""",
+					""" + "\n\n" + TaskGoalLinkGuidance.Instructions,
 				PreloadTools: ["general_report_get"],
 				AllowedTools: new[] { "general_report_get", "datetime_get_current", "weekly_review_offer", "skill_load", "task_planning_agent_call", "search_agent_call" }
 					.Concat(ChatSkillRegistry.All.Values.SelectMany(skill => skill.Tools)).Distinct(StringComparer.Ordinal).ToArray(),
@@ -65,10 +65,10 @@ public sealed record ModeConfig(
 					- When asked for a briefing, give a short pointed summary, not a wall of text
 					- Format responses clearly; don't show entity IDs unless asked
 					- Confirm all write actions taken
-					""",
+					""" + "\n\n" + TaskGoalLinkGuidance.Instructions,
 				PreloadTools: ["strategic_report_get"],
 				AllowedTools: ChatCapabilities.Combine(ChatSkillRegistry.All["goals_organization"].Tools, ChatSkillRegistry.All["notes"].Tools, ChatSkillRegistry.All["strategic_review"].Tools, ChatCapabilities.TaskRecovery,
-					["goal_delete", "context_delete", "tasklist_delete", "notelist_delete", "noteitem_delete", "taskitem_list_by_goal", "datetime_get_current", "search_agent_call", "task_planning_agent_call"]),
+					["taskitem_link_goal", "goal_delete", "context_delete", "tasklist_delete", "notelist_delete", "noteitem_delete", "taskitem_list_by_goal", "datetime_get_current", "search_agent_call", "task_planning_agent_call"]),
 				CanWrite: true)
 			{
 				SkillIds = ["goals_organization", "notes", "strategic_review"],
@@ -98,7 +98,7 @@ public sealed record ModeConfig(
 					- When asked for a briefing, give a short pointed summary, not a wall of text
 					- Format responses clearly; don't show entity IDs unless asked
 					- Confirm all write actions taken
-					""",
+					""" + "\n\n" + TaskGoalLinkGuidance.Instructions,
 				PreloadTools: ["weekly_report_get"],
 				AllowedTools: ChatCapabilities.Combine(ChatSkillRegistry.All["weekly_planning"].Tools, ChatSkillRegistry.All["task_management"].Tools, ChatCapabilities.TaskListWrite, ChatCapabilities.TaskListArchive,
 					["tasklist_delete", "datetime_get_current", "search_agent_call"]),
@@ -121,7 +121,7 @@ public sealed record ModeConfig(
 					- Suggest what to tackle first
 					- Mark tasks complete as the user works through them
 					- Accept quick Capture notes without breaking flow
-					- Do not surface Goals or broader context unless explicitly asked
+					- Keep broader goal reviews out of today's work; a short goal-link suggestion after task creation follows the shared rules
 
 					You can create and modify: Tasks (complete, reopen, create) and Capture notes.
 
@@ -130,10 +130,10 @@ public sealed record ModeConfig(
 					- Be brief and action-oriented
 					- Format responses clearly; don't show entity IDs unless asked
 					- Confirm all write actions taken
-					""",
+					""" + "\n\n" + TaskGoalLinkGuidance.Instructions,
 				PreloadTools: ["taskitem_list_by_focus_date"],
-				AllowedTools: ChatCapabilities.Combine(ChatCapabilities.TaskRead, ChatCapabilities.TaskProgress, ChatCapabilities.TaskListRead,
-					["taskitem_list_by_focus_date", "taskitem_create", "notelist_all", "noteitem_create", "datetime_get_current"]),
+				AllowedTools: ChatCapabilities.Combine(ChatCapabilities.TaskRead, ChatCapabilities.TaskProgress, ChatCapabilities.TaskListRead, ChatCapabilities.GoalRead,
+					["taskitem_link_goal", "taskitem_list_by_focus_date", "taskitem_create", "notelist_all", "noteitem_create", "datetime_get_current"]),
 				CanWrite: true),
 
 			[PlanningMode.Reflection] = new ModeConfig(

@@ -545,6 +545,7 @@ public sealed partial class DirectToolMcpAdapterTests : IDisposable
 		services.AddScoped<IGoalService, GoalService>();
 		services.AddScoped<ITaskListService, TaskListService>();
 		services.AddScoped<ITaskItemService, TaskItemService>();
+		services.AddScoped<ITaskGoalLinkService, TaskGoalLinkService>();
 		services.AddSingleton(new TenantTestDirectory(_tempDirectory));
 		configure?.Invoke(services);
 		return services.BuildServiceProvider();

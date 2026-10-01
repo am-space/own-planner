@@ -27,6 +27,8 @@ namespace OwnPlanner.Infrastructure.Adapters
 			In execution behavior, apply clearly authorized changes without an additional confirmation step; if any target is ambiguous, return an unresolved question.
 			Finish with only a JSON object containing: summary (string, at most 2000 characters), warnings and unresolvedQuestions (at most 8 strings each, 500 characters each), and proposedPlan (at most 20 objects with description up to 500 characters, optional taskId and taskListId UUIDs).
 			Proposal steps are suggestions, never confirmed actions.
+			For task creation, set goalId only when the objective/brief explicitly authorizes that task-to-goal link.
+			Never infer a goal link from relevance, a goal reference alone, or the planning scope. Leave other new tasks unlinked; the parent handles one combined suggestion after creation.
 			""";
 		private const string SearchAgentToolSchema = """
 		{
@@ -486,7 +488,7 @@ namespace OwnPlanner.Infrastructure.Adapters
 			var summaryModel = _googleAi.GenerativeModel(_model);
 			var summaryChat = summaryModel.StartChat(history:
 			[
-				new ContentResponse("You compress the earlier part of a personal-planning conversation into a brief factual summary. Preserve concrete outcomes: decisions made, tasks/notes/goals created or changed, and any open threads or pending user requests. Use a few short bullet points. Do not invent details and do not add commentary."),
+				new ContentResponse("You compress the earlier part of a personal-planning conversation into a brief factual summary. Preserve concrete outcomes: decisions made, tasks/notes/goals created or changed, and any open threads or pending user requests. Use a few short bullet points. Do not invent details and do not add commentary. " + TaskGoalLinkGuidance.SummaryInstructions),
 				new ContentResponse("Understood. I will return a concise factual summary.", "model")
 			]);
 

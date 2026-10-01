@@ -70,6 +70,7 @@ ADRs describe decisions as actually shipped. Start new records from [`adr/templa
 - [`ADR-0025`](adr/0025-microsoft-testing-platform.md) — xUnit package 4.x and native Microsoft Testing Platform verification
 - [`ADR-0026`](adr/0026-goal-focused-weekly-review.md) — goal-first review, computed flags and guarded commitments
 - [`ADR-0027`](adr/0027-paused-goals-and-focus-guidance.md) — paused goals, resume grace and shared advisory guidance
+- [`ADR-0028`](adr/0028-task-goal-link-suggestions.md) — semantic task goal suggestions and focused confirmed linking
 
 ## Historical plans
 
@@ -79,6 +80,7 @@ implemented plans, prefer the linked ADR when determining current behavior.
 - [`archive/weekly-carryover-review-plan.md`](archive/weekly-carryover-review-plan.md)
 - [`archive/goal-focused-weekly-review-plan.md`](archive/goal-focused-weekly-review-plan.md)
 - [`archive/paused-goals-plan.md`](archive/paused-goals-plan.md)
+- [`archive/task-goal-suggestions-plan.md`](archive/task-goal-suggestions-plan.md)
 - [`archive/clear-task-deadline-plan.md`](archive/clear-task-deadline-plan.md)
 - [`archive/email-sending-plan.md`](archive/email-sending-plan.md)
 - [`archive/task-list-token-reduction-plan.md`](archive/task-list-token-reduction-plan.md)

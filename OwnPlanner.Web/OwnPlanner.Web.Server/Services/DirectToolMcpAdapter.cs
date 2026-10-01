@@ -226,6 +226,7 @@ public sealed class DirectToolMcpAdapter(
 		var toolTypes = new[]
 		{
 			typeof(TaskItemTools),
+			typeof(TaskGoalLinkTools),
 			typeof(TaskListTools),
 			typeof(NoteListTools),
 			typeof(NoteItemTools),
