@@ -10,6 +10,8 @@ public sealed record WeeklyReviewReport(DateTime AsOfUtc, int CarryoverCount, in
 public sealed record WeeklyReviewView(WeeklyReviewState Review, WeeklyReviewReport Report)
 {
 	public bool SuggestCreatingGoals { get; init; }
+	public string? PausedGoalsMention { get; init; }
+	public string? ActiveGoalWarning { get; init; }
 }
 public sealed record WeeklyReminderClaim(Guid ReviewId, int Occurrence, string Text);
 
@@ -29,9 +31,11 @@ public sealed record WeeklyReviewGoalRow(Guid Id, string Title, DateTime Created
 	OwnPlanner.Domain.Goals.GoalHorizon Horizon, string? TargetPeriod, DateTime? TargetDate,
 	string? Metric, string? MetricCurrent, int CompletedLast7Count,
 	IReadOnlyList<WeeklyReviewGoalTask> CompletedLast7, int CompletedLast14Count,
-	int OpenTaskCount, IReadOnlyList<WeeklyReviewGoalTask> OpenTasks, int PlannedTaskCount);
+	int OpenTaskCount, IReadOnlyList<WeeklyReviewGoalTask> OpenTasks, int PlannedTaskCount, DateTime? LastResumedAt = null);
 public sealed record WeeklyReviewGoalData(IReadOnlyList<WeeklyReviewGoalRow> Goals,
 	int CompletedGoalWorkCount, int CompletedOtherWorkCount, int PlannedGoalWorkCount, int PlannedOtherWorkCount);
+
+public sealed record WeeklyReviewPausedGoal(Guid Id, string Title, DateTime PausedAt);
 
 /// <summary>Serializes per-user review transitions in a database transaction; callbacks never perform network I/O.</summary>
 public interface IWeeklyReviewStore
@@ -42,6 +46,8 @@ public interface IWeeklyReviewStore
 	Task<T> UpdateAsync<T>(Func<WeeklyReviewPreferences, IList<WeeklyReviewState>, T> transition, CancellationToken ct = default);
 	/// <summary>Returns exact counts and a bounded, stable page of active incomplete tasks with selection reasons.</summary>
 	Task<WeeklyReviewReport> ReportAsync(WeeklyReviewState review, DateTime nowUtc, int offset, int limit, CancellationToken ct = default);
+	/// <summary>Reads paused goals and their pause instants from the current user database, only for explicit review openings.</summary>
+	Task<IReadOnlyList<WeeklyReviewPausedGoal>> PausedGoalsAsync(CancellationToken ct = default);
 	/// <summary>Reads active goals, task evidence and exact work-share counts from the current user's planner database.</summary>
 	Task<WeeklyReviewGoalData> GoalDataAsync(WeeklyReviewState review, DateTime nowUtc, CancellationToken ct = default);
 }
@@ -53,8 +59,8 @@ public interface IWeeklyReviewService
 	Task<WeeklyReviewPreferences> GetPreferencesAsync(CancellationToken ct = default);
 	/// <summary>Validates and persists explicit preferences. Disabling suppresses automatic offers and delivery.</summary>
 	Task<WeeklyReviewPreferences> ConfigureAsync(bool enabled, string? timeZoneId, int weekStart, string reminderTime, string channel = "telegram", CancellationToken ct = default);
-	/// <summary>Reads fresh bounded review data. Opening changes only review state, never tasks. An explicit targetWeek selects an existing review by its frozen calendar date. A conversational opening claims the one-time goal-creation offer when there are no active goals.</summary>
-	Task<WeeklyReviewView> OpenAsync(Guid? reviewId = null, int offset = 0, int limit = 20, CancellationToken ct = default, DateOnly? targetWeek = null, bool conversational = false);
+	/// <summary>Reads fresh bounded review data. Opening changes only review state, never tasks. An explicit targetWeek selects an existing review by its frozen calendar date. A conversational opening claims the one-time goal-creation offer when there are no active goals. Presenting a live first page also claims monthly paused-goal guidance and a once-per-review active-goal warning; present=false is only for internal skip/defer lookups and claims no presentation guidance.</summary>
+	Task<WeeklyReviewView> OpenAsync(Guid? reviewId = null, int offset = 0, int limit = 20, CancellationToken ct = default, DateOnly? targetWeek = null, bool conversational = false, bool present = true);
 	/// <summary>Completes, skips or defers the specified review; deferral is a local time in its frozen timezone.</summary>
 	Task<WeeklyReviewState> TransitionAsync(Guid reviewId, string action, string? localTime = null, CancellationToken ct = default);
 	/// <summary>Claims a single contextual offer for an eligible missed review after a suitable planning interaction.</summary>

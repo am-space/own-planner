@@ -60,6 +60,83 @@ public sealed partial class DirectToolMcpAdapterTests
 	}
 
 	[Fact]
+	public async Task PauseResumeAndMonthlyMentionsAreSharedAcrossChatAndTelegramButIsolatedBetweenUsers()
+	{
+		var ct = TestContext.Current.CancellationToken;
+		await using var services = BuildTenantServiceProvider();
+		var userA = Guid.NewGuid(); var userB = Guid.NewGuid();
+		await SeedUserTaskIdAsync(userA.ToString(), "A task", ct);
+		await SeedUserTaskIdAsync(userB.ToString(), "B task", ct);
+		await using var a = CreateAdapter(services, userA.ToString());
+		await using var b = CreateAdapter(services, userB.ToString());
+		var ids = new List<Guid>();
+		foreach (var (adapter, title) in new[] { (a, "A private paused goal"), (b, "B private paused goal") })
+		{
+			await adapter.CallToolAsync("weekly_review_configure", new Dictionary<string, object?> { ["enabled"] = true, ["timeZoneId"] = "UTC" }, ct);
+			var created = ParseJsonElement(await adapter.CallToolAsync("goal_create", new Dictionary<string, object?> { ["title"] = title, ["horizon"] = "Yearly", ["targetPeriod"] = "2026" }, ct));
+			var id = created.GetProperty("id").GetGuid(); ids.Add(id);
+			var paused = ParseJsonElement(await adapter.CallToolAsync("goal_update", new Dictionary<string, object?> { ["id"] = id, ["status"] = "Paused" }, ct));
+			paused.GetProperty("pausedAt").GetDateTime().Should().Be(TenantTestUtcNow);
+			paused.GetProperty("status").GetInt32().Should().Be((int)GoalStatus.Paused);
+		}
+		var foreign = ParseJsonElement(await a.CallToolAsync("goal_update", new Dictionary<string, object?> { ["id"] = ids[1], ["status"] = "Active" }, ct));
+		foreign.GetProperty("error").GetString().Should().Contain("not found");
+		var handler = new WeeklyReviewTelegramHandler(services.GetRequiredService<IServiceScopeFactory>(),
+			services.GetRequiredService<IPlannerSessionContextAccessor>(), services.GetRequiredService<PerUserAppInitializationService>());
+		var account = new TelegramLinkedAccount(userA, 12345, 12345, PlanningMode.General);
+		var summary = await handler.HandleAsync(account, "", ct);
+		summary.Should().Contain("A private paused goal").And.Contain("paused today").And.NotContain("B private paused goal");
+		var aView = ParseJsonElement(await a.CallToolAsync("weekly_review_open", cancellationToken: ct));
+		aView.TryGetProperty("pausedGoalsMention", out _).Should().BeFalse();
+		aView.GetProperty("report").GetProperty("goals").GetProperty("activeCount").GetInt32().Should().Be(0);
+		var bView = ParseJsonElement(await b.CallToolAsync("weekly_review_open", cancellationToken: ct));
+		bView.GetProperty("pausedGoalsMention").GetString().Should().Contain("B private paused goal").And.NotContain("A private paused goal");
+		var listed = ParseJsonElement(await a.CallToolAsync("goal_list", new Dictionary<string, object?> { ["includeInactive"] = true }, ct));
+		listed.EnumerateArray().Should().ContainSingle();
+		var resumed = ParseJsonElement(await a.CallToolAsync("goal_update", new Dictionary<string, object?> { ["id"] = ids[0], ["status"] = "Active" }, ct));
+		resumed.TryGetProperty("pausedAt", out _).Should().BeFalse();
+		resumed.GetProperty("lastResumedAt").GetDateTime().Should().Be(TenantTestUtcNow);
+	}
+
+	[Fact]
+	public async Task LongPausedGoalReviewIsSentInTelegramMessagesWithoutLosingClaimedMention()
+	{
+		var ct = TestContext.Current.CancellationToken;
+		await using var services = BuildTenantServiceProvider();
+		var userId = Guid.NewGuid();
+		await SeedUserTaskIdAsync(userId.ToString(), "Task", ct);
+		var titles = Enumerable.Range(0, 20).Select(i => $"Goal {i:D2} " + new string('x', 240)).ToArray();
+		await using (var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>()
+			.UseSqlite($"Data Source={Path.Combine(_tempDirectory, $"ownplanner-user-{userId}.db")}").Options))
+		{
+			foreach (var title in titles)
+			{
+				var goal = new Goal(title, GoalHorizon.Yearly);
+				goal.SetStatus(GoalStatus.Paused, TenantTestUtcNow.AddDays(-21));
+				db.Goals.Add(goal);
+			}
+			await db.SaveChangesAsync(ct);
+		}
+		await using var adapter = CreateAdapter(services, userId.ToString());
+		await adapter.CallToolAsync("weekly_review_configure", new Dictionary<string, object?> { ["enabled"] = false, ["timeZoneId"] = "UTC" }, ct);
+		var handler = new WeeklyReviewTelegramHandler(services.GetRequiredService<IServiceScopeFactory>(),
+			services.GetRequiredService<IPlannerSessionContextAccessor>(), services.GetRequiredService<PerUserAppInitializationService>());
+		var account = new TelegramLinkedAccount(userId, 12345, 12345, PlanningMode.General);
+		var summary = await handler.HandleAsync(account, "", ct);
+		summary.Length.Should().BeGreaterThan(4096);
+		summary.Should().Contain("20 goals are paused").And.Contain("paused 3 weeks ago");
+		using var delivery = new RecordingTelegramDelivery();
+		using var client = new TelegramBotClient(new HttpClient(delivery) { BaseAddress = new Uri("https://api.telegram.org/") },
+			Options.Create(new TelegramOptions { BotToken = "test-token" }));
+		await client.SendTextAsync(account.ChatId, summary, ct);
+		delivery.Messages.Should().HaveCountGreaterThan(1).And.OnlyContain(text => text.Length <= 4096);
+		var delivered = string.Concat(delivery.Messages);
+		delivered.Should().Be(summary);
+		foreach (var title in titles) delivered.Should().Contain(title);
+		(await handler.HandleAsync(account, "", ct)).Should().NotContain("20 goals are paused");
+	}
+
+	[Fact]
 	public async Task WeeklyReview_StateReportsAndActionsStayWithinUserScope()
 	{
 		var ct = TestContext.Current.CancellationToken;
@@ -249,6 +326,18 @@ public sealed partial class DirectToolMcpAdapterTests
 			.GetProperty("dueAt").ValueKind.Should().Be(JsonValueKind.String);
 		var view = ParseJsonElement(await adapter.CallToolAsync("weekly_review_open", cancellationToken: ct));
 		view.GetProperty("review").GetProperty("status").GetString().Should().Be("inProgress");
+	}
+
+	private sealed class RecordingTelegramDelivery : HttpMessageHandler
+	{
+		public List<string> Messages { get; } = [];
+		protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
+		{
+			var body = JsonSerializer.Deserialize<JsonElement>(await request.Content!.ReadAsStringAsync(ct));
+			var text = body.GetProperty("text").GetString()!;
+			Messages.Add(text);
+			return new HttpResponseMessage(text.Length <= 4096 ? System.Net.HttpStatusCode.OK : System.Net.HttpStatusCode.BadRequest);
+		}
 	}
 
 	private sealed class WeeklyActionProvider(IMcpAdapter adapter, Guid changed) : HttpMessageHandler, IHttpClientFactory

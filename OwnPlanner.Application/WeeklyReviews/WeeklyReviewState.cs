@@ -9,6 +9,7 @@ public sealed class WeeklyReviewPreferences
 	public int WeekStart { get; set; } = 1;
 	public string ReminderTime { get; set; } = "18:00";
 	public string Channel { get; set; } = "telegram";
+	public DateOnly? PausedGoalsMentionMonth { get; set; }
 }
 
 /// <summary>Application snapshot of a shared review and its delivery occurrence. Persistence mapping belongs to Infrastructure.</summary>
@@ -28,4 +29,6 @@ public sealed class WeeklyReviewState
 	public DateTime? RetryAtUtc { get; set; }
 	public bool OfferedInChat { get; set; }
 	public bool GoalCreationOfferedInChat { get; set; }
+	/// <summary>The first presented page has checked the active-goal limit, whether or not a warning was needed.</summary>
+	public bool ActiveGoalLimitWarned { get; set; }
 }

@@ -66,12 +66,20 @@ public sealed class WeeklyReviewStore(IPlannerDbContextFactory factory) : IWeekl
 		return selection.BuildReport(carryover, overdue, upcoming, total, offset, limit, page);
 	}
 
+	public async Task<IReadOnlyList<WeeklyReviewPausedGoal>> PausedGoalsAsync(CancellationToken ct = default)
+	{
+		await using var db = await factory.CreateAsync(ct);
+		return await db.Goals.AsNoTracking().Where(g => g.Status == GoalStatus.Paused && g.PausedAt != null)
+			.OrderBy(g => g.Title).ThenBy(g => g.Id)
+			.Select(g => new WeeklyReviewPausedGoal(g.Id, g.Title, g.PausedAt!.Value)).ToListAsync(ct);
+	}
+
 	public async Task<WeeklyReviewGoalData> GoalDataAsync(WeeklyReviewState review, DateTime nowUtc, CancellationToken ct = default)
 	{
 		await using var db = await factory.CreateAsync(ct);
 		await using var transaction = await db.Database.BeginTransactionAsync(ct);
 		var goals = await db.Goals.AsNoTracking().Where(g => g.Status == GoalStatus.Active)
-			.Select(g => new { g.Id, g.Title, g.CreatedAt, g.Horizon, g.TargetPeriod, g.TargetDate, g.Metric, g.MetricCurrent })
+			.Select(g => new { g.Id, g.Title, g.CreatedAt, g.LastResumedAt, g.Horizon, g.TargetPeriod, g.TargetDate, g.Metric, g.MetricCurrent })
 			.ToListAsync(ct);
 		var activeGoalIds = db.Goals.AsNoTracking().Where(g => g.Status == GoalStatus.Active).Select(g => g.Id);
 		var completedStart = nowUtc.AddDays(-7);
@@ -117,7 +125,7 @@ public sealed class WeeklyReviewStore(IPlannerDbContextFactory factory) : IWeekl
 			rows.Add(new(goal.Id, goal.Title, goal.CreatedAt, goal.Horizon, goal.TargetPeriod, goal.TargetDate,
 				goal.Metric, goal.MetricCurrent, count?.CompletedLast7 ?? 0,
 				recentByGoal[goal.Id].OrderBy(task => task.Id).ToArray(), count?.CompletedLast14 ?? 0,
-				count?.Open ?? 0, openByGoal[goal.Id].OrderBy(task => task.Id).ToArray(), count?.Planned ?? 0));
+				count?.Open ?? 0, openByGoal[goal.Id].OrderBy(task => task.Id).ToArray(), count?.Planned ?? 0, goal.LastResumedAt));
 		}
 		return new(rows, completedGoal, completedTotal - completedGoal, plannedGoal, plannedTotal - plannedGoal);
 	}

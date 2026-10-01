@@ -11,11 +11,12 @@ public sealed class WeeklyReviewPreferencesRow
 	public int WeekStart { get; set; } = 1;
 	public string ReminderTime { get; set; } = "18:00";
 	public string Channel { get; set; } = "telegram";
+	public DateOnly? PausedGoalsMentionMonth { get; set; }
 
 	public WeeklyReviewPreferences ToSnapshot() => new()
 	{
 		Id = Id, Enabled = Enabled, TimeZoneId = TimeZoneId, WeekStart = WeekStart,
-		ReminderTime = ReminderTime, Channel = Channel
+		ReminderTime = ReminderTime, Channel = Channel, PausedGoalsMentionMonth = PausedGoalsMentionMonth
 	};
 
 	public void Apply(WeeklyReviewPreferences snapshot)
@@ -25,6 +26,7 @@ public sealed class WeeklyReviewPreferencesRow
 		WeekStart = snapshot.WeekStart;
 		ReminderTime = snapshot.ReminderTime;
 		Channel = snapshot.Channel;
+		PausedGoalsMentionMonth = snapshot.PausedGoalsMentionMonth;
 	}
 }
 
@@ -45,6 +47,7 @@ public sealed class WeeklyReviewRow
 	public DateTime? RetryAtUtc { get; set; }
 	public bool OfferedInChat { get; set; }
 	public bool GoalCreationOfferedInChat { get; set; }
+	public bool ActiveGoalLimitWarned { get; set; }
 
 	public WeeklyReviewState ToSnapshot() => new()
 	{
@@ -52,7 +55,7 @@ public sealed class WeeklyReviewRow
 		StartsAtUtc = StartsAtUtc, EndsAtUtc = EndsAtUtc, ScheduledAtUtc = ScheduledAtUtc,
 		Status = Status, DeferredUntilUtc = DeferredUntilUtc, Occurrence = Occurrence,
 		Delivery = Delivery, Attempts = Attempts, RetryAtUtc = RetryAtUtc, OfferedInChat = OfferedInChat,
-		GoalCreationOfferedInChat = GoalCreationOfferedInChat
+		GoalCreationOfferedInChat = GoalCreationOfferedInChat, ActiveGoalLimitWarned = ActiveGoalLimitWarned
 	};
 
 	public void Apply(WeeklyReviewState snapshot)
@@ -70,5 +73,6 @@ public sealed class WeeklyReviewRow
 		RetryAtUtc = snapshot.RetryAtUtc;
 		OfferedInChat = snapshot.OfferedInChat;
 		GoalCreationOfferedInChat = snapshot.GoalCreationOfferedInChat;
+		ActiveGoalLimitWarned = snapshot.ActiveGoalLimitWarned;
 	}
 }

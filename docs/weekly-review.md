@@ -13,13 +13,43 @@ General and Week Planning chat can discuss priorities and apply explicitly reque
 chat modes retain their existing permissions. Telegram `/review` commands work in every mode without
 switching it (see [Telegram commands](telegram-integration.md)).
 
+## Paused goals and focus guidance
+
+Ask chat to pause an active goal or resume a paused goal. The shared `goal_update` tool accepts
+`status=Paused` and `status=Active`; pause/resume works in web and Telegram wherever goal editing is
+permitted. Achieved and dropped goals cannot be paused. Repeated requests do not reset timestamps.
+Pausing records `PausedAt`; leaving Paused clears it, and resuming records `LastResumedAt` for a new
+14-day stalled grace period. Linked tasks stay linked and remain independently available.
+
+Paused goals are excluded from the active goal step, every goal flag and reminder goal count. Ask
+"show my paused goals" to retrieve them through `goal_list includeInactive=true`; the existing
+Goals screen also has a Paused status filter. Tasks linked to paused goals may still appear in the
+remaining task review and count as other work.
+
+Once per local calendar month, the first actual live review opening with paused goals includes one
+sentence naming them, their approximate pause ages in days/weeks/months, and an invitation to resume.
+Settings, web chat and Telegram `/review` share this claim. The month is determined by the current
+opening instant in the review's frozen timezone, rather than its target-week date. Empty paused-goal
+sets, task pagination, expired/finished reviews, reminders and lookups solely to skip/defer/finish do
+not consume the mention. A review already presented has delivered its mention even if later skipped
+or deferred. Claims survive restarts and are serialized across concurrent openings. Long Telegram
+reviews retain all paused-goal names and ages: the bot client splits the full reply into messages of at most 4096
+UTF-16 units, preserving Unicode content.
+
+Five active goals is a recommendation. Creating or activating a goal above that count succeeds and
+returns `activeGoalWarning`, which chat adds once to its response. Unrelated edits and repeated Active
+updates do not repeat it. The first presented page checks the active-goal count once, shared across
+channels, and returns the same warning only when that initial count exceeds five. Later refreshes
+do not add a review warning if goal creation or resuming raises the count. No action is blocked by this
+count. There is no automatic pausing, scheduled resume, configurable limit or new goal editing screen.
+
 ## Calendar and selection
 
 The review opens with every active goal. Goals needing attention appear first. Each goal shows the
 exact number of linked tasks completed in the previous rolling seven days, a sample of up to ten
 completed titles, the exact number of open tasks and up to ten open task titles. Goal metric and
 current value appear when present. A goal has **no next step** when it has no open task, and is
-**stalled** when it was created at least 14 days ago and no linked task was completed in the last
+**stalled** when it was created or most recently resumed at least 14 days ago and no linked task was completed in the last
 14 days. The application calculates these flags. The target period is **ending soon** when its
 end date is within seven local calendar days, or **passed** after that date. Only strict
 `yyyy-MM`, `yyyy-Qn`, `yyyy`, and fixed target dates are interpreted. Unrecognized periods have no
@@ -28,7 +58,7 @@ period flag.
 Chat asks for a target-week commitment for every active goal. A user can choose an existing linked
 task or create one, and schedule its focus date in the target week. A linked task can be planned
 from within the review even if it was absent from the carryover page. A user may leave a goal
-without a plan after one confirmation. Stalled or past-period goals prompt a keep, achieve, drop,
+without a plan after one confirmation. Stalled or past-period goals prompt a keep, pause, achieve, drop,
 or target-period change decision. Metric progress can be updated during the review. Every goal
 edit requires an explicit user instruction. When there are no active goals, the first conversational
 opening of that review offers once to formulate one to three goals, even if Settings or Telegram
@@ -40,7 +70,7 @@ assistant may suggest an active goal for an unlinked task when one clearly match
 requires the user's confirmation. The summary reports exact completed work from the preceding
 seven days and planned target-week work, each split between tasks linked to active goals and other
 tasks. It lists active goals with no target-week plan. Trash and archived lists are excluded from
-goal evidence and work-share counts. Links to achieved, dropped or missing goals count as other
+goal evidence and work-share counts. Links to paused, achieved, dropped or missing goals count as other
 work. Samples are bounded; counts remain exact.
 
 Opening first resumes an unexpired due deferral, if one exists. Otherwise, on the last day of the configured local week, a new review targets next week. During the rest of
@@ -157,3 +187,13 @@ state transitions. `SeparateWeeklyReviewPersistenceModels` updates the EF snapsh
 without changing tables, columns or existing data. Settings retain the same JSON fields and the MCP
 getter publishes read-only and idempotent hints. Review-opening and offer tools still update workflow
 state and are not labelled read-only.
+
+`AddPausedGoals` adds nullable goal pause/resume timestamps, a nullable month claim in preferences,
+and a false-by-default review warning claim. Existing goal status values are preserved: Active=0,
+Achieved=1, Dropped=2, and the appended Paused=3. Existing databases need no data conversion; normal
+per-user initialization applies the migration. Planner SQLite exports include these fields.
+
+Review views add nullable `pausedGoalsMention` and `activeGoalWarning` presentation fields. The shared
+`weekly_review_open` adds optional `present` (default true); use false for internal transition lookups
+that do not present the review. These guidance fields never enter reminders. Like other claimed chat
+offers, a response failure after a claim can lose the guidance; the claim prevents repeated prompts.

@@ -13,5 +13,8 @@ public record GoalDto(
 	string? Metric,
 	string? MetricCurrent,
 	DateTime CreatedAt,
-	DateTime UpdatedAt
+	DateTime UpdatedAt,
+	DateTime? PausedAt = null,
+	DateTime? LastResumedAt = null,
+	string? ActiveGoalWarning = null
 );

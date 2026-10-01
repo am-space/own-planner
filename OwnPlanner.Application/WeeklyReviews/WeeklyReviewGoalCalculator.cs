@@ -18,7 +18,7 @@ public static class WeeklyReviewGoalCalculator
 			return new WeeklyReviewGoal(row.Id, row.Title, row.Metric, row.MetricCurrent,
 				row.CompletedLast7Count, row.CompletedLast7, row.OpenTaskCount, row.OpenTasks,
 				row.PlannedTaskCount, row.OpenTaskCount == 0,
-				row.CreatedAt <= nowUtc.AddDays(-14) && row.CompletedLast14Count == 0, periodFlag);
+				(row.LastResumedAt ?? row.CreatedAt) <= nowUtc.AddDays(-14) && row.CompletedLast14Count == 0, periodFlag);
 		}).OrderByDescending(goal => goal.NoNextStep || goal.Stalled || goal.TargetPeriodFlag is not null)
 			.ThenByDescending(goal => goal.TargetPeriodFlag == "targetPeriodPassed")
 			.ThenByDescending(goal => goal.NoNextStep)

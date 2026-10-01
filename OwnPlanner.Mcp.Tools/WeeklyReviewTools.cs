@@ -18,8 +18,8 @@ public sealed class WeeklyReviewTools(IWeeklyReviewService service, WeeklyReview
 			reminderTime ?? current.ReminderTime, channel ?? current.Channel, ct);
 	}
 
-	[McpServerTool(Name = "weekly_review_open"), Description("Open/resume the shared weekly review. No planning-data mutation. Returns active goals first with calculated flags, completed/open task samples, target-week plan counts and goal-work share; then a bounded page of remaining carryover/overdue tasks. Page tasks with offset/limit (maximum 50). A goal task already planned for the target week is omitted from the task page. suggestCreatingGoals is true only on the first conversational opening of a review with no active goals, even if Settings or /review was opened earlier. Optional reviewId resumes that review; targetWeek yyyy-MM-dd selects the period in a reminder. Refresh before changes. Opening does not authorize any task or goal mutation.")]
-	public async Task<object> Open(string? reviewId = null, int offset = 0, int limit = 20, CancellationToken ct = default, string? targetWeek = null)
+	[McpServerTool(Name = "weekly_review_open"), Description("Open/resume the shared weekly review. No planning-data mutation. Returns active goals first with calculated flags, completed/open task samples, target-week plan counts and goal-work share; then a bounded page of remaining carryover/overdue tasks. Page tasks with offset/limit (maximum 50). A goal task already planned for the target week is omitted from the task page. suggestCreatingGoals is true only on the first conversational opening of a review with no active goals, even if Settings or /review was opened earlier. Optional reviewId resumes that review; targetWeek yyyy-MM-dd selects the period in a reminder. pausedGoalsMention is returned only for the first actual opening in a local calendar month with paused goals; repeat that one sentence and offer to resume, never invent it on refresh. activeGoalWarning is returned once per review and belongs at the beginning. Refresh before changes. Set present=false when looking up a review solely to skip, defer or finish it; this does not consume monthly or one-time guidance. Opening does not authorize any task or goal mutation.")]
+	public async Task<object> Open(string? reviewId = null, int offset = 0, int limit = 20, CancellationToken ct = default, string? targetWeek = null, bool present = true)
 	{
 		DateOnly? target = null;
 		if (targetWeek is not null)
@@ -28,7 +28,7 @@ public sealed class WeeklyReviewTools(IWeeklyReviewService service, WeeklyReview
 				throw new ArgumentException("targetWeek must be yyyy-MM-dd from the reminder.");
 			target = date;
 		}
-		return await service.OpenAsync(ParseId(reviewId, nameof(reviewId)), offset, limit, ct, target, conversational: true);
+		return await service.OpenAsync(ParseId(reviewId, nameof(reviewId)), offset, limit, ct, target, conversational: true, present: present);
 	}
 
 	[McpServerTool(Name = "weekly_review_transition"), Description("On explicit user request, complete, skip, or defer a review by reviewId. Completing one task does not finish a review. For defer resolve a definite future localTime yyyy-MM-ddTHH:mm in the review's timezone, before its target week ends. Ask when ambiguous. 'Tomorrow' means the next local calendar day; retain the original target week. For disable reminders use weekly_review_configure with enabled=false and preserve existing preferences.")]

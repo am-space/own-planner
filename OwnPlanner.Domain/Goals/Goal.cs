@@ -24,8 +24,14 @@ public class Goal : EntityBase
 	/// </summary>
 	public DateTime? TargetDate { get; private set; }
 
-	/// <summary>Lifecycle status: active work-in-progress, successfully achieved, or dropped.</summary>
+	/// <summary>Lifecycle status: active, temporarily paused, successfully achieved, or dropped.</summary>
 	public GoalStatus Status { get; private set; }
+
+	/// <summary>UTC instant this goal was paused; cleared when leaving Paused.</summary>
+	public DateTime? PausedAt { get; private set; }
+
+	/// <summary>UTC instant of the latest resume, used for the stalled-goal grace period.</summary>
+	public DateTime? LastResumedAt { get; private set; }
 
 	/// <summary>Optional description of the measurable outcome, e.g. "Run 5 km without stopping".</summary>
 	public string? Metric { get; private set; }
@@ -84,8 +90,19 @@ public class Goal : EntityBase
 		Touch();
 	}
 
-	public void SetStatus(GoalStatus status)
+	public void SetStatus(GoalStatus status, DateTime? nowUtc = null)
 	{
+		if (!Enum.IsDefined(status)) throw new ArgumentException("Invalid goal status.", nameof(status));
+		if (status == Status) return;
+		if (status == GoalStatus.Paused && Status != GoalStatus.Active)
+			throw new ArgumentException("Only active goals can be paused.", nameof(status));
+		var now = nowUtc ?? DateTime.UtcNow;
+		if (status == GoalStatus.Paused) PausedAt = now;
+		else
+		{
+			if (Status == GoalStatus.Paused && status == GoalStatus.Active) LastResumedAt = now;
+			PausedAt = null;
+		}
 		Status = status;
 		Touch();
 	}

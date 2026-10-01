@@ -353,3 +353,18 @@ Preferences and lifecycle are shared by web, Telegram and MCP transports. Timezo
 local-calendar weeks do not alter the existing UTC weekly_report_get contract. Finishing, skipping,
 deferring and disabling are explicit operations. See [weekly review](weekly-review.md) and
 [ADR-0024](adr/0024-shared-weekly-carryover-review.md).
+
+### Goal pause and advisory guidance
+
+Shared `goal_update` accepts the additive Paused status and Active to resume. `goal_list` with
+`includeInactive=true` includes paused goals. Goal results add `pausedAt`, `lastResumedAt` and optional
+`activeGoalWarning`; tool instructions ask the model to append the warning after a successful action.
+The five-goal recommendation never rejects creation or resuming. Existing names and required inputs
+remain unchanged for in-process, HTTP MCP and stdio hosts.
+
+The weekly planning skill offers pause alongside keep/achieve/drop/target-period edits, and presents
+returned `activeGoalWarning` at the beginning and `pausedGoalsMention` in one line. Monthly and review
+warning claims are persisted by Application in the current user's database. Refreshes return no repeat
+guidance. `weekly_review_open present=false` looks up review identity for skip/defer/finish requests
+without consuming presentation guidance. Reminder and fallback tools return counts-only invitations,
+never paused-goal mentions.

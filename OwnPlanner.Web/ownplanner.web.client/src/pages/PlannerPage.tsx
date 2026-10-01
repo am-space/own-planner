@@ -52,7 +52,7 @@ interface PlannerPageProps {
 const pageSize = 25;
 const inspectorWidth = 380;
 const taskStatusOptions: readonly PlannerTaskStatus[] = ['Open', 'Completed', 'All'];
-const goalStatusOptions: readonly PlannerGoalStatus[] = ['Active', 'Achieved', 'Dropped', 'All'];
+const goalStatusOptions: readonly PlannerGoalStatus[] = ['Active', 'Paused', 'Achieved', 'Dropped', 'All'];
 const goalHorizonOptions: readonly GoalHorizon[] = ['Monthly', 'Quarterly', 'Yearly', 'TargetDate'];
 
 export default function PlannerPage({ section }: PlannerPageProps) {

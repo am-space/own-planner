@@ -54,6 +54,28 @@ public class GoalRepositoryTests
 	}
 
 	[Fact]
+	public async Task PausedGoalRoundtripsAndStaysAvailableOnRequest()
+	{
+		using var db = CreateDb(out var conn);
+		await using var _ = conn;
+		var ct = TestContext.Current.CancellationToken;
+		var repo = new GoalRepository(new TestPlannerDbContextFactory(conn));
+		var goal = new Goal("On hold", GoalHorizon.Yearly);
+		var paused = new DateTime(2026, 8, 1, 0, 0, 0, DateTimeKind.Utc);
+		goal.SetStatus(GoalStatus.Paused, paused);
+		await repo.AddAsync(goal, ct);
+		(await repo.ListAsync(ct: ct)).Should().BeEmpty();
+		(await repo.ListAsync(true, ct)).Should().ContainSingle(g => g.Status == GoalStatus.Paused);
+		var loaded = (await repo.GetAsync(goal.Id, ct))!;
+		loaded.PausedAt.Should().Be(paused);
+		loaded.SetStatus(GoalStatus.Active, paused.AddDays(30));
+		await repo.UpdateAsync(loaded, ct);
+		var resumed = (await repo.GetAsync(goal.Id, ct))!;
+		resumed.PausedAt.Should().BeNull();
+		resumed.LastResumedAt.Should().Be(paused.AddDays(30));
+	}
+
+	[Fact]
 	public async Task Add_Get_WithTargetDateHorizon()
 	{
 		using var db = CreateDb(out var conn);

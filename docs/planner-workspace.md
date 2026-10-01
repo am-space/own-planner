@@ -53,7 +53,7 @@ Collections return `items`, `totalCount`, `offset`, `limit`, and `hasMore`. The 
 detail endpoint.
 
 Task filters include search, status, important-only, task list, context, and linked goal. Goal filters
-include search, status, and horizon. Note filters include search, pinned-only, note list, context, and
+include search, status (Active, Paused, Achieved, Dropped or All), and horizon. Note filters include search, pinned-only, note list, context, and
 linked goal. Filtering, deterministic ordering, counting, projection, and paging execute in SQLite
 before results are materialized.
 

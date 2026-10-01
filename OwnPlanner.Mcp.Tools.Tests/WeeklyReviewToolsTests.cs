@@ -100,6 +100,14 @@ public sealed class WeeklyReviewToolsTests
 	}
 
 	[Fact]
+	public async Task InternalTransitionLookupDoesNotClaimPresentationGuidance()
+	{
+		var ct = TestContext.Current.CancellationToken;
+		await Tools.Open(ct: ct, present: false);
+		await _service.Received(1).OpenAsync(ct: ct, conversational: true, present: false);
+	}
+
+	[Fact]
 	public async Task NoEligibleOfferHasNoFabricatedInvitation()
 	{
 		_service.OfferAsync(TestContext.Current.CancellationToken).Returns((string?)null);

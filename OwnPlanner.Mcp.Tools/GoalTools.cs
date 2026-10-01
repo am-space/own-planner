@@ -14,7 +14,7 @@ public class GoalTools(IGoalService service)
 		Create a new goal. Horizon controls the time granularity:
 		  - Monthly / Quarterly / Yearly: provide targetPeriod (e.g. "2025-06", "2025-Q2", "2025"); omit targetDate.
 		  - TargetDate: provide targetDate (ISO 8601, e.g. "2025-12-31"); omit targetPeriod.
-		Returns the created goal.
+		Returns the created goal, with activeGoalWarning when more than five goals are active. Complete the action and append this short advisory warning; never refuse it because of the count.
 		""")]
 	public async Task<object> CreateGoal(
 		string title,
@@ -55,7 +55,7 @@ public class GoalTools(IGoalService service)
 		return dto;
 	}
 
-	[McpServerTool(Name = "goal_list", Idempotent = true, ReadOnly = true), Description("List goals. By default only Active goals are returned. Set includeInactive=true to also include Achieved and Dropped goals.")]
+	[McpServerTool(Name = "goal_list", Idempotent = true, ReadOnly = true), Description("List goals. By default only Active goals are returned. Set includeInactive=true to also include Achieved, Dropped and Paused goals. For a paused-goal request, return only the Paused entries.")]
 	public async Task<object> ListGoals(bool includeInactive = false)
 	{
 		var goals = await _service.ListAsync(includeInactive);
@@ -67,7 +67,7 @@ public class GoalTools(IGoalService service)
 		Horizon fields (horizon, targetPeriod, targetDate) are updated together - omitted ones keep their current value,
 		except when switching to TargetDate horizon which always clears targetPeriod.
 		Valid horizon values: Monthly, Quarterly, Yearly, TargetDate.
-		Valid status values: Active, Achieved, Dropped.
+		Valid status values: Active, Achieved, Dropped, Paused. Use Paused to put an active goal on hold, and Active to resume it, only on user request. Paused goals keep their task links. Append any returned activeGoalWarning once; it is advisory and never blocks the action.
 		""")]
 	public async Task<object> UpdateGoal(
 		Guid id,
@@ -99,8 +99,8 @@ public class GoalTools(IGoalService service)
 		GoalStatus? parsedStatus = null;
 		if (!string.IsNullOrEmpty(status))
 		{
-			if (!Enum.TryParse<GoalStatus>(status, ignoreCase: true, out var s))
-				return new { error = $"Invalid status '{status}'. Valid values: Active, Achieved, Dropped." };
+			if (!Enum.TryParse<GoalStatus>(status, ignoreCase: true, out var s) || !Enum.IsDefined(s))
+				return new { error = $"Invalid status '{status}'. Valid values: Active, Achieved, Dropped, Paused." };
 			parsedStatus = s;
 		}
 

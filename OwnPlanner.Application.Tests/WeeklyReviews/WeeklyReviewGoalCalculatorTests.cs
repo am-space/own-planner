@@ -56,6 +56,16 @@ public sealed class WeeklyReviewGoalCalculatorTests
 			.Items.Single().TargetPeriodFlag.Should().Be("targetPeriodPassed");
 	}
 
+	[Theory]
+	[InlineData(13, false)]
+	[InlineData(14, true)]
+	[InlineData(15, true)]
+	public void ResumedGoalHasFourteenDayStalledGrace(int daysSinceResume, bool stalled)
+	{
+		var row = Row("Resumed", Now.AddDays(-90), GoalHorizon.Yearly, "2026", open: 1) with { LastResumedAt = Now.AddDays(-daysSinceResume) };
+		WeeklyReviewGoalCalculator.Build(new([row], 0, 0, 0, 0), Review, Now).Items.Single().Stalled.Should().Be(stalled);
+	}
+
 	private static WeeklyReviewGoalRow Row(string title, DateTime created, GoalHorizon horizon, string? period,
 		int open, int completed14 = 0, int planned = 0) =>
 		new(Guid.NewGuid(), title, created, horizon, period, null, null, null, 0, [], completed14, open, [], planned);

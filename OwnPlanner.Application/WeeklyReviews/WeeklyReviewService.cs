@@ -1,4 +1,5 @@
 using System.Globalization;
+using OwnPlanner.Application.Goals;
 
 namespace OwnPlanner.Application.WeeklyReviews;
 
@@ -24,7 +25,7 @@ public sealed class WeeklyReviewService(IWeeklyReviewStore store, TimeProvider c
 		}, ct);
 	}
 
-	public async Task<WeeklyReviewView> OpenAsync(Guid? reviewId = null, int offset = 0, int limit = 20, CancellationToken ct = default, DateOnly? targetWeek = null, bool conversational = false)
+	public async Task<WeeklyReviewView> OpenAsync(Guid? reviewId = null, int offset = 0, int limit = 20, CancellationToken ct = default, DateOnly? targetWeek = null, bool conversational = false, bool present = true)
 	{
 		if (offset < 0 || limit is < 1 or > 50) throw new ArgumentException("Use offset >= 0 and limit between 1 and 50.");
 		var now = Now;
@@ -34,11 +35,11 @@ public sealed class WeeklyReviewService(IWeeklyReviewStore store, TimeProvider c
 			var review = reviewId.HasValue ? Find(reviews, reviewId.Value) : targetWeek.HasValue
 				? reviews.FirstOrDefault(r => r.TargetWeek == targetWeek) ?? throw new KeyNotFoundException("Weekly review not found.")
 				: DueDeferral(reviews, now) ?? Resolve(preferences, reviews, now, false);
-			if (review.Status == "notStarted") review.Status = "inProgress";
+			if (present && review.Status == "notStarted") review.Status = "inProgress";
 			return review;
 		}, ct);
 		var report = await BuildReportAsync(review, now, offset, limit, ct);
-		var suggestCreatingGoals = conversational && report.Goals.ActiveCount == 0 &&
+		var suggestCreatingGoals = present && conversational && report.Goals.ActiveCount == 0 &&
 			await store.UpdateAsync((_, reviews) =>
 			{
 				var current = Find(reviews, review.Id);
@@ -46,7 +47,32 @@ public sealed class WeeklyReviewService(IWeeklyReviewStore store, TimeProvider c
 				current.GoalCreationOfferedInChat = true;
 				return true;
 			}, ct);
-		return new(review, report) { SuggestCreatingGoals = suggestCreatingGoals };
+		string? pausedMention = null;
+		string? activeWarning = null;
+		if (present && offset == 0 && !Terminal(review) && now < review.EndsAtUtc)
+		{
+			var paused = await store.PausedGoalsAsync(ct);
+			var localDate = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(now, TimeZoneInfo.FindSystemTimeZoneById(review.TimeZoneId)));
+			var month = new DateOnly(localDate.Year, localDate.Month, 1);
+			var warning = GoalFocusGuidance.Warning(report.Goals.ActiveCount);
+			var claims = await store.UpdateAsync((preferences, reviews) =>
+			{
+				var current = Find(reviews, review.Id);
+				if (Terminal(current) || now >= current.EndsAtUtc) return (Paused: false, Limit: false);
+				var mention = paused.Count > 0 && (preferences.PausedGoalsMentionMonth is null || preferences.PausedGoalsMentionMonth < month);
+				if (mention) preferences.PausedGoalsMentionMonth = month;
+				var limitWarning = warning is not null && !current.ActiveGoalLimitWarned;
+				// Consume the initial check even below the limit; later goal changes have their own advisory.
+				current.ActiveGoalLimitWarned = true;
+				return (Paused: mention, Limit: limitWarning);
+			}, ct);
+			if (claims.Paused) pausedMention = PausedMention(paused, now);
+			if (claims.Limit) activeWarning = warning;
+		}
+		return new(review, report)
+		{
+			SuggestCreatingGoals = suggestCreatingGoals, PausedGoalsMention = pausedMention, ActiveGoalWarning = activeWarning
+		};
 	}
 
 	public Task<WeeklyReviewState> TransitionAsync(Guid reviewId, string action, string? localTime = null, CancellationToken ct = default)
@@ -145,6 +171,18 @@ public sealed class WeeklyReviewService(IWeeklyReviewStore store, TimeProvider c
 		var report = await store.ReportAsync(review, now, offset, limit, ct);
 		var goals = WeeklyReviewGoalCalculator.Build(await store.GoalDataAsync(review, now, ct), review, now);
 		return report with { Goals = goals };
+	}
+
+	private static string PausedMention(IReadOnlyList<WeeklyReviewPausedGoal> goals, DateTime now) =>
+		$"{goals.Count} {(goals.Count == 1 ? "goal is" : "goals are")} paused: " +
+		string.Join(", ", goals.Select(goal => $"\"{goal.Title}\" (paused {PauseAge(goal.PausedAt, now)})")) + ". Resume any of them?";
+
+	private static string PauseAge(DateTime pausedAt, DateTime now)
+	{
+		var days = Math.Max(0, (int)(now - pausedAt).TotalDays);
+		if (days == 0) return "today";
+		var (count, unit) = days >= 30 ? (days / 30, "month") : days >= 7 ? (days / 7, "week") : (days, "day");
+		return $"{count} {unit}{(count == 1 ? "" : "s")} ago";
 	}
 
 	private static WeeklyReviewState Find(IList<WeeklyReviewState> reviews, Guid id) =>

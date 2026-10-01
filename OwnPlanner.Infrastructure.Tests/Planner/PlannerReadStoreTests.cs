@@ -97,6 +97,20 @@ public class PlannerReadStoreTests
 	}
 
 	[Fact]
+	public async Task PausedFilterReturnsOnlyPausedGoals()
+	{
+		using var db = CreateDb(out var connection);
+		await using var _ = connection;
+		var ct = TestContext.Current.CancellationToken;
+		var paused = new Goal("Paused", GoalHorizon.Yearly); paused.SetStatus(GoalStatus.Paused);
+		db.AddRange(paused, new Goal("Active", GoalHorizon.Yearly));
+		await db.SaveChangesAsync(ct);
+		var store = new PlannerReadStore(new TestPlannerDbContextFactory(connection));
+		(await store.QueryGoalsAsync(new PlannerGoalQuery(Status: PlannerGoalStatus.Paused), ct)).Items
+			.Should().ContainSingle(g => g.Id == paused.Id && g.Status == GoalStatus.Paused);
+	}
+
+	[Fact]
 	public async Task TaskQueriesAndDetails_ExcludeTrashedTasks()
 	{
 		using var db = CreateDb(out var connection);

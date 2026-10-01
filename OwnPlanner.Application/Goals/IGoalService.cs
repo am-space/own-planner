@@ -7,7 +7,7 @@ namespace OwnPlanner.Application.Goals;
 /// </summary>
 public interface IGoalService
 {
-	/// <summary>Creates a new goal with the specified horizon and optional planning fields.</summary>
+	/// <summary>Creates a new goal with the specified horizon and optional planning fields; returns advisory guidance above five active goals.</summary>
 	Task<GoalDto> CreateAsync(string title, GoalHorizon horizon, string? description = null, string? targetPeriod = null, DateTime? targetDate = null, string? metric = null, CancellationToken ct = default);
 
 	/// <summary>Returns the goal with the given <paramref name="id"/>, or <c>null</c> if not found.</summary>
@@ -16,12 +16,12 @@ public interface IGoalService
 	/// <summary>
 	/// Returns all goals. By default only <see cref="GoalStatus.Active"/> goals are returned;
 	/// pass <paramref name="includeInactive"/> = <c>true</c> to also include
-	/// <see cref="GoalStatus.Achieved"/> and <see cref="GoalStatus.Dropped"/> goals.
+	/// <see cref="GoalStatus.Achieved"/>, <see cref="GoalStatus.Dropped"/> and <see cref="GoalStatus.Paused"/> goals.
 	/// </summary>
 	Task<IReadOnlyList<GoalDto>> ListAsync(bool includeInactive = false, CancellationToken ct = default);
 
 	/// <summary>
-	/// Updates the specified fields of a goal. Only non-<c>null</c> arguments are applied.
+	/// Updates the specified fields of a goal. Only non-<c>null</c> arguments are applied. Pausing records a timestamp; resuming clears it and grants a 14-day stalled grace period. Activating a goal may return advisory guidance; the active-goal count never blocks an action.
 	/// <para>
 	/// <b>Horizon fields:</b> <paramref name="horizon"/>, <paramref name="targetPeriod"/>, and
 	/// <paramref name="targetDate"/> are always updated together — if any of the three is provided,

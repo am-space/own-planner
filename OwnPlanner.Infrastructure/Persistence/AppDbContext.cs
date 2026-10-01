@@ -112,6 +112,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 		goal.Property(g => g.TargetPeriod).HasMaxLength(20);
 		goal.Property(g => g.TargetDate);
 		goal.Property(g => g.Status).IsRequired();
+		goal.Property(g => g.PausedAt);
+		goal.Property(g => g.LastResumedAt);
 		goal.Property(g => g.Metric);
 		goal.Property(g => g.MetricCurrent);
 		goal.Property(g => g.CreatedAt);
