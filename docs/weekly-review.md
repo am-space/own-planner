@@ -32,13 +32,16 @@ Settings, web chat and Telegram `/review` share this claim. The month is determi
 opening instant in the review's frozen timezone, rather than its target-week date. Empty paused-goal
 sets, task pagination, expired/finished reviews, reminders and lookups solely to skip/defer/finish do
 not consume the mention. A review already presented has delivered its mention even if later skipped
-or deferred. Claims survive restarts and are serialized across concurrent openings.
+or deferred. Claims survive restarts and are serialized across concurrent openings. Long Telegram
+reviews retain all paused-goal names and ages: the bot client splits the full reply into messages of at most 4096
+UTF-16 units, preserving Unicode content.
 
 Five active goals is a recommendation. Creating or activating a goal above that count succeeds and
 returns `activeGoalWarning`, which chat adds once to its response. Unrelated edits and repeated Active
-updates do not repeat it. A live review above five returns the same warning once at its beginning,
-shared across channels. No action is blocked by this count. There is no automatic pausing, scheduled
-resume, configurable limit or new goal editing screen.
+updates do not repeat it. The first presented page checks the active-goal count once, shared across
+channels, and returns the same warning only when that initial count exceeds five. Later refreshes
+do not add a review warning if goal creation or resuming raises the count. No action is blocked by this
+count. There is no automatic pausing, scheduled resume, configurable limit or new goal editing screen.
 
 ## Calendar and selection
 

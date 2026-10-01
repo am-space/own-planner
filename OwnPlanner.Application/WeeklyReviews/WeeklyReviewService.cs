@@ -62,7 +62,8 @@ public sealed class WeeklyReviewService(IWeeklyReviewStore store, TimeProvider c
 				var mention = paused.Count > 0 && (preferences.PausedGoalsMentionMonth is null || preferences.PausedGoalsMentionMonth < month);
 				if (mention) preferences.PausedGoalsMentionMonth = month;
 				var limitWarning = warning is not null && !current.ActiveGoalLimitWarned;
-				if (limitWarning) current.ActiveGoalLimitWarned = true;
+				// Consume the initial check even below the limit; later goal changes have their own advisory.
+				current.ActiveGoalLimitWarned = true;
 				return (Paused: mention, Limit: limitWarning);
 			}, ct);
 			if (claims.Paused) pausedMention = PausedMention(paused, now);

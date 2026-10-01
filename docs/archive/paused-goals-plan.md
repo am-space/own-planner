@@ -47,10 +47,24 @@ Reviewed before implementation: each acceptance criterion mapped above; business
 
 ## Completed verification
 
-`./scripts/verify.sh --all` passed: frontend lint/build, 746 backend tests and 26 browser E2E tests.
+`./scripts/verify.sh --all` passed: frontend lint/build, 749 backend tests and 26 browser E2E tests.
 Focused checks covered Domain transitions, goal service thresholds, shared MCP schemas/parsing,
 concurrent monthly/review claims, restart persistence, local month boundaries, skipped/deferred and
 expired/paged lookups, resume grace, existing-status migration upgrades, planner filtering, exported
 pause state and authenticated web/Telegram isolation. The browser test verified the Paused filter
 and one-time Settings guidance. Only the existing ASP.NET deprecation and Vite chunk warnings remain.
 The completed diff and documentation links were reviewed; `git diff --check` passed.
+
+## PR review follow-up
+
+Review the warning timing and Telegram size findings before changing behavior. Consume the initial
+review limit check on the first actual page even with five or fewer active goals, preserving suppression after
+later creation/resume and restarts. Verify with below-limit-to-six regression tests. The existing
+TelegramBotClient already splits long replies at 4096 UTF-16 units while preserving Unicode. Keep
+all paused-goal titles and ages, and add a large /review regression through the real bot client and
+recorded HTTP requests to prove successful size-limited delivery. No schema or transport changes.
+Re-run the full verification gate before pushing.
+
+Follow-up verification passed: `./scripts/verify.sh --all` completed with 749 backend tests,
+26 browser E2E tests and frontend lint/build. The initial-count and long Telegram delivery
+regressions passed; the existing warnings are unchanged.

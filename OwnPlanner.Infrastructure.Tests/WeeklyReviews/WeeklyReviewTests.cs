@@ -513,6 +513,33 @@ public sealed class WeeklyReviewTests : IAsyncLifetime
 	}
 
 	[Theory]
+	[InlineData(4)]
+	[InlineData(5)]
+	public async Task ReviewBelowLimitDoesNotWarnOnRefreshAfterCreatingSixthGoal(int initialCount)
+	{
+		await Enable();
+		await using (var db = await _factory.CreateAsync(Ct))
+		{
+			db.Goals.AddRange(Enumerable.Range(0, initialCount).Select(i => new Goal($"Initial {i}", GoalHorizon.Yearly)));
+			await db.SaveChangesAsync(Ct);
+		}
+		var first = await Service.OpenAsync(ct: Ct);
+		first.ActiveGoalWarning.Should().BeNull();
+		var goals = new GoalService(new GoalRepository(_factory), _clock);
+		for (var count = initialCount; count < 6; count++)
+		{
+			var created = await goals.CreateAsync($"Additional {count}", GoalHorizon.Yearly, ct: Ct);
+			(created.ActiveGoalWarning is not null).Should().Be(count == 5);
+		}
+		var restarted = new WeeklyReviewService(new WeeklyReviewStore(_factory), _clock);
+		var refreshed = await restarted.OpenAsync(first.Review.Id, ct: Ct);
+		refreshed.Report.Goals.ActiveCount.Should().Be(6);
+		refreshed.ActiveGoalWarning.Should().BeNull();
+		_clock.Now = _clock.Now.AddDays(7);
+		(await restarted.OpenAsync(ct: Ct)).ActiveGoalWarning.Should().Contain("6 active goals");
+	}
+
+	[Theory]
 	[InlineData("skip")]
 	[InlineData("defer")]
 	public async Task SkippingOrDeferringWithoutPresentationDoesNotConsumeMonthlyMention(string action)

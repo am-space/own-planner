@@ -29,5 +29,6 @@ public sealed class WeeklyReviewState
 	public DateTime? RetryAtUtc { get; set; }
 	public bool OfferedInChat { get; set; }
 	public bool GoalCreationOfferedInChat { get; set; }
+	/// <summary>The first presented page has checked the active-goal limit, whether or not a warning was needed.</summary>
 	public bool ActiveGoalLimitWarned { get; set; }
 }

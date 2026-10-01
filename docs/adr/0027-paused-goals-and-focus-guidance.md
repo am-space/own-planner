@@ -27,7 +27,9 @@ to the existing read-only planner surface. Successful creation/activation above 
 returns advisory activeGoalWarning. No count rejects an action; unrelated edits do not warn again.
 
 Application claims a once-per-review warning and a once-per-local-month paused-goal mention during
-live first-page presentation. Store the warning flag on the review and the latest claimed calendar
+live first-page presentation. Consume the initial limit check even when no warning is needed, so later
+refreshes do not introduce a review warning after a creation/resume advisory. Store the check flag
+on the review and the latest claimed calendar
 month in per-user preferences. The opening instant and review's frozen timezone determine the month.
 No paused goals means no claim. Internal skip/defer/finish lookups, pagination, expired and terminal
 reviews do not claim guidance. Settings, chat and Telegram /review use the same atomic SQLite
@@ -35,6 +37,8 @@ transitions. Shared weekly_review_open adds optional present=false for internal 
 
 Application formats one sentence with pause ages and a resume invitation. Transport views render the
 returned fields; chat instructions place the warning at the beginning and mention paused goals once.
+TelegramBotClient splits long review replies into messages of at most 4096 UTF-16 units without
+losing Unicode, so the full monthly goal list remains deliverable.
 Reminders and fallback invitations never query or present paused-goal titles. AddPausedGoals is a
 CLI-generated additive AppDbContext migration; central auth and tenant resolution are unchanged.
 Existing SQLite exports include pause status, timestamps and claims.

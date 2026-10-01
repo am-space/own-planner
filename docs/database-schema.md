@@ -57,6 +57,7 @@ invitation in chat. Existing review rows default to unclaimed; no auth data chan
 grace period. Resuming clears `PausedAt` without changing task links.
 
 `AddPausedGoals` adds those nullable columns, nullable `WeeklyReviewPreferences.PausedGoalsMentionMonth`
-(the first day of the claimed local month), and `WeeklyReviews.ActiveGoalLimitWarned` (default false).
+(the first day of the claimed local month), and `WeeklyReviews.ActiveGoalLimitWarned` (default false; becomes true after the initial count check even
+when no warning was needed).
 All claims are per-user and serialized in the existing SQLite transaction. Existing statuses and
 planning data are preserved. Central auth is unchanged; exports retain these planner fields.
