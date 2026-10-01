@@ -73,7 +73,7 @@ public sealed class WeeklyReviewStore(IPlannerDbContextFactory factory) : IWeekl
 		var goals = await db.Goals.AsNoTracking().Where(g => g.Status == GoalStatus.Active)
 			.Select(g => new { g.Id, g.Title, g.CreatedAt, g.Horizon, g.TargetPeriod, g.TargetDate, g.Metric, g.MetricCurrent })
 			.ToListAsync(ct);
-		var activeIds = goals.Select(g => g.Id).ToArray();
+		var activeGoalIds = db.Goals.AsNoTracking().Where(g => g.Status == GoalStatus.Active).Select(g => g.Id);
 		var completedStart = nowUtc.AddDays(-7);
 		var stalledStart = nowUtc.AddDays(-14);
 		var focusStart = review.TargetWeek.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
@@ -84,9 +84,9 @@ public sealed class WeeklyReviewStore(IPlannerDbContextFactory factory) : IWeekl
 		var planned = valid.Where(t => !t.IsCompleted && t.FocusAt >= focusStart && t.FocusAt < focusEnd);
 		var completedTotal = await completed.CountAsync(ct);
 		var plannedTotal = await planned.CountAsync(ct);
-		var completedGoal = await completed.CountAsync(t => t.GoalId != null && activeIds.Contains(t.GoalId.Value), ct);
-		var plannedGoal = await planned.CountAsync(t => t.GoalId != null && activeIds.Contains(t.GoalId.Value), ct);
-		var linked = valid.Where(t => t.GoalId != null && activeIds.Contains(t.GoalId.Value));
+		var completedGoal = await completed.CountAsync(t => t.GoalId != null && activeGoalIds.Contains(t.GoalId.Value), ct);
+		var plannedGoal = await planned.CountAsync(t => t.GoalId != null && activeGoalIds.Contains(t.GoalId.Value), ct);
+		var linked = valid.Where(t => t.GoalId != null && activeGoalIds.Contains(t.GoalId.Value));
 		var counts = await linked.GroupBy(t => t.GoalId!.Value).Select(group => new
 		{
 			GoalId = group.Key,
