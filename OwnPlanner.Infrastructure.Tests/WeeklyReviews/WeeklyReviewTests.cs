@@ -71,25 +71,34 @@ public sealed class WeeklyReviewTests : IAsyncLifetime
 	public async Task PersistenceModelMigrationPreservesExistingReviewAndPreferenceData()
 	{
 		var factory = new Factory(Path.Combine(_directory, "upgrade.db"));
-		await using (var db = await factory.CreateAsync(Ct))
-			await db.GetService<IMigrator>().MigrateAsync("20260921164009_AddWeeklyReviews", Ct);
-		var store = new WeeklyReviewStore(factory);
-		var original = await store.UpdateAsync((preferences, reviews) =>
+		var preferences = new WeeklyReviewPreferences
 		{
-			preferences.Enabled = true; preferences.TimeZoneId = "Europe/London";
-			preferences.WeekStart = 0; preferences.ReminderTime = "17:30";
-			var review = WeeklyReviewCalendar.Create(preferences, _clock.Now, false);
-			review.Status = "deferred"; review.DeferredUntilUtc = _clock.Now.AddHours(2);
-			review.Occurrence = 3; review.Delivery = "claimed"; review.Attempts = 2;
-			review.RetryAtUtc = _clock.Now.AddMinutes(5); review.OfferedInChat = true;
-			reviews.Add(review);
-			return (preferences, review);
-		}, Ct);
+			Enabled = true, TimeZoneId = "Europe/London", WeekStart = 0, ReminderTime = "17:30"
+		};
+		var review = WeeklyReviewCalendar.Create(preferences, _clock.Now, false);
+		review.Status = "deferred"; review.DeferredUntilUtc = _clock.Now.AddHours(2);
+		review.Occurrence = 3; review.Delivery = "claimed"; review.Attempts = 2;
+		review.RetryAtUtc = _clock.Now.AddMinutes(5); review.OfferedInChat = true;
+		await using (var db = await factory.CreateAsync(Ct))
+		{
+			await db.GetService<IMigrator>().MigrateAsync("20260922082922_SeparateWeeklyReviewPersistenceModels", Ct);
+			await db.Database.ExecuteSqlInterpolatedAsync($"""
+				INSERT INTO "WeeklyReviewPreferences" ("Id", "Enabled", "TimeZoneId", "WeekStart", "ReminderTime", "Channel")
+				VALUES ({preferences.Id}, {preferences.Enabled}, {preferences.TimeZoneId}, {preferences.WeekStart}, {preferences.ReminderTime}, {preferences.Channel})
+				""", Ct);
+			await db.Database.ExecuteSqlInterpolatedAsync($"""
+				INSERT INTO "WeeklyReviews" ("Id", "TargetWeek", "TimeZoneId", "StartsAtUtc", "EndsAtUtc", "ScheduledAtUtc",
+					"Status", "DeferredUntilUtc", "Occurrence", "Delivery", "Attempts", "RetryAtUtc", "OfferedInChat")
+				VALUES ({review.Id}, {review.TargetWeek}, {review.TimeZoneId}, {review.StartsAtUtc}, {review.EndsAtUtc}, {review.ScheduledAtUtc},
+					{review.Status}, {review.DeferredUntilUtc}, {review.Occurrence}, {review.Delivery}, {review.Attempts}, {review.RetryAtUtc}, {review.OfferedInChat})
+				""", Ct);
+		}
+		var store = new WeeklyReviewStore(factory);
 		await using (var db = await factory.CreateAsync(Ct))
 			await db.Database.MigrateAsync(Ct);
-		(await store.GetPreferencesAsync(Ct)).Should().BeEquivalentTo(original.preferences);
+		(await store.GetPreferencesAsync(Ct)).Should().BeEquivalentTo(preferences);
 		var persisted = await store.UpdateAsync((_, reviews) => reviews.Single(), Ct);
-		persisted.Should().BeEquivalentTo(original.review);
+		persisted.Should().BeEquivalentTo(review);
 		// Persistence types never become public results, and no Domain audit fields appear on the wire.
 		JsonSerializer.SerializeToElement(persisted).EnumerateObject().Select(p => p.Name)
 			.Should().NotContain(["CreatedAt", "UpdatedAt"]);
@@ -379,12 +388,52 @@ public sealed class WeeklyReviewTests : IAsyncLifetime
 	}
 
 	[Fact]
-	public async Task GoalOnlyWorkTriggersCountsOnlyReminder_AndNoGoalSuggestionAppearsOnce()
+	public async Task GoalReviewKeepsExactCountsAndTenSamplesForEachGoal()
+	{
+		await Enable();
+		var goals = new[]
+		{
+			new Goal("First", GoalHorizon.Yearly, targetPeriod: "2026"),
+			new Goal("Second", GoalHorizon.Yearly, targetPeriod: "2026")
+		};
+		var list = new TaskList("Tasks");
+		await using (var db = await _factory.CreateAsync(Ct))
+		{
+			db.Add(list);
+			db.Goals.AddRange(goals);
+			foreach (var goal in goals)
+			{
+				for (var index = 0; index < 12; index++)
+				{
+					var completed = new TaskItem($"{goal.Title} completed {index}", list.Id, goalId: goal.Id);
+					completed.Complete();
+					db.Entry(completed).Property(t => t.CompletedAt).CurrentValue = _clock.Now.AddDays(-1);
+					db.Add(completed);
+					db.Add(new TaskItem($"{goal.Title} open {index}", list.Id, goalId: goal.Id));
+				}
+			}
+			await db.SaveChangesAsync(Ct);
+		}
+		var report = (await Service.OpenAsync(ct: Ct)).Report.Goals;
+		foreach (var goal in goals)
+		{
+			var row = report.Items.Single(item => item.Id == goal.Id);
+			row.CompletedLast7Count.Should().Be(12);
+			row.CompletedLast7.Should().HaveCount(10).And.OnlyContain(task => task.Title.StartsWith(goal.Title));
+			row.OpenTaskCount.Should().Be(12);
+			row.OpenTasks.Should().HaveCount(10).And.OnlyContain(task => task.Title.StartsWith(goal.Title));
+		}
+		report.CompletedGoalWorkCount.Should().Be(24);
+	}
+
+	[Fact]
+	public async Task GoalOnlyWorkTriggersCountsOnlyReminder_AndChatClaimsGoalSuggestionOnce()
 	{
 		await Enable();
 		var first = await Service.OpenAsync(ct: Ct);
-		first.SuggestCreatingGoals.Should().BeTrue();
-		(await Service.OpenAsync(first.Review.Id, ct: Ct)).SuggestCreatingGoals.Should().BeFalse();
+		first.SuggestCreatingGoals.Should().BeFalse();
+		(await Service.OpenAsync(first.Review.Id, ct: Ct, conversational: true)).SuggestCreatingGoals.Should().BeTrue();
+		(await Service.OpenAsync(first.Review.Id, ct: Ct, conversational: true)).SuggestCreatingGoals.Should().BeFalse();
 		await using (var db = await _factory.CreateAsync(Ct))
 		{
 			db.Goals.Add(new Goal("PRIVATE GOAL", GoalHorizon.Yearly, targetPeriod: "2026"));
@@ -392,7 +441,8 @@ public sealed class WeeklyReviewTests : IAsyncLifetime
 		}
 		var claim = await Service.ClaimReminderAsync(Ct);
 		claim.Should().NotBeNull();
-		claim!.Text.Should().Contain("1 active goals").And.NotContain("PRIVATE GOAL");
+		claim!.Text.Should().Contain("1 active goal: 1 has no next step; 0 have had no progress")
+			.And.NotContain("PRIVATE GOAL");
 	}
 
 	[Fact]

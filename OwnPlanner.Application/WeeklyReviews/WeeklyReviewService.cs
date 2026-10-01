@@ -24,22 +24,29 @@ public sealed class WeeklyReviewService(IWeeklyReviewStore store, TimeProvider c
 		}, ct);
 	}
 
-	public async Task<WeeklyReviewView> OpenAsync(Guid? reviewId = null, int offset = 0, int limit = 20, CancellationToken ct = default, DateOnly? targetWeek = null)
+	public async Task<WeeklyReviewView> OpenAsync(Guid? reviewId = null, int offset = 0, int limit = 20, CancellationToken ct = default, DateOnly? targetWeek = null, bool conversational = false)
 	{
 		if (offset < 0 || limit is < 1 or > 50) throw new ArgumentException("Use offset >= 0 and limit between 1 and 50.");
 		var now = Now;
-		var opened = await store.UpdateAsync((preferences, reviews) =>
+		var review = await store.UpdateAsync((preferences, reviews) =>
 		{
 			if (reviewId.HasValue && targetWeek.HasValue) throw new ArgumentException("Specify reviewId or targetWeek, not both.");
 			var review = reviewId.HasValue ? Find(reviews, reviewId.Value) : targetWeek.HasValue
 				? reviews.FirstOrDefault(r => r.TargetWeek == targetWeek) ?? throw new KeyNotFoundException("Weekly review not found.")
 				: DueDeferral(reviews, now) ?? Resolve(preferences, reviews, now, false);
-			var firstOpen = review.Status == "notStarted";
-			if (firstOpen) review.Status = "inProgress";
-			return (review, firstOpen);
+			if (review.Status == "notStarted") review.Status = "inProgress";
+			return review;
 		}, ct);
-		var report = await BuildReportAsync(opened.review, now, offset, limit, ct);
-		return new(opened.review, report) { SuggestCreatingGoals = opened.firstOpen && report.Goals.ActiveCount == 0 };
+		var report = await BuildReportAsync(review, now, offset, limit, ct);
+		var suggestCreatingGoals = conversational && report.Goals.ActiveCount == 0 &&
+			await store.UpdateAsync((_, reviews) =>
+			{
+				var current = Find(reviews, review.Id);
+				if (current.GoalCreationOfferedInChat || Terminal(current)) return false;
+				current.GoalCreationOfferedInChat = true;
+				return true;
+			}, ct);
+		return new(review, report) { SuggestCreatingGoals = suggestCreatingGoals };
 	}
 
 	public Task<WeeklyReviewState> TransitionAsync(Guid reviewId, string action, string? localTime = null, CancellationToken ct = default)

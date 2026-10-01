@@ -86,22 +86,38 @@ public sealed class WeeklyReviewStore(IPlannerDbContextFactory factory) : IWeekl
 		var plannedTotal = await planned.CountAsync(ct);
 		var completedGoal = await completed.CountAsync(t => t.GoalId != null && activeIds.Contains(t.GoalId.Value), ct);
 		var plannedGoal = await planned.CountAsync(t => t.GoalId != null && activeIds.Contains(t.GoalId.Value), ct);
+		var linked = valid.Where(t => t.GoalId != null && activeIds.Contains(t.GoalId.Value));
+		var counts = await linked.GroupBy(t => t.GoalId!.Value).Select(group => new
+		{
+			GoalId = group.Key,
+			CompletedLast7 = group.Count(t => t.IsCompleted && t.CompletedAt >= completedStart && t.CompletedAt <= nowUtc),
+			CompletedLast14 = group.Count(t => t.IsCompleted && t.CompletedAt >= stalledStart && t.CompletedAt <= nowUtc),
+			Open = group.Count(t => !t.IsCompleted),
+			Planned = group.Count(t => !t.IsCompleted && t.FocusAt >= focusStart && t.FocusAt < focusEnd)
+		}).ToDictionaryAsync(row => row.GoalId, ct);
+		// SQLite's row_number keeps each goal's title samples bounded without a query per goal.
+		var samples = await db.TaskItems.FromSqlInterpolated($"""
+			SELECT * FROM (
+				SELECT t.*, ROW_NUMBER() OVER (PARTITION BY t."GoalId", t."IsCompleted" ORDER BY t."Id") AS "sampleRank"
+				FROM "TaskItems" AS t
+				JOIN "TaskLists" AS l ON l."Id" = t."TaskListId"
+				JOIN "Goals" AS g ON g."Id" = t."GoalId"
+				WHERE t."TrashedAt" IS NULL AND l."IsArchived" = 0 AND g."Status" = {GoalStatus.Active}
+					AND (t."IsCompleted" = 0 OR (t."CompletedAt" >= {completedStart} AND t."CompletedAt" <= {nowUtc}))
+			) WHERE "sampleRank" <= 10
+			""").AsNoTracking()
+			.Select(t => new { t.GoalId, t.IsCompleted, Task = new WeeklyReviewGoalTask(t.Id, t.Title, t.UpdatedAt, t.FocusAt) })
+			.ToListAsync(ct);
+		var recentByGoal = samples.Where(row => row.IsCompleted).ToLookup(row => row.GoalId!.Value, row => row.Task);
+		var openByGoal = samples.Where(row => !row.IsCompleted).ToLookup(row => row.GoalId!.Value, row => row.Task);
 		var rows = new List<WeeklyReviewGoalRow>(goals.Count);
 		foreach (var goal in goals)
 		{
-			var linked = valid.Where(t => t.GoalId == goal.Id);
-			var recent = linked.Where(t => t.IsCompleted && t.CompletedAt >= completedStart && t.CompletedAt <= nowUtc);
-			var open = linked.Where(t => !t.IsCompleted);
-			var upcoming = open.Where(t => t.FocusAt >= focusStart && t.FocusAt < focusEnd);
+			counts.TryGetValue(goal.Id, out var count);
 			rows.Add(new(goal.Id, goal.Title, goal.CreatedAt, goal.Horizon, goal.TargetPeriod, goal.TargetDate,
-				goal.Metric, goal.MetricCurrent, await recent.CountAsync(ct),
-				await recent.OrderBy(t => t.Id).Take(10)
-					.Select(t => new WeeklyReviewGoalTask(t.Id, t.Title, t.UpdatedAt, t.FocusAt)).ToListAsync(ct),
-				await linked.CountAsync(t => t.IsCompleted && t.CompletedAt >= stalledStart && t.CompletedAt <= nowUtc, ct),
-				await open.CountAsync(ct),
-				await open.OrderBy(t => t.Id).Take(10)
-					.Select(t => new WeeklyReviewGoalTask(t.Id, t.Title, t.UpdatedAt, t.FocusAt)).ToListAsync(ct),
-				await upcoming.CountAsync(ct)));
+				goal.Metric, goal.MetricCurrent, count?.CompletedLast7 ?? 0,
+				recentByGoal[goal.Id].OrderBy(task => task.Id).ToArray(), count?.CompletedLast14 ?? 0,
+				count?.Open ?? 0, openByGoal[goal.Id].OrderBy(task => task.Id).ToArray(), count?.Planned ?? 0));
 		}
 		return new(rows, completedGoal, completedTotal - completedGoal, plannedGoal, plannedTotal - plannedGoal);
 	}

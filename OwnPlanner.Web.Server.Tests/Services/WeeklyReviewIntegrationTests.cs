@@ -197,14 +197,23 @@ public sealed partial class DirectToolMcpAdapterTests
 		var account = new TelegramLinkedAccount(userId, 10, 20, PlanningMode.DayWork);
 		(await handler.HandleAsync(account, "", ct)).Should().Contain("timezone");
 		await handler.HandleAsync(account, "enable Europe/London 1 18:00", ct);
+		(await handler.HandleAsync(account, "", ct)).Should().NotContain("formulate 1–3 goals");
+		await using (var initialChat = CreateAdapter(services, userId.ToString()))
+		{
+			var first = ParseJsonElement(await initialChat.CallToolAsync("weekly_review_open", cancellationToken: ct));
+			first.GetProperty("suggestCreatingGoals").GetBoolean().Should().BeTrue();
+			var again = ParseJsonElement(await initialChat.CallToolAsync("weekly_review_open", cancellationToken: ct));
+			again.GetProperty("suggestCreatingGoals").GetBoolean().Should().BeFalse();
+		}
 		await using (var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>()
 			.UseSqlite($"Data Source={Path.Combine(_tempDirectory, $"ownplanner-user-{userId}.db")}").Options))
 		{
-			db.Goals.Add(new Goal("Telegram goal", GoalHorizon.Yearly, targetPeriod: "2026"));
+			db.Goals.Add(new Goal("Telegram goal", GoalHorizon.Monthly, targetPeriod: "2026-07"));
 			await db.SaveChangesAsync(ct);
 		}
 		var summary = await handler.HandleAsync(account, "", ct);
-		summary.Should().Contain("Telegram goal").And.Contain("no next step").And.Contain("no plan for week");
+		summary.Should().Contain("Telegram goal").And.Contain("no next step").And.Contain("no plan for week")
+			.And.Contain("target period passed").And.NotContain("targetPeriodPassed");
 		summary.IndexOf("Active goals:", StringComparison.Ordinal).Should().BeLessThan(summary.IndexOf("Remaining tasks:", StringComparison.Ordinal));
 		await handler.HandleAsync(account, "skip", ct);
 		await using var web = CreateAdapter(services, userId.ToString());

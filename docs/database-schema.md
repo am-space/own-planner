@@ -47,3 +47,5 @@ Weekly review persistence uses Infrastructure row types mapped to Application wo
 The singleton preference key and review identifiers retain their original columns and values.
 `SeparateWeeklyReviewPersistenceModels` is a snapshot-only migration with empty Up/Down operations;
 existing planner data needs no conversion.
+`TrackWeeklyGoalCreationOffer` adds a per-review boolean to claim the one-time goal-creation
+invitation in chat. Existing review rows default to unclaimed; no auth data changes.

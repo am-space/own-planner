@@ -53,8 +53,8 @@ public interface IWeeklyReviewService
 	Task<WeeklyReviewPreferences> GetPreferencesAsync(CancellationToken ct = default);
 	/// <summary>Validates and persists explicit preferences. Disabling suppresses automatic offers and delivery.</summary>
 	Task<WeeklyReviewPreferences> ConfigureAsync(bool enabled, string? timeZoneId, int weekStart, string reminderTime, string channel = "telegram", CancellationToken ct = default);
-	/// <summary>Reads fresh bounded review data. Opening changes only review state, never tasks. An explicit targetWeek selects an existing review by its frozen calendar date.</summary>
-	Task<WeeklyReviewView> OpenAsync(Guid? reviewId = null, int offset = 0, int limit = 20, CancellationToken ct = default, DateOnly? targetWeek = null);
+	/// <summary>Reads fresh bounded review data. Opening changes only review state, never tasks. An explicit targetWeek selects an existing review by its frozen calendar date. A conversational opening claims the one-time goal-creation offer when there are no active goals.</summary>
+	Task<WeeklyReviewView> OpenAsync(Guid? reviewId = null, int offset = 0, int limit = 20, CancellationToken ct = default, DateOnly? targetWeek = null, bool conversational = false);
 	/// <summary>Completes, skips or defers the specified review; deferral is a local time in its frozen timezone.</summary>
 	Task<WeeklyReviewState> TransitionAsync(Guid reviewId, string action, string? localTime = null, CancellationToken ct = default);
 	/// <summary>Claims a single contextual offer for an eligible missed review after a suitable planning interaction.</summary>

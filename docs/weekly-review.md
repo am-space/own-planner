@@ -30,8 +30,9 @@ task or create one, and schedule its focus date in the target week. A linked tas
 from within the review even if it was absent from the carryover page. A user may leave a goal
 without a plan after one confirmation. Stalled or past-period goals prompt a keep, achieve, drop,
 or target-period change decision. Metric progress can be updated during the review. Every goal
-edit requires an explicit user instruction. When there are no active goals, the first opening of
-that review offers once to formulate one to three goals; declining continues to tasks.
+edit requires an explicit user instruction. When there are no active goals, the first conversational
+opening of that review offers once to formulate one to three goals, even if Settings or Telegram
+`/review` was opened earlier; declining continues to tasks.
 
 After the goal step, the ordinary task review continues. A task already linked to an active goal
 and focused in the target week is omitted from the task page so it is not reviewed twice. The

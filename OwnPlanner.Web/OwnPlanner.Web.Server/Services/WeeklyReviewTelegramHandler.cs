@@ -41,7 +41,12 @@ public sealed class WeeklyReviewTelegramHandler(IServiceScopeFactory scopes, IPl
 				$"• {goal.Title}: {goal.CompletedLast7Count} completed, {goal.OpenTaskCount} open, {goal.PlannedTaskCount} planned" +
 				(goal.NoNextStep ? "; no next step" : "") + (goal.Stalled ? "; stalled" : "") +
 				(goal.PlannedTaskCount == 0 ? "; no plan for week" : "") +
-				(goal.TargetPeriodFlag is null ? "" : $"; {goal.TargetPeriodFlag}"));
+				(goal.TargetPeriodFlag switch
+				{
+					"targetPeriodPassed" => "; target period passed",
+					"targetPeriodEndingSoon" => "; target period ending soon",
+					_ => ""
+				}));
 			return $"Weekly review: {view.Review.TargetWeek:yyyy-MM-dd} ({view.Review.TimeZoneId}), {view.Review.Status}.\n" +
 				WeeklyReviewCalendar.Notification(view.Review.TargetWeek, view.Report) + "\n" +
 				(view.SuggestCreatingGoals ? "Would you like to formulate 1–3 goals?\n" : "") +

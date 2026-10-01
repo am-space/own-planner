@@ -19,15 +19,17 @@ pages, explicit lifecycle controls and guarded task actions. The
 
 The weekly review opens with all active goals, ordered by calculated attention flags, then presents
 remaining carryover and deadline tasks. `WeeklyReviewStore` reads exact counts and bounded title
-samples from the user-bound `AppDbContext`. `WeeklyReviewGoalCalculator` owns the 7-day completion,
+samples from the user-bound `AppDbContext`. Grouped counts and window-ranked samples keep query count
+fixed as active goals grow. `WeeklyReviewGoalCalculator` owns the 7-day completion,
 14-day stall, no-next-step and target-period rules. It also calculates the split of recent completed
 and target-week planned tasks between active goal work and other work. Trash, archived lists and
 inactive or missing goal references never count as active goal work. The target-period warning uses
 a seven-local-day window and strict month, quarter, year or date parsing.
 
 The existing `weekly_review_open` and authenticated HTTP response gain additive goal data and a
-first-open `suggestCreatingGoals` hint. No persistent state or migration is added: the established
-`notStarted` to `inProgress` transition supplies the once-per-review hint. The existing task page
+`suggestCreatingGoals` hint. Only a conversational opening claims the one-time hint, so opening in
+Settings or through Telegram `/review` cannot consume it. The additive
+`TrackWeeklyGoalCreationOffer` AppDbContext migration persists that claim per review. The existing task page
 omits tasks already linked to an active goal and focused in the target week, avoiding a second pass.
 
 The shared `weekly_review_apply` tool gains `goalFocus` and `linkGoal` actions. Both reuse review,
@@ -53,9 +55,8 @@ panel displays goal summaries before its task page; no new screen or route is in
 
 ### Negative / Trade-offs
 
-- The goal read model uses several local SQLite queries per active goal to keep counts exact and
-  title samples bounded. A very large active-goal set makes opening slower; revisit with grouped
-  SQL if that becomes common.
+- The goal read model uses SQLite window functions for bounded samples; an alternative database
+  provider would need equivalent query support.
 - A review consists of fresh sequential task and goal reads, so concurrent edits between them can
   briefly make the two sections differ. Refreshing obtains current evidence.
 - Matching an unlinked task to a goal and conversational confirmation remain model-guided; the
