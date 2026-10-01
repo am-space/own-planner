@@ -140,6 +140,7 @@ public sealed class PlannerReadStore(IPlannerDbContextFactory dbContextFactory) 
 			PlannerGoalStatus.Active => filtered.Where(goal => goal.Status == GoalStatus.Active),
 			PlannerGoalStatus.Achieved => filtered.Where(goal => goal.Status == GoalStatus.Achieved),
 			PlannerGoalStatus.Dropped => filtered.Where(goal => goal.Status == GoalStatus.Dropped),
+			PlannerGoalStatus.Paused => filtered.Where(goal => goal.Status == GoalStatus.Paused),
 			_ => filtered,
 		};
 

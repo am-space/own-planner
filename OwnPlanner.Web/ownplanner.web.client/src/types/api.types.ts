@@ -140,9 +140,9 @@ export interface PagedResult<T> {
 }
 
 export type PlannerTaskStatus = 'Open' | 'Completed' | 'All';
-export type PlannerGoalStatus = 'Active' | 'Achieved' | 'Dropped' | 'All';
+export type PlannerGoalStatus = 'Active' | 'Achieved' | 'Dropped' | 'Paused' | 'All';
 export type GoalHorizon = 'Monthly' | 'Quarterly' | 'Yearly' | 'TargetDate';
-export type GoalStatus = 'Active' | 'Achieved' | 'Dropped';
+export type GoalStatus = 'Active' | 'Achieved' | 'Dropped' | 'Paused';
 export type ContextStatus = 'Active' | 'Paused' | 'Completed' | 'Archived';
 
 export interface PlannerTaskQuery {
@@ -291,6 +291,8 @@ export interface WeeklyReviewState {
 export interface WeeklyReviewView {
   review: WeeklyReviewState;
   suggestCreatingGoals: boolean;
+  pausedGoalsMention: string | null;
+  activeGoalWarning: string | null;
   report: {
     carryoverCount: number;
     overdueCount: number;

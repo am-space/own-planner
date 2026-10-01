@@ -4,5 +4,6 @@ public enum GoalStatus
 {
 	Active,
 	Achieved,
-	Dropped
+	Dropped,
+	Paused
 }

@@ -474,6 +474,160 @@ public sealed class WeeklyReviewTests : IAsyncLifetime
 		linked.Task!.GoalId.Should().Be(goal.Id);
 	}
 
+	private async Task<Goal> SeedPausedGoal(string title = "Spanish", int daysAgo = 60)
+	{
+		var goal = new Goal(title, GoalHorizon.Yearly, targetPeriod: "2026");
+		goal.SetStatus(GoalStatus.Paused, _clock.Now.AddDays(-daysAgo));
+		await using var db = await _factory.CreateAsync(Ct);
+		db.Goals.Add(goal);
+		await db.SaveChangesAsync(Ct);
+		return goal;
+	}
+
+	[Fact]
+	public async Task MonthlyMentionAndLimitWarningAreClaimedOnceAcrossConcurrentOpensAndRestart()
+	{
+		await Enable();
+		await SeedPausedGoal();
+		await SeedPausedGoal("Balcony", 21);
+		await using (var db = await _factory.CreateAsync(Ct))
+		{
+			db.Goals.AddRange(Enumerable.Range(0, 6).Select(i => new Goal($"Active {i}", GoalHorizon.Yearly)));
+			await db.SaveChangesAsync(Ct);
+		}
+		var views = await Task.WhenAll(Enumerable.Range(0, 4).Select(_ => Task.Run(() => Service.OpenAsync(ct: Ct), Ct)));
+		views.Count(v => v.PausedGoalsMention is not null).Should().Be(1);
+		views.Single(v => v.PausedGoalsMention is not null).PausedGoalsMention.Should()
+			.Contain("2 goals are paused").And.Contain("Spanish\" (paused 2 months ago)")
+			.And.Contain("Balcony\" (paused 3 weeks ago)").And.Contain("Resume any of them?");
+		views.Count(v => v.ActiveGoalWarning is not null).Should().Be(1);
+		views.Single(v => v.ActiveGoalWarning is not null).ActiveGoalWarning.Should().Contain("6 active goals");
+		var restarted = new WeeklyReviewService(new WeeklyReviewStore(_factory), _clock);
+		var reopened = await restarted.OpenAsync(ct: Ct);
+		reopened.PausedGoalsMention.Should().BeNull();
+		reopened.ActiveGoalWarning.Should().BeNull();
+		_clock.Now = _clock.Now.AddDays(7);
+		var next = await restarted.OpenAsync(ct: Ct);
+		next.PausedGoalsMention.Should().BeNull();
+		next.ActiveGoalWarning.Should().NotBeNull();
+	}
+
+	[Theory]
+	[InlineData("skip")]
+	[InlineData("defer")]
+	public async Task SkippingOrDeferringWithoutPresentationDoesNotConsumeMonthlyMention(string action)
+	{
+		await Enable(); await SeedPausedGoal();
+		var lookup = await Service.OpenAsync(ct: Ct, present: false);
+		lookup.PausedGoalsMention.Should().BeNull();
+		lookup.Review.Status.Should().Be("notStarted");
+		await Service.TransitionAsync(lookup.Review.Id, action, action == "defer" ? "2026-09-21T18:00" : null, Ct);
+		(await Service.GetPreferencesAsync(Ct)).PausedGoalsMentionMonth.Should().BeNull();
+		if (action == "skip")
+		{
+			(await Service.OpenAsync(lookup.Review.Id, ct: Ct)).PausedGoalsMention.Should().BeNull();
+			_clock.Now = _clock.Now.AddDays(7);
+		}
+		else _clock.Now = _clock.Now.AddDays(1).AddHours(1);
+		(await Service.OpenAsync(ct: Ct)).PausedGoalsMention.Should().NotBeNull();
+	}
+
+	[Fact]
+	public async Task MonthlyMentionUsesLocalOpeningMonthNotUtcOrTargetWeek_AndDoesNotConsumeEmptyMonth()
+	{
+		await Enable("America/Los_Angeles");
+		_clock.Now = new DateTime(2026, 10, 1, 1, 0, 0, DateTimeKind.Utc); // September locally.
+		(await Service.OpenAsync(ct: Ct)).PausedGoalsMention.Should().BeNull();
+		(await Service.GetPreferencesAsync(Ct)).PausedGoalsMentionMonth.Should().BeNull();
+		await SeedPausedGoal();
+		var september = await Service.OpenAsync(ct: Ct);
+		september.PausedGoalsMention.Should().NotBeNull();
+		(await Service.GetPreferencesAsync(Ct)).PausedGoalsMentionMonth.Should().Be(new DateOnly(2026, 9, 1));
+		_clock.Now = _clock.Now.AddHours(7); // October locally, still same target week.
+		var october = await Service.OpenAsync(ct: Ct);
+		october.Review.Id.Should().Be(september.Review.Id);
+		october.PausedGoalsMention.Should().NotBeNull();
+		(await Service.GetPreferencesAsync(Ct)).PausedGoalsMentionMonth.Should().Be(new DateOnly(2026, 10, 1));
+		(await Service.OpenAsync(ct: Ct)).PausedGoalsMention.Should().BeNull();
+	}
+
+	[Fact]
+	public async Task PausedGoalsAreExcludedFromFlagsAndRemindersButTheirTasksRemainReviewableAndLinked()
+	{
+		await Enable();
+		var paused = await SeedPausedGoal();
+		var task = await Seed(dueAt: _clock.Now.AddDays(-1));
+		await using (var db = await _factory.CreateAsync(Ct))
+		{
+			var linked = (await db.TaskItems.FindAsync([task.Id], Ct))!;
+			linked.SetGoalId(paused.Id);
+			await db.SaveChangesAsync(Ct);
+		}
+		var claim = await Service.ClaimReminderAsync(Ct);
+		claim.Should().NotBeNull();
+		claim!.Text.Should().NotContain("Spanish").And.NotContain("paused").And.NotContain("active goal");
+		(await Service.GetPreferencesAsync(Ct)).PausedGoalsMentionMonth.Should().BeNull();
+		var view = await Service.OpenAsync(ct: Ct);
+		view.Report.Goals.ActiveCount.Should().Be(0);
+		view.Report.Goals.NoNextStepCount.Should().Be(0);
+		view.Report.Goals.StalledCount.Should().Be(0);
+		view.Report.Goals.Items.Should().BeEmpty();
+		view.Report.Tasks.Should().ContainSingle(t => t.Id == task.Id && t.GoalId == paused.Id);
+		view.PausedGoalsMention.Should().NotBeNull();
+		await using var verify = await _factory.CreateAsync(Ct);
+		(await verify.TaskItems.FindAsync([task.Id], Ct))!.GoalId.Should().Be(paused.Id);
+	}
+
+	[Fact]
+	public async Task PagingAndExpiredReviewDoNotConsumeMonthlyMention()
+	{
+		await Enable(); await SeedPausedGoal();
+		var page = await Service.OpenAsync(offset: 20, ct: Ct);
+		page.PausedGoalsMention.Should().BeNull();
+		(await Service.GetPreferencesAsync(Ct)).PausedGoalsMentionMonth.Should().BeNull();
+		_clock.Now = new DateTime(2026, 10, 2, 12, 0, 0, DateTimeKind.Utc);
+		(await Service.OpenAsync(page.Review.Id, ct: Ct)).PausedGoalsMention.Should().BeNull();
+		(await Service.OpenAsync(ct: Ct)).PausedGoalsMention.Should().NotBeNull();
+	}
+
+	[Fact]
+	public async Task ResumedGoalGraceFlowsFromStoredTimestampIntoReport()
+	{
+		await Enable();
+		var goal = await SeedPausedGoal();
+		await using (var db = await _factory.CreateAsync(Ct))
+		{
+			db.Entry((await db.Goals.FindAsync([goal.Id], Ct))!).Property(g => g.CreatedAt).CurrentValue = _clock.Now.AddDays(-90);
+			await db.SaveChangesAsync(Ct);
+		}
+		var service = new GoalService(new GoalRepository(_factory), _clock);
+		await service.UpdateAsync(goal.Id, status: GoalStatus.Active, ct: Ct);
+		(await Service.OpenAsync(ct: Ct)).Report.Goals.Items.Single().Stalled.Should().BeFalse();
+		_clock.Now = _clock.Now.AddDays(13);
+		(await Service.OpenAsync(ct: Ct)).Report.Goals.Items.Single().Stalled.Should().BeFalse();
+		_clock.Now = _clock.Now.AddDays(1);
+		(await Service.OpenAsync(ct: Ct)).Report.Goals.Items.Single().Stalled.Should().BeTrue();
+	}
+
+	[Fact]
+	public async Task PausedGoalMigrationPreservesEveryExistingStatusAndLeavesTimestampsEmpty()
+	{
+		var factory = new Factory(Path.Combine(_directory, "old-goals.db"));
+		await using var db = await factory.CreateAsync(Ct);
+		await db.GetService<IMigrator>().MigrateAsync("20261001083736_TrackWeeklyGoalCreationOffer", Ct);
+		foreach (var status in new[] { GoalStatus.Active, GoalStatus.Achieved, GoalStatus.Dropped })
+		{
+			await db.Database.ExecuteSqlInterpolatedAsync($"""
+				INSERT INTO Goals (Id, Title, Horizon, Status, CreatedAt, UpdatedAt)
+				VALUES ({Guid.NewGuid()}, {status.ToString()}, {GoalHorizon.Yearly}, {status}, {_clock.Now}, {_clock.Now})
+				""", Ct);
+		}
+		await db.Database.MigrateAsync(Ct);
+		var goals = await db.Goals.ToListAsync(Ct);
+		goals.Select(g => g.Status).Should().BeEquivalentTo([GoalStatus.Active, GoalStatus.Achieved, GoalStatus.Dropped]);
+		goals.Should().OnlyContain(g => g.PausedAt == null && g.LastResumedAt == null);
+	}
+
 	private sealed class Clock(DateTime now) : TimeProvider
 	{
 		public DateTime Now { get; set; } = now;

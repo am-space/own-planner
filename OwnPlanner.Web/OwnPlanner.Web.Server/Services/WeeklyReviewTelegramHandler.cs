@@ -30,7 +30,7 @@ public sealed class WeeklyReviewTelegramHandler(IServiceScopeFactory scopes, IPl
 				return "Weekly reminders disabled. Your reviews remain available on request.";
 			}
 			if (parts.Length > 0 && parts[0] is not ("finish" or "skip" or "defer")) return Help;
-			var view = await service.OpenAsync(ct: ct);
+			var view = await service.OpenAsync(ct: ct, present: parts.Length == 0);
 			if (parts.Length > 0)
 			{
 				var action = parts[0] == "finish" ? "complete" : parts[0];
@@ -48,6 +48,8 @@ public sealed class WeeklyReviewTelegramHandler(IServiceScopeFactory scopes, IPl
 					_ => ""
 				}));
 			return $"Weekly review: {view.Review.TargetWeek:yyyy-MM-dd} ({view.Review.TimeZoneId}), {view.Review.Status}.\n" +
+				(view.ActiveGoalWarning is null ? "" : view.ActiveGoalWarning + "\n") +
+				(view.PausedGoalsMention is null ? "" : view.PausedGoalsMention + "\n") +
 				WeeklyReviewCalendar.Notification(view.Review.TargetWeek, view.Report) + "\n" +
 				(view.SuggestCreatingGoals ? "Would you like to formulate 1–3 goals?\n" : "") +
 				(view.Report.Goals.ActiveCount == 0 ? "" : "Active goals:\n" + string.Join("\n", goalLines) + "\n") +

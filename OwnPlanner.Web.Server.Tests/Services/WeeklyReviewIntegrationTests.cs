@@ -60,6 +60,45 @@ public sealed partial class DirectToolMcpAdapterTests
 	}
 
 	[Fact]
+	public async Task PauseResumeAndMonthlyMentionsAreSharedAcrossChatAndTelegramButIsolatedBetweenUsers()
+	{
+		var ct = TestContext.Current.CancellationToken;
+		await using var services = BuildTenantServiceProvider();
+		var userA = Guid.NewGuid(); var userB = Guid.NewGuid();
+		await SeedUserTaskIdAsync(userA.ToString(), "A task", ct);
+		await SeedUserTaskIdAsync(userB.ToString(), "B task", ct);
+		await using var a = CreateAdapter(services, userA.ToString());
+		await using var b = CreateAdapter(services, userB.ToString());
+		var ids = new List<Guid>();
+		foreach (var (adapter, title) in new[] { (a, "A private paused goal"), (b, "B private paused goal") })
+		{
+			await adapter.CallToolAsync("weekly_review_configure", new Dictionary<string, object?> { ["enabled"] = true, ["timeZoneId"] = "UTC" }, ct);
+			var created = ParseJsonElement(await adapter.CallToolAsync("goal_create", new Dictionary<string, object?> { ["title"] = title, ["horizon"] = "Yearly", ["targetPeriod"] = "2026" }, ct));
+			var id = created.GetProperty("id").GetGuid(); ids.Add(id);
+			var paused = ParseJsonElement(await adapter.CallToolAsync("goal_update", new Dictionary<string, object?> { ["id"] = id, ["status"] = "Paused" }, ct));
+			paused.GetProperty("pausedAt").GetDateTime().Should().Be(TenantTestUtcNow);
+			paused.GetProperty("status").GetInt32().Should().Be((int)GoalStatus.Paused);
+		}
+		var foreign = ParseJsonElement(await a.CallToolAsync("goal_update", new Dictionary<string, object?> { ["id"] = ids[1], ["status"] = "Active" }, ct));
+		foreign.GetProperty("error").GetString().Should().Contain("not found");
+		var handler = new WeeklyReviewTelegramHandler(services.GetRequiredService<IServiceScopeFactory>(),
+			services.GetRequiredService<IPlannerSessionContextAccessor>(), services.GetRequiredService<PerUserAppInitializationService>());
+		var account = new TelegramLinkedAccount(userA, 12345, 12345, PlanningMode.General);
+		var summary = await handler.HandleAsync(account, "", ct);
+		summary.Should().Contain("A private paused goal").And.Contain("paused today").And.NotContain("B private paused goal");
+		var aView = ParseJsonElement(await a.CallToolAsync("weekly_review_open", cancellationToken: ct));
+		aView.TryGetProperty("pausedGoalsMention", out _).Should().BeFalse();
+		aView.GetProperty("report").GetProperty("goals").GetProperty("activeCount").GetInt32().Should().Be(0);
+		var bView = ParseJsonElement(await b.CallToolAsync("weekly_review_open", cancellationToken: ct));
+		bView.GetProperty("pausedGoalsMention").GetString().Should().Contain("B private paused goal").And.NotContain("A private paused goal");
+		var listed = ParseJsonElement(await a.CallToolAsync("goal_list", new Dictionary<string, object?> { ["includeInactive"] = true }, ct));
+		listed.EnumerateArray().Should().ContainSingle();
+		var resumed = ParseJsonElement(await a.CallToolAsync("goal_update", new Dictionary<string, object?> { ["id"] = ids[0], ["status"] = "Active" }, ct));
+		resumed.TryGetProperty("pausedAt", out _).Should().BeFalse();
+		resumed.GetProperty("lastResumedAt").GetDateTime().Should().Be(TenantTestUtcNow);
+	}
+
+	[Fact]
 	public async Task WeeklyReview_StateReportsAndActionsStayWithinUserScope()
 	{
 		var ct = TestContext.Current.CancellationToken;

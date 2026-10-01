@@ -60,6 +60,8 @@ export default function WeeklyReviewSettings() {
       })}>Open weekly review</Button></Box>
       {review && <Stack spacing={2}>
         <Typography>Week of {review.review.targetWeek} · {review.review.timeZoneId} · {review.review.status}</Typography>
+        {review.activeGoalWarning && <Alert severity="warning">{review.activeGoalWarning}</Alert>}
+        {review.pausedGoalsMention && <Typography>{review.pausedGoalsMention}</Typography>}
         <Typography variant="h6">Goals first</Typography>
         {review.suggestCreatingGoals && <Typography color="text.secondary">No active goals yet. In chat, you can formulate 1–3 goals for this season.</Typography>}
         {review.report.goals.items.map(goal => <Box key={goal.id}>

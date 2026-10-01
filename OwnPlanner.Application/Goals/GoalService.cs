@@ -2,7 +2,7 @@ using OwnPlanner.Domain.Goals;
 
 namespace OwnPlanner.Application.Goals;
 
-public class GoalService(IGoalRepository repository) : IGoalService
+public class GoalService(IGoalRepository repository, TimeProvider? clock = null) : IGoalService
 {
 	private readonly IGoalRepository _repository = repository;
 
@@ -10,7 +10,7 @@ public class GoalService(IGoalRepository repository) : IGoalService
 	{
 		var goal = new Goal(title, horizon, description, targetPeriod, targetDate, metric);
 		await _repository.AddAsync(goal, ct);
-		return Map(goal);
+		return Map(goal) with { ActiveGoalWarning = await ActiveGoalWarningAsync(ct) };
 	}
 
 	public async Task<GoalDto?> GetAsync(Guid id, CancellationToken ct = default)
@@ -29,6 +29,7 @@ public class GoalService(IGoalRepository repository) : IGoalService
 	{
 		var goal = await _repository.GetAsync(id, ct) ?? throw new KeyNotFoundException($"Goal {id} not found");
 
+		var previousStatus = goal.Status;
 		if (title is not null)
 			goal.SetTitle(title);
 		if (description is not null)
@@ -36,14 +37,18 @@ public class GoalService(IGoalRepository repository) : IGoalService
 		if (horizon is not null || targetPeriod is not null || targetDate is not null)
 			goal.SetHorizon(horizon ?? goal.Horizon, targetPeriod ?? goal.TargetPeriod, targetDate ?? goal.TargetDate);
 		if (status is not null)
-			goal.SetStatus(status.Value);
+			goal.SetStatus(status.Value, (clock ?? TimeProvider.System).GetUtcNow().UtcDateTime);
 		if (metric is not null)
 			goal.SetMetric(metric);
 		if (metricCurrent is not null)
 			goal.SetMetricCurrent(metricCurrent);
 
 		await _repository.UpdateAsync(goal, ct);
-		return Map(goal);
+		return Map(goal) with
+		{
+			ActiveGoalWarning = previousStatus != GoalStatus.Active && goal.Status == GoalStatus.Active
+				? await ActiveGoalWarningAsync(ct) : null
+		};
 	}
 
 	public async Task DeleteAsync(Guid id, CancellationToken ct = default)
@@ -51,6 +56,9 @@ public class GoalService(IGoalRepository repository) : IGoalService
 		var goal = await _repository.GetAsync(id, ct) ?? throw new KeyNotFoundException($"Goal {id} not found");
 		await _repository.DeleteAsync(goal, ct);
 	}
+
+	private async Task<string?> ActiveGoalWarningAsync(CancellationToken ct) =>
+		GoalFocusGuidance.Warning((await _repository.ListAsync(ct: ct)).Count);
 
 	private static GoalDto Map(Goal goal) => new(
 		goal.Id,
@@ -63,6 +71,8 @@ public class GoalService(IGoalRepository repository) : IGoalService
 		goal.Metric,
 		goal.MetricCurrent,
 		goal.CreatedAt,
-		goal.UpdatedAt
+		goal.UpdatedAt,
+		goal.PausedAt,
+		goal.LastResumedAt
 	);
 }

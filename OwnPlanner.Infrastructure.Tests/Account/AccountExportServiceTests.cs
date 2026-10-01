@@ -3,6 +3,7 @@ using FluentAssertions;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using OwnPlanner.Domain.Tasks;
+using OwnPlanner.Domain.Goals;
 using OwnPlanner.Infrastructure.Account;
 using OwnPlanner.Infrastructure.Persistence;
 
@@ -65,6 +66,9 @@ public class AccountExportServiceTests
 		var list = new TaskList("Work", null, null);
 		db.TaskLists.Add(list);
 		db.TaskItems.Add(new TaskItem("Write report", list.Id));
+		var paused = new Goal("Spanish", GoalHorizon.Yearly);
+		paused.SetStatus(GoalStatus.Paused);
+		db.Goals.Add(paused);
 		await db.SaveChangesAsync(ct);
 
 		var service = new AccountExportService(new TestPlannerDbContextFactory(conn));
@@ -87,6 +91,8 @@ public class AccountExportServiceTests
 			command.CommandText = "SELECT COUNT(*) FROM TaskItems WHERE Title = 'Write report'";
 			var count = Convert.ToInt32(await command.ExecuteScalarAsync(ct));
 			count.Should().Be(1);
+			command.CommandText = "SELECT Status FROM Goals WHERE Title = 'Spanish' AND PausedAt IS NOT NULL";
+			Convert.ToInt32(await command.ExecuteScalarAsync(ct)).Should().Be((int)GoalStatus.Paused);
 		}
 		finally
 		{

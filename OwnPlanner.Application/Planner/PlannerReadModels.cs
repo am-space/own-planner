@@ -24,7 +24,8 @@ public enum PlannerGoalStatus
 	Active,
 	Achieved,
 	Dropped,
-	All
+	All,
+	Paused
 }
 
 public sealed record PlannerTaskQuery(

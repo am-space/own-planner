@@ -52,6 +52,38 @@ public class GoalServiceTests
 		dto.Id.Should().Be(captured!.Id);
 	}
 
+	[Theory]
+	[InlineData(5, false)]
+	[InlineData(6, true)]
+	public async Task CreatingGoalSucceedsAndWarnsOnlyAboveFive(int activeCount, bool warns)
+	{
+		var ct = TestContext.Current.CancellationToken;
+		_repo.ListAsync(false, ct).Returns(Enumerable.Range(0, activeCount).Select(i => new Goal($"Goal {i}", GoalHorizon.Yearly)).ToArray());
+		var dto = await _svc.CreateAsync("New goal", GoalHorizon.Yearly, ct: ct);
+		(dto.ActiveGoalWarning is not null).Should().Be(warns);
+		if (warns) dto.ActiveGoalWarning.Should().Contain("6 active goals").And.Contain("Pause or drop one?");
+		await _repo.Received(1).AddAsync(Arg.Any<Goal>(), ct);
+	}
+
+	[Fact]
+	public async Task ResumeReturnsWarningButRepeatedStatusAndUnrelatedEditsDoNot()
+	{
+		var ct = TestContext.Current.CancellationToken;
+		var goal = new Goal("Paused", GoalHorizon.Yearly);
+		goal.SetStatus(GoalStatus.Paused);
+		_repo.GetAsync(goal.Id, ct).Returns(goal);
+		_repo.ListAsync(false, ct).Returns(Enumerable.Range(0, 6).Select(i => new Goal($"Goal {i}", GoalHorizon.Yearly)).ToArray());
+		var resumed = await _svc.UpdateAsync(goal.Id, status: GoalStatus.Active, ct: ct);
+		resumed.PausedAt.Should().BeNull();
+		resumed.LastResumedAt.Should().NotBeNull();
+		resumed.ActiveGoalWarning.Should().Contain("6 active goals");
+		(await _svc.UpdateAsync(goal.Id, status: GoalStatus.Active, ct: ct)).ActiveGoalWarning.Should().BeNull();
+		(await _svc.UpdateAsync(goal.Id, title: "New title", ct: ct)).ActiveGoalWarning.Should().BeNull();
+		var paused = await _svc.UpdateAsync(goal.Id, status: GoalStatus.Paused, ct: ct);
+		paused.PausedAt.Should().NotBeNull();
+		paused.ActiveGoalWarning.Should().BeNull();
+	}
+
 	[Fact]
 	public async Task GetAsync_ReturnsDto_WhenFound()
 	{

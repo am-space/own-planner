@@ -1,6 +1,7 @@
 using FluentAssertions;
 using Microsoft.Playwright;
 using OwnPlanner.E2E.Tests.Infrastructure;
+using OwnPlanner.Application.Chat;
 
 namespace OwnPlanner.E2E.Tests;
 
@@ -8,6 +9,43 @@ namespace OwnPlanner.E2E.Tests;
 [Trait("Category", "E2E")]
 public sealed class WeeklyReviewE2eTests(E2eWebApplicationFactory application) : E2ePageTest(application)
 {
+	[Fact]
+	public async Task PausedGoalsAreQueryableAndReviewGuidanceIsDisplayedOnlyOnce()
+	{
+		await RegisterAsync(Page, CreateUser());
+		var prompt = Application.Scenarios.Register(async mcpAdapter =>
+		{
+			var mcp = mcpAdapter!;
+			for (var index = 0; index < 7; index++)
+			{
+				var created = await mcp.CallToolAsync("goal_create", new Dictionary<string, object?>
+				{
+					["title"] = index == 0 ? "Paused Spanish" : $"Active goal {index}", ["horizon"] = "Yearly", ["targetPeriod"] = "2026"
+				});
+				if (index == 0)
+				{
+					using var json = System.Text.Json.JsonDocument.Parse(created);
+					await mcp.CallToolAsync("goal_update", new Dictionary<string, object?> { ["id"] = json.RootElement.GetProperty("id").GetGuid(), ["status"] = "Paused" });
+				}
+			}
+			await mcp.CallToolAsync("weekly_review_configure", new Dictionary<string, object?> { ["enabled"] = false, ["timeZoneId"] = "UTC" });
+			return new ChatTurnResult("Goals prepared", 100);
+		});
+		await SendPromptAsync(Page, prompt);
+		await Expect(Page.GetByText("Goals prepared", new() { Exact = true })).ToBeVisibleAsync();
+		await Page.GotoAsync("/planner/goals?status=Paused");
+		await Expect(Page.GetByText("Paused Spanish", new() { Exact = true }).First).ToBeVisibleAsync();
+		await Expect(Page.GetByText("Active goal 1", new() { Exact = true })).ToHaveCountAsync(0);
+		await Page.GotoAsync("/settings");
+		var open = Page.GetByRole(AriaRole.Button, new() { Name = "Open weekly review", Exact = true });
+		await open.ClickAsync();
+		await Expect(Page.GetByText("You now have 6 active goals.", new() { Exact = false })).ToBeVisibleAsync();
+		await Expect(Page.GetByText("1 goal is paused:", new() { Exact = false })).ToContainTextAsync("Paused Spanish");
+		await open.ClickAsync();
+		await Expect(Page.GetByText("You now have 6 active goals.", new() { Exact = false })).ToHaveCountAsync(0);
+		await Expect(Page.GetByText("1 goal is paused:", new() { Exact = false })).ToHaveCountAsync(0);
+	}
+
 	[Fact]
 	public async Task PreferencesRequireExplicitTimezone_PersistAndShareReviewState_WithTenantIsolation()
 	{
