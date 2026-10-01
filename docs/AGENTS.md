@@ -53,3 +53,10 @@ not merge, the active plan on `master` remains active.
 
 **Never delete a plan** — archive it. And never leave a shipped plan sitting in `docs/` as if it were
 current documentation; that's what the ADR + archive split prevents.
+
+## Withdrawing an unimplemented proposal
+
+When work is no longer planned for OwnPlanner, move its proposal from `docs/backlog/` or `docs/` to
+`docs/archive/`. Add a banner stating that it was withdrawn, why, and that it was not implemented.
+Update `docs/README.md` so the proposal is no longer presented as future work. A withdrawn proposal
+does not need an implementation ADR.

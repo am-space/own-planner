@@ -1,12 +1,13 @@
 # OwnPlanner — Knowledge Core
 
+> **Withdrawn — not implemented in OwnPlanner.** Knowledge management is being developed in a
+> separate repository. This proposal is kept for historical context and does not describe planned
+> OwnPlanner work or a shipped feature.
+
 ## Status
 
-**Backlog — Part 1 of 3.** This proposal defines the durable document foundation for Knowledge.
-It must ship before retrieval, relations, review workflows, or migration are implemented.
-
-When this part ships, record the implemented design in an ADR and move this file to `docs/archive/`
-with the standard archival banner.
+**Withdrawn — original Part 1 of 3 proposal.** This proposed the durable document foundation for
+Knowledge in OwnPlanner.
 
 ## Objective
 

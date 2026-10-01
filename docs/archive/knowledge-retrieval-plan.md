@@ -1,11 +1,13 @@
 # OwnPlanner — Knowledge Retrieval and Organization
 
+> **Withdrawn — not implemented in OwnPlanner.** Knowledge management is being developed in a
+> separate repository. This proposal is kept for historical context and does not describe planned
+> OwnPlanner work or a shipped feature.
+
 ## Status
 
-**Backlog — Part 2 of 3.** This proposal depends on the accepted Knowledge Core implementation.
-
-When this part ships, update or add the corresponding ADR and archive this plan with the standard
-banner.
+**Withdrawn — original Part 2 of 3 proposal.** This depended on the proposed Knowledge Core
+implementation in OwnPlanner.
 
 ## Objective
 

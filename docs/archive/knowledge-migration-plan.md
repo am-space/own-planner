@@ -1,12 +1,13 @@
 # OwnPlanner — Knowledge Migration and Portability
 
+> **Withdrawn — not implemented in OwnPlanner.** Knowledge management is being developed in a
+> separate repository. This proposal is kept for historical context and does not describe planned
+> OwnPlanner work or a shipped feature.
+
 ## Status
 
-**Backlog — Part 3 of 3.** This proposal depends on the accepted Knowledge Core and Knowledge Retrieval
-implementations.
-
-When this part ships, record the final migration and portability design in an ADR and archive this
-plan with the standard banner.
+**Withdrawn — original Part 3 of 3 proposal.** This depended on the proposed Knowledge Core and
+Knowledge Retrieval implementations in OwnPlanner.
 
 ## Objective
 

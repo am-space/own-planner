@@ -30,9 +30,8 @@ No implementation plans are currently active.
 
 Potential work without an implementation commitment lives in `backlog/`:
 
-- [`backlog/knowledge-core-plan.md`](backlog/knowledge-core-plan.md) — durable Markdown knowledge and revision history
-- [`backlog/knowledge-retrieval-plan.md`](backlog/knowledge-retrieval-plan.md) — search, relations, and review workflows
-- [`backlog/knowledge-migration-plan.md`](backlog/knowledge-migration-plan.md) — import, export, and portability
+No backlog proposals are currently listed. Knowledge management will be developed in a separate
+repository; the former OwnPlanner proposals are preserved under [Historical plans](#historical-plans).
 
 When backlog work becomes active, move its plan into `docs/`. When it ships, record the implemented
 decision in an ADR and move the original plan into `archive/`.
@@ -72,8 +71,8 @@ ADRs describe decisions as actually shipped. Start new records from [`adr/templa
 
 ## Historical plans
 
-Archived plans preserve the original intent but may differ from the final implementation. Prefer the
-linked ADR when determining current behavior.
+Archived plans preserve the original intent but may differ from the final implementation. For
+implemented plans, prefer the linked ADR when determining current behavior.
 
 - [`archive/weekly-carryover-review-plan.md`](archive/weekly-carryover-review-plan.md)
 - [`archive/clear-task-deadline-plan.md`](archive/clear-task-deadline-plan.md)
@@ -86,6 +85,13 @@ linked ADR when determining current behavior.
 - [`archive/general-default-chat-plan.md`](archive/general-default-chat-plan.md)
 
 - [`archive/chat-markdown-styles-plan.md`](archive/chat-markdown-styles-plan.md)
+
+The following proposals were withdrawn without implementation in OwnPlanner because knowledge
+management moved to a separate repository:
+
+- [`archive/knowledge-core-plan.md`](archive/knowledge-core-plan.md)
+- [`archive/knowledge-retrieval-plan.md`](archive/knowledge-retrieval-plan.md)
+- [`archive/knowledge-migration-plan.md`](archive/knowledge-migration-plan.md)
 
 ## Supporting records
 
