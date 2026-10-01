@@ -43,8 +43,9 @@ continues to reject broad goal reads; the parent performs permitted goal matchin
 
 `ITaskGoalLinkService`/`TaskGoalLinkService` delegate to `ITaskItemRepository.LinkToActiveGoalAsync`
 and map its explicit outcomes. The tenant-bound SQLite repository opens one write transaction and
-conditionally updates only `GoalId`/`UpdatedAt` while checking the non-trashed, unlinked task,
-available list and Active goal. It reads the successful task snapshot in that transaction before
+conditionally updates only `GoalId`/`UpdatedAt`, using the Domain's shared `MonotonicClock` for the
+timestamp, while checking the non-trashed, unlinked task, available list and Active goal. It reads
+the successful task snapshot in that transaction before
 committing. Missing/trashed tasks, missing or archived lists, inactive goals and conflicting existing
 associations fail safely. Repeating the same active link returns the task without a write. A competing
 link never overwrites the winner, and other task fields are not rewritten from detached snapshots. This tool does not replace

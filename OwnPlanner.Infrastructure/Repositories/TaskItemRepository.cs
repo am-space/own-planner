@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using OwnPlanner.Domain;
 using OwnPlanner.Infrastructure.Persistence;
 using OwnPlanner.Domain.Tasks;
 using OwnPlanner.Domain.Goals;
@@ -14,7 +15,7 @@ public class TaskItemRepository(IPlannerDbContextFactory dbContextFactory)
 		// SQLite's non-deferred write transaction serializes eligibility checks, the conditional
 		// update and its returned snapshot against competing planner writes.
 		await using var transaction = await db.Database.BeginTransactionAsync(ct).ConfigureAwait(false);
-		var updatedAt = DateTime.UtcNow;
+		var updatedAt = MonotonicClock.UtcNow();
 		var changed = await db.TaskItems.Where(task => task.Id == taskId && task.TrashedAt == null && task.GoalId == null
 			&& db.TaskLists.Any(list => list.Id == task.TaskListId && !list.IsArchived)
 			&& db.Goals.Any(goal => goal.Id == goalId && goal.Status == GoalStatus.Active))

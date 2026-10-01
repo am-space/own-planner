@@ -34,9 +34,12 @@ public sealed class TaskGoalLinkRepositoryTests : IDisposable
 		linked.Status.Should().Be(TaskGoalLinkStatus.Linked);
 		linked.Task.Should().BeEquivalentTo(task, o => o.Excluding(t => t.GoalId).Excluding(t => t.UpdatedAt));
 		linked.Task!.GoalId.Should().Be(goal.Id);
+		linked.Task.UpdatedAt.Should().BeAfter(task.UpdatedAt);
 		var repeated = await Repository.LinkToActiveGoalAsync(task.Id, goal.Id, ct);
 		repeated.Status.Should().Be(TaskGoalLinkStatus.AlreadyLinked);
 		repeated.Task.Should().BeEquivalentTo(linked.Task);
+		task.SetImportant(false);
+		task.UpdatedAt.Should().BeAfter(linked.Task.UpdatedAt);
 	}
 
 	[Theory]
