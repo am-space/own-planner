@@ -334,15 +334,20 @@ inputs. The saved mode is restored after in-memory session expiry. See
 [`telegram-integration.md`](telegram-integration.md) for linking, commands, deduplication, failure,
 and deployment behavior.
 
-## Shared weekly carryover review
+## Shared goal-focused weekly review
 
 The `weekly_planning` skill includes additive `weekly_review_*` tools backed by the current user's
 Application service. General exposes `weekly_review_offer` in its compact baseline; the model should
 call it only after a suitable planning request, never to interrupt urgent or unrelated work. Its
-atomic shared claim returns a counts-only invitation or none. Loading/opening a review never changes
-tasks. `weekly_review_apply` uses a fresh report revision to recheck each explicitly authorized target,
+atomic shared claim returns a counts-only invitation or none. The review opens with all active goals,
+calculated flags and goal-work shares before remaining tasks. The `weekly_planning` skill can create
+and update goals during the review; it asks for a next-week commitment per goal and offers a one-time
+goal formulation prompt when there are no active goals. Loading/opening a review never changes
+planning data. `weekly_review_apply` uses a fresh report or task revision to recheck each explicitly authorized target,
 then reuses ordinary task services; report applied=false and partial failures accurately. Clear
 focus and clear deadline are separate operations, with deadline removal using #61's clearDueAt.
+Its `goalFocus` action schedules a linked goal task absent from the carryover page; `linkGoal`
+links an unlinked task to an active goal after confirmation.
 
 Preferences and lifecycle are shared by web, Telegram and MCP transports. Timezones are explicit and
 local-calendar weeks do not alter the existing UTC weekly_report_get contract. Finishing, skipping,

@@ -6,6 +6,8 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.Logging.Abstractions;
 using OwnPlanner.Application.Tasks;
+using OwnPlanner.Application.Goals;
+using OwnPlanner.Domain.Goals;
 using OwnPlanner.Application.WeeklyReviews;
 using OwnPlanner.Domain.Tasks;
 using OwnPlanner.Infrastructure.Persistence;
@@ -292,7 +294,7 @@ public sealed class WeeklyReviewTests : IAsyncLifetime
 		var task = await Seed(dueAt: _clock.Now.AddDays(-1));
 		var view = await Service.OpenAsync(ct: Ct);
 		var actions = new WeeklyReviewActions(_store, new TaskItemService(new TaskItemRepository(_factory), new TaskListRepository(_factory)),
-			new TaskListService(new TaskListRepository(_factory)), _clock);
+			new TaskListService(new TaskListRepository(_factory)), _clock, new GoalService(new GoalRepository(_factory)));
 		var revision = view.Report.Tasks.Single().Revision;
 		(await actions.ApplyAsync(view.Review.Id, task.Id, revision.AddTicks(-1), "complete", ct: Ct)).Applied.Should().BeFalse();
 		var cleared = await actions.ApplyAsync(view.Review.Id, task.Id, revision, "clearDeadline", ct: Ct);
@@ -334,6 +336,92 @@ public sealed class WeeklyReviewTests : IAsyncLifetime
 		_clock.Now = _clock.Now.AddMinutes(15);
 		await dispatcher.RunOnceAsync(Ct);
 		host.Sends.Should().Be(rateLimited ? 2 : 1);
+	}
+
+	[Fact]
+	public async Task GoalReviewCountsActiveGoalWorkAndOmitsPlannedGoalTasksFromTaskPage()
+	{
+		await Enable();
+		var active = new Goal("Active goal", GoalHorizon.Monthly, targetPeriod: "2026-09");
+		var empty = new Goal("Empty goal", GoalHorizon.Yearly, targetPeriod: "2026");
+		var achieved = new Goal("Finished goal", GoalHorizon.Yearly, targetPeriod: "2026");
+		achieved.SetStatus(GoalStatus.Achieved);
+		var list = new TaskList("Tasks");
+		var planned = new TaskItem("Goal plan", list.Id, dueAt: _clock.Now.AddDays(-1), goalId: active.Id);
+		planned.SetFocusAt(new DateTime(2026, 9, 22, 0, 0, 0, DateTimeKind.Utc));
+		var completedGoal = new TaskItem("Done for goal", list.Id, goalId: active.Id); completedGoal.Complete();
+		var completedOther = new TaskItem("Other done", list.Id, goalId: achieved.Id); completedOther.Complete();
+		var unlinked = new TaskItem("Other plan", list.Id);
+		unlinked.SetFocusAt(new DateTime(2026, 9, 23, 0, 0, 0, DateTimeKind.Utc));
+		await using (var db = await _factory.CreateAsync(Ct))
+		{
+			db.AddRange(active, empty, achieved, list, planned, completedGoal, completedOther, unlinked);
+			db.Entry(active).Property(g => g.CreatedAt).CurrentValue = _clock.Now.AddDays(-30);
+			db.Entry(empty).Property(g => g.CreatedAt).CurrentValue = _clock.Now.AddDays(-30);
+			db.Entry(completedGoal).Property(t => t.CompletedAt).CurrentValue = _clock.Now.AddDays(-2);
+			db.Entry(completedOther).Property(t => t.CompletedAt).CurrentValue = _clock.Now.AddDays(-2);
+			await db.SaveChangesAsync(Ct);
+		}
+		var view = await Service.OpenAsync(ct: Ct);
+		view.Report.Goals.ActiveCount.Should().Be(2);
+		view.Report.Goals.Items.First().Title.Should().Be("Empty goal");
+		view.Report.Goals.Items.Single(g => g.Id == empty.Id).NoNextStep.Should().BeTrue();
+		view.Report.Goals.Items.Single(g => g.Id == active.Id).CompletedLast7.Single().Title.Should().Be("Done for goal");
+		view.Report.Goals.CompletedGoalWorkCount.Should().Be(1);
+		view.Report.Goals.CompletedOtherWorkCount.Should().Be(1);
+		view.Report.Goals.PlannedGoalWorkCount.Should().Be(1);
+		view.Report.Goals.PlannedOtherWorkCount.Should().Be(1);
+		view.Report.Tasks.Should().NotContain(t => t.Id == planned.Id);
+		view.Report.OverdueCount.Should().Be(0);
+		view.Report.Goals.UnplannedGoalIds.Should().Contain(empty.Id);
+		view.Report.Goals.UnplannedGoalIds.Should().NotContain(active.Id);
+		WeeklyReviewCalendar.Notification(view.Review.TargetWeek, view.Report).Should().Contain("2 active goals").And.NotContain("Active goal");
+	}
+
+	[Fact]
+	public async Task GoalOnlyWorkTriggersCountsOnlyReminder_AndNoGoalSuggestionAppearsOnce()
+	{
+		await Enable();
+		var first = await Service.OpenAsync(ct: Ct);
+		first.SuggestCreatingGoals.Should().BeTrue();
+		(await Service.OpenAsync(first.Review.Id, ct: Ct)).SuggestCreatingGoals.Should().BeFalse();
+		await using (var db = await _factory.CreateAsync(Ct))
+		{
+			db.Goals.Add(new Goal("PRIVATE GOAL", GoalHorizon.Yearly, targetPeriod: "2026"));
+			await db.SaveChangesAsync(Ct);
+		}
+		var claim = await Service.ClaimReminderAsync(Ct);
+		claim.Should().NotBeNull();
+		claim!.Text.Should().Contain("1 active goals").And.NotContain("PRIVATE GOAL");
+	}
+
+	[Fact]
+	public async Task GoalActionsRequireActiveGoalConfirmationAndFreshTaskRevision()
+	{
+		await Enable();
+		var goal = new Goal("Active", GoalHorizon.Yearly, targetPeriod: "2026");
+		var archivedGoal = new Goal("Achieved", GoalHorizon.Yearly, targetPeriod: "2026"); archivedGoal.SetStatus(GoalStatus.Achieved);
+		var list = new TaskList("Tasks");
+		var goalTask = new TaskItem("Unscheduled step", list.Id, goalId: goal.Id);
+		var unlinked = new TaskItem("Unlinked carryover", list.Id, dueAt: _clock.Now.AddDays(-1));
+		await using (var db = await _factory.CreateAsync(Ct))
+		{
+			db.AddRange(goal, archivedGoal, list, goalTask, unlinked);
+			await db.SaveChangesAsync(Ct);
+		}
+		var view = await Service.OpenAsync(ct: Ct);
+		view.Report.Tasks.Should().NotContain(t => t.Id == goalTask.Id);
+		var actions = new WeeklyReviewActions(_store,
+			new TaskItemService(new TaskItemRepository(_factory), new TaskListRepository(_factory)),
+			new TaskListService(new TaskListRepository(_factory)), _clock, new GoalService(new GoalRepository(_factory)));
+		(await actions.ApplyAsync(view.Review.Id, goalTask.Id, goalTask.UpdatedAt, "goalFocus", new DateOnly(2026, 9, 22), ct: Ct, goalId: archivedGoal.Id)).Applied.Should().BeFalse();
+		var focused = await actions.ApplyAsync(view.Review.Id, goalTask.Id, goalTask.UpdatedAt, "goalFocus", new DateOnly(2026, 9, 22), ct: Ct, goalId: goal.Id);
+		focused.Applied.Should().BeTrue();
+		focused.Task!.FocusAt.Should().Be(new DateTime(2026, 9, 22, 0, 0, 0, DateTimeKind.Utc));
+		(await actions.ApplyAsync(view.Review.Id, goalTask.Id, goalTask.UpdatedAt, "goalFocus", new DateOnly(2026, 9, 23), ct: Ct, goalId: goal.Id)).Applied.Should().BeFalse();
+		var linked = await actions.ApplyAsync(view.Review.Id, unlinked.Id, unlinked.UpdatedAt, "linkGoal", ct: Ct, goalId: goal.Id);
+		linked.Applied.Should().BeTrue();
+		linked.Task!.GoalId.Should().Be(goal.Id);
 	}
 
 	private sealed class Clock(DateTime now) : TimeProvider

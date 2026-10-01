@@ -37,8 +37,17 @@ public sealed class WeeklyReviewTelegramHandler(IServiceScopeFactory scopes, IPl
 				var state = await service.TransitionAsync(view.Review.Id, action, parts.ElementAtOrDefault(1), ct);
 				return $"Review for {state.TargetWeek:yyyy-MM-dd}: {state.Status}.";
 			}
+			var goalLines = view.Report.Goals.Items.Select(goal =>
+				$"• {goal.Title}: {goal.CompletedLast7Count} completed, {goal.OpenTaskCount} open, {goal.PlannedTaskCount} planned" +
+				(goal.NoNextStep ? "; no next step" : "") + (goal.Stalled ? "; stalled" : "") +
+				(goal.PlannedTaskCount == 0 ? "; no plan for week" : "") +
+				(goal.TargetPeriodFlag is null ? "" : $"; {goal.TargetPeriodFlag}"));
 			return $"Weekly review: {view.Review.TargetWeek:yyyy-MM-dd} ({view.Review.TimeZoneId}), {view.Review.Status}.\n" +
 				WeeklyReviewCalendar.Notification(view.Review.TargetWeek, view.Report) + "\n" +
+				(view.SuggestCreatingGoals ? "Would you like to formulate 1–3 goals?\n" : "") +
+				(view.Report.Goals.ActiveCount == 0 ? "" : "Active goals:\n" + string.Join("\n", goalLines) + "\n") +
+				$"Goal work: {view.Report.Goals.CompletedGoalWorkCount} of {view.Report.Goals.CompletedGoalWorkCount + view.Report.Goals.CompletedOtherWorkCount} completed; {view.Report.Goals.PlannedGoalWorkCount} of {view.Report.Goals.PlannedGoalWorkCount + view.Report.Goals.PlannedOtherWorkCount} planned.\n" +
+				"Remaining tasks:\n" +
 				string.Join("\n", view.Report.Tasks.Select(t => $"• {t.Title}")) +
 				$"\nShowing {view.Report.Tasks.Count} of {view.Report.TotalCount}. Continue in General or Week Planning chat to discuss and apply changes.\n" + Help;
 		}

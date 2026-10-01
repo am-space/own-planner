@@ -28,16 +28,18 @@ public sealed class WeeklyReviewService(IWeeklyReviewStore store, TimeProvider c
 	{
 		if (offset < 0 || limit is < 1 or > 50) throw new ArgumentException("Use offset >= 0 and limit between 1 and 50.");
 		var now = Now;
-		var review = await store.UpdateAsync((preferences, reviews) =>
+		var opened = await store.UpdateAsync((preferences, reviews) =>
 		{
 			if (reviewId.HasValue && targetWeek.HasValue) throw new ArgumentException("Specify reviewId or targetWeek, not both.");
 			var review = reviewId.HasValue ? Find(reviews, reviewId.Value) : targetWeek.HasValue
 				? reviews.FirstOrDefault(r => r.TargetWeek == targetWeek) ?? throw new KeyNotFoundException("Weekly review not found.")
 				: DueDeferral(reviews, now) ?? Resolve(preferences, reviews, now, false);
-			if (review.Status == "notStarted") review.Status = "inProgress";
-			return review;
+			var firstOpen = review.Status == "notStarted";
+			if (firstOpen) review.Status = "inProgress";
+			return (review, firstOpen);
 		}, ct);
-		return new(review, await store.ReportAsync(review, now, offset, limit, ct));
+		var report = await BuildReportAsync(opened.review, now, offset, limit, ct);
+		return new(opened.review, report) { SuggestCreatingGoals = opened.firstOpen && report.Goals.ActiveCount == 0 };
 	}
 
 	public Task<WeeklyReviewState> TransitionAsync(Guid reviewId, string action, string? localTime = null, CancellationToken ct = default)
@@ -80,8 +82,8 @@ public sealed class WeeklyReviewService(IWeeklyReviewStore store, TimeProvider c
 			return CanOffer(review, now) ? review : null;
 		}, ct);
 		if (review is null) return null;
-		var report = await store.ReportAsync(review, now, 0, 1, ct);
-		if (report.TotalCount == 0) return null;
+		var report = await BuildReportAsync(review, now, 0, 1, ct);
+		if (report.TotalCount == 0 && report.Goals.ActiveCount == 0) return null;
 		return await store.UpdateAsync((preferences, reviews) =>
 		{
 			var current = Find(reviews, review.Id);
@@ -108,8 +110,8 @@ public sealed class WeeklyReviewService(IWeeklyReviewStore store, TimeProvider c
 			return CanDeliver(review, now) ? review : null;
 		}, ct);
 		if (review is null) return null;
-		var report = await store.ReportAsync(review, now, 0, 1, ct);
-		if (report.TotalCount == 0) return null;
+		var report = await BuildReportAsync(review, now, 0, 1, ct);
+		if (report.TotalCount == 0 && report.Goals.ActiveCount == 0) return null;
 		return await store.UpdateAsync((preferences, reviews) =>
 		{
 			var current = Find(reviews, review.Id);
@@ -130,6 +132,13 @@ public sealed class WeeklyReviewService(IWeeklyReviewStore store, TimeProvider c
 			review.RetryAtUtc = Now.AddMinutes(15);
 			return true;
 		}, ct);
+
+	private async Task<WeeklyReviewReport> BuildReportAsync(WeeklyReviewState review, DateTime now, int offset, int limit, CancellationToken ct)
+	{
+		var report = await store.ReportAsync(review, now, offset, limit, ct);
+		var goals = WeeklyReviewGoalCalculator.Build(await store.GoalDataAsync(review, now, ct), review, now);
+		return report with { Goals = goals };
+	}
 
 	private static WeeklyReviewState Find(IList<WeeklyReviewState> reviews, Guid id) =>
 		reviews.FirstOrDefault(r => r.Id == id) ?? throw new KeyNotFoundException("Weekly review not found.");

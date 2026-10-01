@@ -83,7 +83,7 @@ public sealed partial class ChatSkillOrchestrationTests
 	}
 
 	[Theory]
-	[InlineData(PlanningMode.WeekPlanning, "weekly_planning", "taskitem_set_focus_date", "goal_update")]
+	[InlineData(PlanningMode.WeekPlanning, "weekly_planning", "taskitem_set_focus_date", "goal_delete")]
 	[InlineData(PlanningMode.Reflection, "reflection", "noteitem_create", "taskitem_create")]
 	[InlineData(PlanningMode.SystemAnalysis, "strategic_review", "strategic_report_get", "taskitem_update")]
 	[InlineData(PlanningMode.GlobalPlanning, "goals_organization", "goal_update", "taskitem_reopen")]

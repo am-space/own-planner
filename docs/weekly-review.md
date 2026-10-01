@@ -1,4 +1,4 @@
-# Weekly reminders and shared carryover review
+# Weekly reminders and goal-focused review
 
 Configure Weekly review in Settings or ask General/Week Planning chat. Reminders start disabled.
 Choose a timezone explicitly, a week-start day, and a local reminder time. The default suggestion is
@@ -8,17 +8,44 @@ server or browser. Disabling reminders suppresses automatic Telegram and chat of
 remains available after timezone selection.
 
 Web and Telegram share preferences and review state even though their conversations are separate.
-Settings can open a review, page through tasks, finish it, skip it, or defer to a specified local time.
+Settings can open a review, show goals, page through remaining tasks, finish it, skip it, or defer to a specified local time.
 General and Week Planning chat can discuss priorities and apply explicitly requested changes. Other
 chat modes retain their existing permissions. Telegram `/review` commands work in every mode without
 switching it (see [Telegram commands](telegram-integration.md)).
 
 ## Calendar and selection
 
+The review opens with every active goal. Goals needing attention appear first. Each goal shows the
+exact number of linked tasks completed in the previous rolling seven days, a sample of up to ten
+completed titles, the exact number of open tasks and up to ten open task titles. Goal metric and
+current value appear when present. A goal has **no next step** when it has no open task, and is
+**stalled** when it was created at least 14 days ago and no linked task was completed in the last
+14 days. The application calculates these flags. The target period is **ending soon** when its
+end date is within seven local calendar days, or **passed** after that date. Only strict
+`yyyy-MM`, `yyyy-Qn`, `yyyy`, and fixed target dates are interpreted. Unrecognized periods have no
+period flag.
+
+Chat asks for a target-week commitment for every active goal. A user can choose an existing linked
+task or create one, and schedule its focus date in the target week. A linked task can be planned
+from within the review even if it was absent from the carryover page. A user may leave a goal
+without a plan after one confirmation. Stalled or past-period goals prompt a keep, achieve, drop,
+or target-period change decision. Metric progress can be updated during the review. Every goal
+edit requires an explicit user instruction. When there are no active goals, the first opening of
+that review offers once to formulate one to three goals; declining continues to tasks.
+
+After the goal step, the ordinary task review continues. A task already linked to an active goal
+and focused in the target week is omitted from the task page so it is not reviewed twice. The
+assistant may suggest an active goal for an unlinked task when one clearly matches; linking
+requires the user's confirmation. The summary reports exact completed work from the preceding
+seven days and planned target-week work, each split between tasks linked to active goals and other
+tasks. It lists active goals with no target-week plan. Trash and archived lists are excluded from
+goal evidence and work-share counts. Links to achieved, dropped or missing goals count as other
+work. Samples are bounded; counts remain exact.
+
 Opening first resumes an unexpired due deferral, if one exists. Otherwise, on the last day of the configured local week, a new review targets next week. During the rest of
 the week it targets the current week. Sunday's scheduled reminder and Monday's fallback therefore
 refer to the same review. A review stores its target date, timezone and UTC boundaries permanently.
-The report includes active incomplete tasks with at least one reason:
+The remaining task page includes active incomplete tasks with at least one reason:
 
 - Carryover: `FocusAt` before the target week's first calendar date. At the end of the week this
   includes current-week work, which is not labelled overdue just because it is unfinished.
@@ -31,7 +58,7 @@ a UTC-labelled focus date is not shifted into a different local day. Deadline ti
 DST gaps advance to the first valid local minute; repeated wall times use the earlier instant. Weeks
 can therefore contain fewer or more than 168 hours.
 
-Completed tasks, Trash and archived lists are excluded. SQL produces exact counts and a deduplicated
+Completed tasks, Trash and archived lists are excluded from the remaining task page. SQL produces exact counts and a deduplicated
 page with every reason retained. Pages default to 20 and allow 1–50 tasks, ordered overdue first and
 then by ID. Descriptions and note bodies are never queried. Notifications contain counts only.
 Opening and paging always retrieve fresh data. Paging is current-state paging; concurrent edits can
@@ -63,6 +90,11 @@ deadline changes preserve focus. Existing task tools remain available for other 
 There is no batch rollback: report each confirmed result and any partial failures. Task actions use
 the existing task service transaction boundaries; a separate concurrent edit after the precheck is
 still possible. Opening/accepting a review does not authorize any task operation.
+The additive `goalFocus` action accepts a linked task from the goal step or a targeted task lookup,
+checks that its goal is still active, and places its focus date in the target week. The additive
+`linkGoal` action accepts an unlinked task from the remaining task review and an active goal after
+confirmation. Both actions apply the same review, list and revision guards. Existing task and goal
+tools handle creation, metric updates, status and target-period changes.
 
 ## Delivery and fallback
 
@@ -75,8 +107,10 @@ No route, body, tool argument or model output selects the background user's data
 
 SQLite write transactions serialize state transitions across workers. A nonempty reminder occurrence
 is claimed and persisted before network I/O. Ordinary scheduled sends are eligible only between the
-configured reminder time and target-week start. Missed previous weeks are never replayed. Empty
-workloads produce no send. Missing links and disabled Telegram integration leave chat fallback intact.
+configured reminder time and target-week start. Missed previous weeks are never replayed. An
+active goal alone makes a reminder eligible, even without carryover or overdue tasks. Empty reviews
+with no active goals produce no send. Reminders and chat invitations include goal counts and flag
+counts but no titles. Missing links and disabled Telegram integration leave chat fallback intact.
 An explicit deferral creates another occurrence on the original review.
 
 A send records `delivered` separately from review status. A Telegram HTTP 429 rejection permits at

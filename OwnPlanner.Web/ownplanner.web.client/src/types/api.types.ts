@@ -290,6 +290,7 @@ export interface WeeklyReviewState {
 }
 export interface WeeklyReviewView {
   review: WeeklyReviewState;
+  suggestCreatingGoals: boolean;
   report: {
     carryoverCount: number;
     overdueCount: number;
@@ -297,6 +298,22 @@ export interface WeeklyReviewView {
     totalCount: number;
     offset: number;
     limit: number;
-    tasks: { id: string; title: string; carryover: boolean; overdue: boolean; dueInTargetWeek: boolean }[];
+    tasks: { id: string; title: string; goalId: string | null; carryover: boolean; overdue: boolean; dueInTargetWeek: boolean }[];
+    goals: {
+      activeCount: number;
+      noNextStepCount: number;
+      stalledCount: number;
+      completedGoalWorkCount: number;
+      completedOtherWorkCount: number;
+      plannedGoalWorkCount: number;
+      plannedOtherWorkCount: number;
+      unplannedGoalIds: string[];
+      items: {
+        id: string; title: string; metric: string | null; metricCurrent: string | null;
+        completedLast7Count: number; completedLast7: { id: string; title: string }[];
+        openTaskCount: number; openTasks: { id: string; title: string }[];
+        plannedTaskCount: number; noNextStep: boolean; stalled: boolean; targetPeriodFlag: string | null;
+      }[];
+    };
   };
 }

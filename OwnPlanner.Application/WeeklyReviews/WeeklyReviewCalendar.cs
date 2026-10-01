@@ -50,5 +50,8 @@ public static class WeeklyReviewCalendar
 	}
 
 	public static string Notification(DateOnly targetWeek, WeeklyReviewReport report) =>
-		$"Ready for your weekly review for {targetWeek:yyyy-MM-dd}? {report.CarryoverCount} unfinished tasks are scheduled before the target week; {report.OverdueCount} tasks have overdue deadlines; {report.DueInTargetWeekCount} tasks are due in the target week. Ask to open the weekly review for {targetWeek:yyyy-MM-dd}, defer it, or skip it. No tasks have been changed.";
+		$"Ready for your weekly review for {targetWeek:yyyy-MM-dd}? " +
+		(report.Goals.ActiveCount == 0 ? "" :
+			$"{report.Goals.ActiveCount} active goals: {report.Goals.NoNextStepCount} have no next step; {report.Goals.StalledCount} have had no progress for 2 weeks. ") +
+		$"{report.CarryoverCount} unfinished tasks are scheduled before the target week; {report.OverdueCount} tasks have overdue deadlines; {report.DueInTargetWeekCount} tasks are due in the target week. Ask to open the weekly review for {targetWeek:yyyy-MM-dd}, defer it, or skip it. No tasks have been changed.";
 }
