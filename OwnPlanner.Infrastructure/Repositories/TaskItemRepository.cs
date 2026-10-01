@@ -1,12 +1,45 @@
 using Microsoft.EntityFrameworkCore;
 using OwnPlanner.Infrastructure.Persistence;
 using OwnPlanner.Domain.Tasks;
+using OwnPlanner.Domain.Goals;
 
 namespace OwnPlanner.Infrastructure.Repositories;
 
 public class TaskItemRepository(IPlannerDbContextFactory dbContextFactory)
 	: PlannerRepositoryBase<TaskItem>(dbContextFactory), ITaskItemRepository
 {
+	public async Task<TaskGoalLinkResult> LinkToActiveGoalAsync(Guid taskId, Guid goalId, CancellationToken ct = default)
+	{
+		await using var db = await CreateDbContextAsync(ct).ConfigureAwait(false);
+		// SQLite's non-deferred write transaction serializes eligibility checks, the conditional
+		// update and its returned snapshot against competing planner writes.
+		await using var transaction = await db.Database.BeginTransactionAsync(ct).ConfigureAwait(false);
+		var updatedAt = DateTime.UtcNow;
+		var changed = await db.TaskItems.Where(task => task.Id == taskId && task.TrashedAt == null && task.GoalId == null
+			&& db.TaskLists.Any(list => list.Id == task.TaskListId && !list.IsArchived)
+			&& db.Goals.Any(goal => goal.Id == goalId && goal.Status == GoalStatus.Active))
+			.ExecuteUpdateAsync(setters => setters.SetProperty(task => task.GoalId, goalId)
+				.SetProperty(task => task.UpdatedAt, updatedAt), ct).ConfigureAwait(false);
+		var task = await db.TaskItems.AsNoTracking().SingleOrDefaultAsync(task => task.Id == taskId && task.TrashedAt == null, ct).ConfigureAwait(false);
+		TaskGoalLinkResult result;
+		if (changed == 1)
+			result = new(TaskGoalLinkStatus.Linked, task!);
+		else if (task is null)
+			result = new(TaskGoalLinkStatus.TaskNotFound);
+		else if (!await db.TaskLists.AnyAsync(list => list.Id == task.TaskListId && !list.IsArchived, ct).ConfigureAwait(false))
+			result = new(TaskGoalLinkStatus.TaskListUnavailable);
+		else
+		{
+			var goal = await db.Goals.AsNoTracking().SingleOrDefaultAsync(goal => goal.Id == goalId, ct).ConfigureAwait(false);
+			result = goal is null ? new(TaskGoalLinkStatus.GoalNotFound)
+				: goal.Status != GoalStatus.Active ? new(TaskGoalLinkStatus.GoalInactive)
+				: task.GoalId == goalId ? new(TaskGoalLinkStatus.AlreadyLinked, task)
+				: new(TaskGoalLinkStatus.ConflictingLink);
+		}
+		await transaction.CommitAsync(ct).ConfigureAwait(false);
+		return result;
+	}
+
 	public new async Task<TaskItem?> GetAsync(Guid id, CancellationToken ct = default)
 	{
 		await using var db = await CreateDbContextAsync(ct).ConfigureAwait(false);

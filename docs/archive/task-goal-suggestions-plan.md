@@ -69,3 +69,37 @@ The only build warnings were existing ASP.NET test-host deprecations and the exi
 notice. No live Gemini relevance evaluation was run. Completed-diff review, `git diff --check` and
 local documentation target checks passed. No migrations or dependency changes were needed. ADR-0028
 records the resulting design and limits; the plan is archived in this implementation PR.
+
+## PR review follow-up plan
+
+Two review findings require changes before merge:
+
+1. Replace snapshot validation followed by ordinary task update with a tenant-bound repository
+   operation. In one SQLite write transaction, conditionally update only GoalId/UpdatedAt while
+   checking the non-trashed task, unlinked association, available list and Active goal; return a
+   consistent task snapshot or an explicit failure. Cover concurrent conflicting links, stale
+   eligibility and unchanged fields with actual SQLite tests.
+2. Add Application-owned structured conversation state for pending goal choices and declined task
+   IDs. A chat-local choice tool records offers/declines, rejects repeat offers for declined IDs,
+   and the adapter injects the state into every applicable model request. Explicit reset clears it;
+   rebuilding after summary, trim/failure and provider recovery preserves it. Cover real trim and
+   failed-summary paths, separate sessions, repeated offers and successful/failed link cleanup.
+
+Reviewed before follow-up implementation: these address the original criteria, keep business rules
+and state in inward layers, add no tenant arguments or database schema, and preserve existing MCP
+contracts. The new choice capability is local to chat, like skill_load, with mode permissions.
+Natural-language choice recognition remains the model's responsibility; registered choices are
+retained independently of transcript/model summaries. Re-run focused tests and full verification,
+update ADR/reference/PR evidence, and resolve the findings after the fixes are pushed.
+
+### Follow-up results
+
+The two fixes are implemented. Atomic SQLite tests protect changed eligibility, unchanged task
+fields, idempotence and concurrent conflicting links. Structured choice state is retained across
+actual summary/trim/failed-summary compaction, rebuild and recovery; repeated offers for declined IDs
+are rejected and successful/failed links clean up or retain pending choices appropriately.
+
+After refreshing dependencies with `./scripts/setup.sh`, the full canonical `./scripts/verify.sh`
+passed: frontend lint/build, 802 backend tests and 26 browser E2E tests, including the choice-schema
+regression and web capability assertion. All modified projects compile. Documentation links and
+`git diff --check` pass. No migrations were needed.

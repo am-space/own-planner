@@ -122,8 +122,8 @@ wait for the next round. Skill loads consume the same bounded tool-call rounds a
 
 Skill state is local to one request, and planner calls still use the host's authenticated
 `IMcpAdapter`. The web and Telegram paths use `DirectToolMcpAdapter`; the console's configured MCP
-adapter invokes the same stdio handlers. Like the agent calls, `skill_load` is a chat-local capability,
-not a public MCP server operation. Skills never accept tenant identifiers, database paths or code.
+adapter invokes the same stdio handlers. Like the agent calls, `skill_load` and
+`task_goal_link_choice` are chat-local capabilities, not public MCP server operations. Skills never accept tenant identifiers, database paths or code.
 Permanent deletion of tasks, notes, goals, contexts and lists is excluded from General. Clearly authorized simple task changes use `task_management` directly. Ambiguous targets require
 clarification; exploratory ideas invite discussion or proposal-only delegation. Multi-step planning
 can delegate with execution authorization already expressed by the user; it does not require another
@@ -179,17 +179,23 @@ combined suggestion for successful unlinked tasks. Urgent or clearly unrelated c
 goal reads and questions.
 
 The user confirms the specific task-to-goal choice before `taskitem_link_goal` is called. A bare yes
-to two alternatives requires clarification. Declined tasks are remembered in the conversation and
-not suggested again; compaction instructions preserve pending choices and declines. If task IDs are
-unavailable after compaction, the assistant resolves the targets using existing reads and asks when
-ambiguous. Suggestions never automatically link tasks or sweep existing unlinked work.
+to two alternatives requires clarification. Before an offer or decline reply, the model calls
+chat-local `task_goal_link_choice` with
+`action=offer`/`choices` (taskId/goalId pairs), or `action=decline`/`taskIds`. Application session state
+retains pending choices and declined IDs independently of history summaries and trimming; re-offering
+a declined ID is rejected. State is injected into permitted model requests and survives compaction,
+failed-summary fallback and recovery. Explicit reset or session expiration clears it. Successful
+links remove pending choices; failed links preserve them. The assistant can resolve names from the
+retained IDs using existing reads. Suggestions never automatically link tasks or sweep existing unlinked work.
 
 The focused shared tool takes required `taskId` and `goalId`, returning the existing task DTO or an
-`error`. Application rechecks task/list availability, Active goal status and conflicting associations,
-then changes only the goal association. An identical active link is idempotent. The web in-process
-adapter, HTTP MCP endpoint and stdio host expose the same handler and authenticated repositories.
-General loads goal reads and linking through `task_management`; Day Work adds just goal reads and
-this focused mutation, while Global Planning can apply confirmation after delegated creation.
+`error`. Application maps an atomic repository outcome: SQLite checks task/list availability, Active
+goal status and conflicting associations together with a conditional update and task snapshot in one
+write transaction. Only GoalId/UpdatedAt are written, and an identical active link is idempotent.
+The web in-process adapter, HTTP MCP endpoint and stdio host expose the same handler and authenticated repositories.
+General loads goal reads, linking and choice recording through `task_management`; Day Work adds
+goal reads, focused linking and local choice recording, while Global Planning can apply confirmation
+after delegated creation and record choices locally.
 Reflection and System Analysis receive no additional writes.
 
 Relevance and natural-language consent follow trusted model instructions. Deterministic tests cover

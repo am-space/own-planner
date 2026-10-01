@@ -1,7 +1,6 @@
 using FluentAssertions;
 using NSubstitute;
 using OwnPlanner.Application.Tasks;
-using OwnPlanner.Domain.Goals;
 using OwnPlanner.Domain.Tasks;
 
 namespace OwnPlanner.Application.Tests.Tasks;
@@ -9,75 +8,52 @@ namespace OwnPlanner.Application.Tests.Tasks;
 public sealed class TaskGoalLinkServiceTests
 {
 	private readonly ITaskItemRepository _tasks = Substitute.For<ITaskItemRepository>();
-	private readonly ITaskListRepository _lists = Substitute.For<ITaskListRepository>();
-	private readonly IGoalRepository _goals = Substitute.For<IGoalRepository>();
-	private readonly TaskList _list = new("Training");
-	private readonly Goal _goal = new("Run a half marathon", GoalHorizon.Quarterly, targetPeriod: "2026-Q4");
-	private TaskGoalLinkService Service => new(new TaskItemService(_tasks, _lists), _goals, _lists);
+	private TaskGoalLinkService Service => new(_tasks);
 
-	private TaskItem Seed(Guid? goalId = null)
+	[Theory]
+	[InlineData(TaskGoalLinkStatus.Linked)]
+	[InlineData(TaskGoalLinkStatus.AlreadyLinked)]
+	public async Task ReturnsAtomicRepositorySnapshotWithoutAnOrdinaryUpdate(TaskGoalLinkStatus status)
 	{
-		var task = new TaskItem("Book physiotherapy", _list.Id, "Knee assessment", DateTime.UtcNow.AddDays(2), true, goalId);
+		var ct = TestContext.Current.CancellationToken;
+		var goal = Guid.NewGuid();
+		var task = new TaskItem("Book physiotherapy", Guid.NewGuid(), "Knee assessment", DateTime.UtcNow.AddDays(2), true, goal);
 		task.SetFocusAt(DateTime.UtcNow.AddDays(1));
-		_tasks.GetAsync(task.Id, Arg.Any<CancellationToken>()).Returns(task);
-		_lists.GetAsync(_list.Id, Arg.Any<CancellationToken>()).Returns(_list);
-		_goals.GetAsync(_goal.Id, Arg.Any<CancellationToken>()).Returns(_goal);
-		return task;
-	}
-
-	[Fact]
-	public async Task LinkChangesOnlyAssociationAndRepeatedLinkDoesNotWrite()
-	{
-		var task = Seed();
-		var before = (await new TaskItemService(_tasks, _lists).GetAsync(task.Id, TestContext.Current.CancellationToken))!;
-		var linked = await Service.LinkAsync(task.Id, _goal.Id, TestContext.Current.CancellationToken);
-		linked.Should().BeEquivalentTo(before, options => options.Excluding(t => t.GoalId).Excluding(t => t.UpdatedAt));
-		linked.GoalId.Should().Be(_goal.Id);
-		var repeated = await Service.LinkAsync(task.Id, _goal.Id, TestContext.Current.CancellationToken);
-		repeated.Should().BeEquivalentTo(linked);
-		await _tasks.Received(1).UpdateAsync(task, Arg.Any<CancellationToken>());
+		_tasks.LinkToActiveGoalAsync(task.Id, goal, ct).Returns(new TaskGoalLinkResult(status, task));
+		var linked = await Service.LinkAsync(task.Id, goal, ct);
+		linked.Id.Should().Be(task.Id);
+		linked.GoalId.Should().Be(goal);
+		linked.Title.Should().Be(task.Title);
+		linked.DueAt.Should().Be(task.DueAt);
+		linked.FocusAt.Should().Be(task.FocusAt);
+		await _tasks.Received(1).LinkToActiveGoalAsync(task.Id, goal, ct);
+		await _tasks.DidNotReceive().UpdateAsync(Arg.Any<TaskItem>(), Arg.Any<CancellationToken>());
+		await _tasks.DidNotReceive().GetAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
 	}
 
 	[Theory]
-	[InlineData(GoalStatus.Paused)]
-	[InlineData(GoalStatus.Achieved)]
-	[InlineData(GoalStatus.Dropped)]
-	public async Task InactiveGoalIsRejectedEvenWhenItWasActiveAtSuggestionTime(GoalStatus status)
+	[InlineData(TaskGoalLinkStatus.TaskNotFound, "Task not found")]
+	[InlineData(TaskGoalLinkStatus.GoalNotFound, "Goal not found")]
+	[InlineData(TaskGoalLinkStatus.TaskListUnavailable, "The task's list is unavailable or archived.")]
+	[InlineData(TaskGoalLinkStatus.GoalInactive, "Only active goals can be linked through this operation.")]
+	[InlineData(TaskGoalLinkStatus.ConflictingLink, "The task is already linked to another goal. Ask the user before replacing it.")]
+	public async Task MapsAtomicRejectionWithoutFallingBackToUnguardedUpdate(TaskGoalLinkStatus status, string message)
 	{
-		var task = Seed();
-		_goal.SetStatus(status);
-		var act = () => Service.LinkAsync(task.Id, _goal.Id, TestContext.Current.CancellationToken);
-		await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("Only active goals*");
-		task.GoalId.Should().BeNull();
+		var task = Guid.NewGuid(); var goal = Guid.NewGuid(); var ct = TestContext.Current.CancellationToken;
+		_tasks.LinkToActiveGoalAsync(task, goal, ct).Returns(new TaskGoalLinkResult(status));
+		var act = () => Service.LinkAsync(task, goal, ct);
+		await act.Should().ThrowAsync<Exception>().WithMessage(message);
 		await _tasks.DidNotReceive().UpdateAsync(Arg.Any<TaskItem>(), Arg.Any<CancellationToken>());
 	}
 
 	[Fact]
-	public async Task ConflictingLinkIsPreserved()
+	public async Task PropagatesCancellationWithoutRetryingAnOrdinaryUpdate()
 	{
-		var existing = Guid.NewGuid();
-		var task = Seed(existing);
-		var act = () => Service.LinkAsync(task.Id, _goal.Id, TestContext.Current.CancellationToken);
-		await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*already linked*");
-		task.GoalId.Should().Be(existing);
-		await _tasks.DidNotReceive().UpdateAsync(Arg.Any<TaskItem>(), Arg.Any<CancellationToken>());
-	}
-
-	[Theory]
-	[InlineData("task")]
-	[InlineData("goal")]
-	[InlineData("list")]
-	[InlineData("archived")]
-	public async Task MissingOrUnavailableTargetNeverWrites(string unavailable)
-	{
-		var task = Seed();
-		if (unavailable == "task") _tasks.GetAsync(task.Id, Arg.Any<CancellationToken>()).Returns((TaskItem?)null);
-		if (unavailable == "goal") _goals.GetAsync(_goal.Id, Arg.Any<CancellationToken>()).Returns((Goal?)null);
-		if (unavailable == "list") _lists.GetAsync(_list.Id, Arg.Any<CancellationToken>()).Returns((TaskList?)null);
-		if (unavailable == "archived") _list.Archive();
-		var act = () => Service.LinkAsync(task.Id, _goal.Id, TestContext.Current.CancellationToken);
-		await act.Should().ThrowAsync<Exception>().Where(ex => ex is KeyNotFoundException || ex is InvalidOperationException);
-		task.GoalId.Should().BeNull();
+		using var cancellation = new CancellationTokenSource(); cancellation.Cancel();
+		var id = Guid.NewGuid(); var goal = Guid.NewGuid();
+		_tasks.LinkToActiveGoalAsync(id, goal, cancellation.Token).Returns(Task.FromCanceled<TaskGoalLinkResult>(cancellation.Token));
+		var act = () => Service.LinkAsync(id, goal, cancellation.Token);
+		await act.Should().ThrowAsync<OperationCanceledException>();
 		await _tasks.DidNotReceive().UpdateAsync(Arg.Any<TaskItem>(), Arg.Any<CancellationToken>());
 	}
 }

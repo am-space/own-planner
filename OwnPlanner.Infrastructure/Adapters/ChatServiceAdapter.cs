@@ -55,8 +55,25 @@ namespace OwnPlanner.Infrastructure.Adapters
 				required = new[] { "skillId" }
 			}))
 		};
+		private static readonly FunctionDeclaration GoalLinkChoiceFunctionDeclaration = new()
+		{
+			Name = TaskGoalLinkConversationState.ToolName,
+			Description = "Record pending task-to-goal choices before offering them, or record the user's decline before replying. Conversation memory only; never links tasks. Choices survive compaction and recovery. Declined tasks cannot be offered again.",
+			Parameters = ConvertJsonSchemaToGeminiSchema(JsonSerializer.SerializeToElement(new
+			{
+				type = "object",
+				properties = new
+				{
+					action = new { type = "string", @enum = new[] { "offer", "decline" } },
+					choices = new { type = "array", items = new { type = "object", properties = new { taskId = new { type = "string" }, goalId = new { type = "string" } }, required = new[] { "taskId", "goalId" } } },
+					taskIds = new { type = "array", items = new { type = "string" } }
+				},
+				required = new[] { "action" }
+			}))
+		};
+		private readonly TaskGoalLinkConversationState _goalLinkChoices = new();
 		private static readonly IReadOnlyList<FunctionDeclaration> LocalFunctionDeclarations =
-			[SearchAgentFunctionDeclaration, TaskPlanningAgentFunctionDeclaration, SkillLoadFunctionDeclaration];
+			[SearchAgentFunctionDeclaration, TaskPlanningAgentFunctionDeclaration, SkillLoadFunctionDeclaration, GoalLinkChoiceFunctionDeclaration];
 
 		private readonly GoogleAI _googleAi;
 		private readonly string _model;
@@ -119,6 +136,7 @@ namespace OwnPlanner.Infrastructure.Adapters
 
 		public void ResetChatSession(string? systemPrompt = null, IReadOnlyList<string>? allowedTools = null)
 		{
+			_goalLinkChoices.Clear();
 			InitializeChatSession(systemPrompt, allowedTools);
 		}
 
@@ -312,8 +330,9 @@ namespace OwnPlanner.Infrastructure.Adapters
 			request.Tools = declarations.Count == 0 ? new Tools() : new Tools { new Tool { FunctionDeclarations = declarations } };
 			// Request metadata is not appended to chat history. Tool results contain only load status,
 			// so resetting the runtime also removes the previous request's trusted skill instructions.
-			if (!string.IsNullOrEmpty(skills.Catalog) || !string.IsNullOrEmpty(skills.Instructions))
-				request.SystemInstruction = new Content($"{skills.Catalog}\n\n{skills.Instructions}");
+			var goalChoices = _toolPolicy.AllowedTools.Contains(TaskGoalLinkConversationState.ToolName) && _toolPolicy.CanWrite ? _goalLinkChoices.Context : string.Empty;
+			if (!string.IsNullOrEmpty(skills.Catalog) || !string.IsNullOrEmpty(skills.Instructions) || !string.IsNullOrEmpty(goalChoices))
+				request.SystemInstruction = new Content($"{skills.Catalog}\n\n{skills.Instructions}\n\n{goalChoices}");
 			return request;
 		}
 
@@ -509,6 +528,12 @@ namespace OwnPlanner.Infrastructure.Adapters
 				return JsonSerializer.Serialize(new { skillId = id, status = "loaded_for_current_request" });
 			}
 
+			if (toolName == TaskGoalLinkConversationState.ToolName)
+			{
+				_goalLinkChoices.Apply(arguments);
+				return JsonSerializer.Serialize(new { status = "recorded_for_conversation" });
+			}
+
 			if (_localAgentHandlers.TryGetValue(toolName, out var localAgentHandler))
 				return await localAgentHandler(arguments, cancellationToken).ConfigureAwait(false);
 
@@ -517,7 +542,15 @@ namespace OwnPlanner.Infrastructure.Adapters
 				throw new InvalidOperationException($"Tool '{toolName}' is unavailable because MCP is not configured.");
 			}
 
-			return await _mcpClient.CallToolAsync(toolName, arguments, cancellationToken).ConfigureAwait(false);
+			var result = await _mcpClient.CallToolAsync(toolName, arguments, cancellationToken).ConfigureAwait(false);
+			if (toolName == "taskitem_link_goal")
+			{
+				using var document = JsonDocument.Parse(result);
+				if (!document.RootElement.TryGetProperty("error", out _) && document.RootElement.TryGetProperty("id", out var id)
+					&& document.RootElement.TryGetProperty("goalId", out var goal) && goal.ValueKind == JsonValueKind.String)
+					_goalLinkChoices.Applied(id.GetGuid());
+			}
+			return result;
 		}
 
 		private string GetSafeResponseText(GenerateContentResponse response)

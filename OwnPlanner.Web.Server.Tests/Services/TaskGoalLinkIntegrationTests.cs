@@ -5,7 +5,6 @@ using System.Text.Json;
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -14,7 +13,6 @@ using OwnPlanner.Application.Chat;
 using OwnPlanner.Application.Telegram;
 using OwnPlanner.Application.Usage;
 using OwnPlanner.Infrastructure.Adapters;
-using OwnPlanner.Infrastructure.Persistence;
 using OwnPlanner.Web.Server.Configuration;
 using OwnPlanner.Web.Server.Controllers;
 using OwnPlanner.Web.Server.Models;
@@ -136,11 +134,12 @@ public sealed partial class DirectToolMcpAdapterTests
 				}
 			object[] parts = _round++ switch
 			{
-				0 or 4 => [new { functionCall = new { name = "skill_load", args = new { skillId = "task_management" } } }],
+				0 or 5 => [new { functionCall = new { name = "skill_load", args = new { skillId = "task_management" } } }],
 				1 => [new { functionCall = new { name = "taskitem_create", args = new { title = "Book physiotherapy", taskListId = list } } }],
 				2 => [new { functionCall = new { name = "goal_list", args = new { includeInactive = false } } }],
-				3 => [new { text = "Added Book physiotherapy. Link it to Run a half marathon?" }],
-				5 => [new { functionCall = new { name = "taskitem_link_goal", args = new { taskId = TaskId, goalId = goal } } }],
+				3 => [new { functionCall = new { name = "task_goal_link_choice", args = new { action = "offer", choices = new[] { new { taskId = TaskId, goalId = goal } } } } }],
+				4 => [new { text = "Added Book physiotherapy. Link it to Run a half marathon?" }],
+				6 => [new { functionCall = new { name = "taskitem_link_goal", args = new { taskId = TaskId, goalId = goal } } }],
 				_ => [new { text = "Linked to Run a half marathon." }]
 			};
 			return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(JsonSerializer.Serialize(new

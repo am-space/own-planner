@@ -68,7 +68,7 @@ public sealed record ModeConfig(
 					""" + "\n\n" + TaskGoalLinkGuidance.Instructions,
 				PreloadTools: ["strategic_report_get"],
 				AllowedTools: ChatCapabilities.Combine(ChatSkillRegistry.All["goals_organization"].Tools, ChatSkillRegistry.All["notes"].Tools, ChatSkillRegistry.All["strategic_review"].Tools, ChatCapabilities.TaskRecovery,
-					["taskitem_link_goal", "goal_delete", "context_delete", "tasklist_delete", "notelist_delete", "noteitem_delete", "taskitem_list_by_goal", "datetime_get_current", "search_agent_call", "task_planning_agent_call"]),
+					[TaskGoalLinkConversationState.ToolName, "taskitem_link_goal", "goal_delete", "context_delete", "tasklist_delete", "notelist_delete", "noteitem_delete", "taskitem_list_by_goal", "datetime_get_current", "search_agent_call", "task_planning_agent_call"]),
 				CanWrite: true)
 			{
 				SkillIds = ["goals_organization", "notes", "strategic_review"],
@@ -133,7 +133,7 @@ public sealed record ModeConfig(
 					""" + "\n\n" + TaskGoalLinkGuidance.Instructions,
 				PreloadTools: ["taskitem_list_by_focus_date"],
 				AllowedTools: ChatCapabilities.Combine(ChatCapabilities.TaskRead, ChatCapabilities.TaskProgress, ChatCapabilities.TaskListRead, ChatCapabilities.GoalRead,
-					["taskitem_link_goal", "taskitem_list_by_focus_date", "taskitem_create", "notelist_all", "noteitem_create", "datetime_get_current"]),
+					[TaskGoalLinkConversationState.ToolName, "taskitem_link_goal", "taskitem_list_by_focus_date", "taskitem_create", "notelist_all", "noteitem_create", "datetime_get_current"]),
 				CanWrite: true),
 
 			[PlanningMode.Reflection] = new ModeConfig(

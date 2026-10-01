@@ -23,6 +23,7 @@ public sealed partial class ChatSkillOrchestrationTests
 		if (mode == PlanningMode.General) script.Add(Calls(Call("skill_load", new { skillId = "task_management" })));
 		script.Add(Calls(Call("taskitem_create", new { title = "Book physiotherapy", taskListId = list })));
 		script.Add(Calls(Call("goal_list", new { includeInactive = false })));
+		script.Add(Calls(Call("task_goal_link_choice", new { action = "offer", choices = new[] { new { taskId = task, goalId = goal } } })));
 		script.Add(Final("Added Book physiotherapy. Link it to Run a half marathon?"));
 		if (mode == PlanningMode.General) script.Add(Calls(Call("skill_load", new { skillId = "task_management" })));
 		script.Add(Calls(Call("taskitem_link_goal", new { taskId = task, goalId = goal })));
@@ -41,7 +42,7 @@ public sealed partial class ChatSkillOrchestrationTests
 		first.Should().Contain("half-marathon").And.Contain("never Paused, Achieved or Dropped");
 		await adapter.GetResponse("Yes, link it", TestContext.Current.CancellationToken);
 		mcp.Calls.Should().Equal("taskitem_create", "goal_list", "taskitem_link_goal");
-		var followup = provider.Requests[mode == PlanningMode.General ? 5 : 4].GetProperty("contents").ToString();
+		var followup = provider.Requests[^1].GetProperty("contents").ToString();
 		followup.Should().Contain("Book physiotherapy").And.Contain(task.ToString()).And.Contain(goal.ToString());
 	}
 
@@ -62,8 +63,12 @@ public sealed partial class ChatSkillOrchestrationTests
 	[Fact]
 	public async Task DeclineAndLaterRefreshRetainChoiceWithoutLinkMutation()
 	{
+		var task = Guid.NewGuid(); var goal = Guid.NewGuid();
 		using var provider = new ScriptedProvider(Calls(Call("taskitem_create", new { title = "Book physiotherapy", taskListId = Guid.NewGuid() })),
-			Calls(Call("goal_list", new { includeInactive = false })), Final("Added Book physiotherapy. Link it to Run a half marathon?"),
+			Calls(Call("goal_list", new { includeInactive = false })),
+			Calls(Call("task_goal_link_choice", new { action = "offer", choices = new[] { new { taskId = task, goalId = goal } } })),
+			Final("Added Book physiotherapy. Link it to Run a half marathon?"),
+			Calls(Call("task_goal_link_choice", new { action = "decline", taskIds = new[] { task } })),
 			Final("Okay, left unlinked."), Calls(Call("taskitem_list_by_focus_date", new { })), Final("Book physiotherapy is still open."));
 		var mcp = new RecordingMcpAdapter();
 		await using var adapter = CreateAdapter(provider, mcp, PlanningMode.DayWork);
@@ -72,6 +77,7 @@ public sealed partial class ChatSkillOrchestrationTests
 		await adapter.GetResponse("What's left today?", TestContext.Current.CancellationToken);
 		mcp.Calls.Should().Equal("taskitem_create", "goal_list", "taskitem_list_by_focus_date");
 		ContentsText(provider.Requests[^1]).Should().Contain("No, don't link that task").And.Contain("never suggest linking those same tasks again");
+		provider.Requests[^1].GetProperty("systemInstruction").ToString().Should().Contain("declinedTaskIds").And.Contain(task.ToString());
 	}
 
 	[Fact]
@@ -142,6 +148,7 @@ public sealed partial class ChatSkillOrchestrationTests
 		};
 		if (mode == PlanningMode.General) script.Add(Calls(Call("skill_load", new { skillId = "task_management" })));
 		script.Add(Calls(Call("goal_list", new { includeInactive = false })));
+		script.Add(Calls(Call("task_goal_link_choice", new { action = "offer", choices = new[] { new { taskId = task, goalId = goal } } })));
 		script.Add(Final("Added recovery task. Link it to Run a half marathon?"));
 		if (mode == PlanningMode.General) script.Add(Calls(Call("skill_load", new { skillId = "task_management" })));
 		script.Add(Calls(Call("taskitem_link_goal", new { taskId = task, goalId = goal })));
@@ -153,7 +160,7 @@ public sealed partial class ChatSkillOrchestrationTests
 		await adapter.GetResponse("Create a recovery plan", TestContext.Current.CancellationToken);
 		mcp.Calls.Should().Equal("taskitem_create", "goal_list");
 		provider.Requests[1].GetProperty("systemInstruction").ToString().Should().Contain("set goalId only when the objective/brief explicitly authorizes").And.Contain("parent handles one combined suggestion");
-		var parent = provider.Requests[mode == PlanningMode.General ? 4 : 3].GetProperty("contents").ToString();
+		var parent = provider.Requests[^1].GetProperty("contents").ToString();
 		parent.Should().Contain(task.ToString()).And.Contain("taskitem_create");
 		await adapter.GetResponse("Yes, link that task", TestContext.Current.CancellationToken);
 		mcp.Calls.Should().Equal("taskitem_create", "goal_list", "taskitem_link_goal");
