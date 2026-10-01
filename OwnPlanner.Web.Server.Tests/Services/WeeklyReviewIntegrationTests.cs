@@ -9,6 +9,7 @@ using OwnPlanner.Application.Chat;
 using OwnPlanner.Application.Telegram;
 using OwnPlanner.Application.WeeklyReviews;
 using OwnPlanner.Domain.Users;
+using OwnPlanner.Domain.Goals;
 using OwnPlanner.Infrastructure.Adapters;
 using OwnPlanner.Infrastructure.Persistence;
 using OwnPlanner.Infrastructure.Telegram;
@@ -19,6 +20,45 @@ namespace OwnPlanner.Web.Server.Tests.Services;
 
 public sealed partial class DirectToolMcpAdapterTests
 {
+	[Fact]
+	public async Task GoalReviewAndLinkActionStayWithinAuthenticatedUserDatabase()
+	{
+		var ct = TestContext.Current.CancellationToken;
+		await using var services = BuildTenantServiceProvider();
+		var taskA = await SeedUserTaskIdAsync("user-a", "A task", ct);
+		await SeedUserTaskIdAsync("user-b", "B task", ct);
+		var goalIds = new List<Guid>();
+		foreach (var (userId, title) in new[] { ("user-a", "A private goal"), ("user-b", "B private goal") })
+		{
+			var path = Path.Combine(_tempDirectory, $"ownplanner-user-{userId}.db");
+			await using var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseSqlite($"Data Source={path}").Options);
+			var goal = new Goal(title, GoalHorizon.Yearly, targetPeriod: "2026");
+			db.Goals.Add(goal);
+			await db.SaveChangesAsync(ct);
+			goalIds.Add(goal.Id);
+		}
+		await using var a = CreateAdapter(services, "user-a");
+		await using var b = CreateAdapter(services, "user-b");
+		foreach (var adapter in new[] { a, b })
+			await adapter.CallToolAsync("weekly_review_configure", new Dictionary<string, object?> { ["enabled"] = true, ["timeZoneId"] = "UTC" }, ct);
+		await a.CallToolAsync("taskitem_update", new Dictionary<string, object?> { ["id"] = taskA, ["dueAt"] = TenantTestUtcNow.AddDays(-1).ToString("O") }, ct);
+		var view = ParseJsonElement(await a.CallToolAsync("weekly_review_open", cancellationToken: ct));
+		view.ToString().Should().Contain("A private goal").And.NotContain("B private goal");
+		var bView = ParseJsonElement(await b.CallToolAsync("weekly_review_open", cancellationToken: ct));
+		bView.ToString().Should().Contain("B private goal").And.NotContain("A private goal");
+		var row = view.GetProperty("report").GetProperty("tasks")[0];
+		var result = ParseJsonElement(await a.CallToolAsync("weekly_review_apply", new Dictionary<string, object?>
+		{
+			["reviewId"] = view.GetProperty("review").GetProperty("id").GetGuid(),
+			["taskId"] = taskA, ["revision"] = row.GetProperty("revision").GetString(),
+			["action"] = "linkGoal", ["goalId"] = goalIds[1].ToString()
+		}, ct));
+		result.GetProperty("applied").GetBoolean().Should().BeFalse();
+		await using var verify = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>()
+			.UseSqlite($"Data Source={Path.Combine(_tempDirectory, "ownplanner-user-user-a.db")}").Options);
+		(await verify.TaskItems.FindAsync([taskA], ct))!.GoalId.Should().BeNull();
+	}
+
 	[Fact]
 	public async Task WeeklyReview_StateReportsAndActionsStayWithinUserScope()
 	{
@@ -157,7 +197,24 @@ public sealed partial class DirectToolMcpAdapterTests
 		var account = new TelegramLinkedAccount(userId, 10, 20, PlanningMode.DayWork);
 		(await handler.HandleAsync(account, "", ct)).Should().Contain("timezone");
 		await handler.HandleAsync(account, "enable Europe/London 1 18:00", ct);
-		await handler.HandleAsync(account, "", ct);
+		(await handler.HandleAsync(account, "", ct)).Should().NotContain("formulate 1–3 goals");
+		await using (var initialChat = CreateAdapter(services, userId.ToString()))
+		{
+			var first = ParseJsonElement(await initialChat.CallToolAsync("weekly_review_open", cancellationToken: ct));
+			first.GetProperty("suggestCreatingGoals").GetBoolean().Should().BeTrue();
+			var again = ParseJsonElement(await initialChat.CallToolAsync("weekly_review_open", cancellationToken: ct));
+			again.GetProperty("suggestCreatingGoals").GetBoolean().Should().BeFalse();
+		}
+		await using (var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>()
+			.UseSqlite($"Data Source={Path.Combine(_tempDirectory, $"ownplanner-user-{userId}.db")}").Options))
+		{
+			db.Goals.Add(new Goal("Telegram goal", GoalHorizon.Monthly, targetPeriod: "2026-07"));
+			await db.SaveChangesAsync(ct);
+		}
+		var summary = await handler.HandleAsync(account, "", ct);
+		summary.Should().Contain("Telegram goal").And.Contain("no next step").And.Contain("no plan for week")
+			.And.Contain("target period passed").And.NotContain("targetPeriodPassed");
+		summary.IndexOf("Active goals:", StringComparison.Ordinal).Should().BeLessThan(summary.IndexOf("Remaining tasks:", StringComparison.Ordinal));
 		await handler.HandleAsync(account, "skip", ct);
 		await using var web = CreateAdapter(services, userId.ToString());
 		var view = ParseJsonElement(await web.CallToolAsync("weekly_review_open", cancellationToken: ct));

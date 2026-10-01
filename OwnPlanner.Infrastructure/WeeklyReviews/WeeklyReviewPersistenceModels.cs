@@ -44,13 +44,15 @@ public sealed class WeeklyReviewRow
 	public int Attempts { get; set; }
 	public DateTime? RetryAtUtc { get; set; }
 	public bool OfferedInChat { get; set; }
+	public bool GoalCreationOfferedInChat { get; set; }
 
 	public WeeklyReviewState ToSnapshot() => new()
 	{
 		Id = Id, TargetWeek = TargetWeek, TimeZoneId = TimeZoneId,
 		StartsAtUtc = StartsAtUtc, EndsAtUtc = EndsAtUtc, ScheduledAtUtc = ScheduledAtUtc,
 		Status = Status, DeferredUntilUtc = DeferredUntilUtc, Occurrence = Occurrence,
-		Delivery = Delivery, Attempts = Attempts, RetryAtUtc = RetryAtUtc, OfferedInChat = OfferedInChat
+		Delivery = Delivery, Attempts = Attempts, RetryAtUtc = RetryAtUtc, OfferedInChat = OfferedInChat,
+		GoalCreationOfferedInChat = GoalCreationOfferedInChat
 	};
 
 	public void Apply(WeeklyReviewState snapshot)
@@ -67,5 +69,6 @@ public sealed class WeeklyReviewRow
 		Attempts = snapshot.Attempts;
 		RetryAtUtc = snapshot.RetryAtUtc;
 		OfferedInChat = snapshot.OfferedInChat;
+		GoalCreationOfferedInChat = snapshot.GoalCreationOfferedInChat;
 	}
 }

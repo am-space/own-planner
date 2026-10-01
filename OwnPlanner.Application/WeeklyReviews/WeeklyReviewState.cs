@@ -27,4 +27,5 @@ public sealed class WeeklyReviewState
 	public int Attempts { get; set; }
 	public DateTime? RetryAtUtc { get; set; }
 	public bool OfferedInChat { get; set; }
+	public bool GoalCreationOfferedInChat { get; set; }
 }

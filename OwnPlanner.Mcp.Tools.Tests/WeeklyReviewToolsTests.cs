@@ -3,6 +3,7 @@ using FluentAssertions;
 using ModelContextProtocol.Server;
 using NSubstitute;
 using OwnPlanner.Application.Tasks;
+using OwnPlanner.Application.Goals;
 using OwnPlanner.Application.WeeklyReviews;
 using OwnPlanner.Mcp.Tools;
 
@@ -12,7 +13,7 @@ public sealed class WeeklyReviewToolsTests
 {
 	private readonly IWeeklyReviewService _service = Substitute.For<IWeeklyReviewService>();
 	private WeeklyReviewTools Tools => new(_service, new WeeklyReviewActions(Substitute.For<IWeeklyReviewStore>(),
-		Substitute.For<ITaskItemService>(), Substitute.For<ITaskListService>(), TimeProvider.System));
+		Substitute.For<ITaskItemService>(), Substitute.For<ITaskListService>(), TimeProvider.System, Substitute.For<IGoalService>()));
 
 	[Fact]
 	public void SdkSchemasHaveNoTenantOrPathInputs_AndExplicitOptInIsRequired()
@@ -39,6 +40,16 @@ public sealed class WeeklyReviewToolsTests
 		var annotations = McpServerTool.Create(method, Tools).ProtocolTool.Annotations!;
 		annotations.ReadOnlyHint.Should().BeTrue();
 		annotations.IdempotentHint.Should().BeTrue();
+	}
+
+	[Fact]
+	public void ApplyAddsOptionalGoalIdWithoutChangingExistingRequiredFields()
+	{
+		var method = typeof(WeeklyReviewTools).GetMethod(nameof(WeeklyReviewTools.Apply))!;
+		var schema = McpServerTool.Create(method, Tools).ProtocolTool.InputSchema;
+		schema.GetProperty("required").EnumerateArray().Select(item => item.GetString())
+			.Should().Equal("reviewId", "taskId", "revision", "action");
+		schema.GetProperty("properties").TryGetProperty("goalId", out _).Should().BeTrue();
 	}
 
 	[Theory]

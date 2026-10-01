@@ -18,7 +18,7 @@ public sealed class WeeklyReviewTools(IWeeklyReviewService service, WeeklyReview
 			reminderTime ?? current.ReminderTime, channel ?? current.Channel, ct);
 	}
 
-	[McpServerTool(Name = "weekly_review_open"), Description("Open/resume a fresh local-calendar weekly carryover review shared across Telegram and web. No task mutation. Optional reviewId resumes that exact review; targetWeek (yyyy-MM-dd) selects an existing review by the date in a reminder, especially when multiple periods are available; otherwise resume a due deferral first, or target next week on the last day of the week and this week on other days. Returns exact counts and bounded deduplicated task samples with reasons. Page with offset/limit (maximum 50). Current-week focus work is not necessarily overdue. Before authorized task changes retrieve fresh task data, skip completed/trashed/archived targets and report partial failures. Preserve deadlines when rescheduling focus. Offer retain/reset/remove deadline; remove using taskitem_update clearDueAt=true. Explicit user directions authorize changes; simply opening a review does not.")]
+	[McpServerTool(Name = "weekly_review_open"), Description("Open/resume the shared weekly review. No planning-data mutation. Returns active goals first with calculated flags, completed/open task samples, target-week plan counts and goal-work share; then a bounded page of remaining carryover/overdue tasks. Page tasks with offset/limit (maximum 50). A goal task already planned for the target week is omitted from the task page. suggestCreatingGoals is true only on the first conversational opening of a review with no active goals, even if Settings or /review was opened earlier. Optional reviewId resumes that review; targetWeek yyyy-MM-dd selects the period in a reminder. Refresh before changes. Opening does not authorize any task or goal mutation.")]
 	public async Task<object> Open(string? reviewId = null, int offset = 0, int limit = 20, CancellationToken ct = default, string? targetWeek = null)
 	{
 		DateOnly? target = null;
@@ -28,7 +28,7 @@ public sealed class WeeklyReviewTools(IWeeklyReviewService service, WeeklyReview
 				throw new ArgumentException("targetWeek must be yyyy-MM-dd from the reminder.");
 			target = date;
 		}
-		return await service.OpenAsync(ParseId(reviewId, nameof(reviewId)), offset, limit, ct, target);
+		return await service.OpenAsync(ParseId(reviewId, nameof(reviewId)), offset, limit, ct, target, conversational: true);
 	}
 
 	[McpServerTool(Name = "weekly_review_transition"), Description("On explicit user request, complete, skip, or defer a review by reviewId. Completing one task does not finish a review. For defer resolve a definite future localTime yyyy-MM-ddTHH:mm in the review's timezone, before its target week ends. Ask when ambiguous. 'Tomorrow' means the next local calendar day; retain the original target week. For disable reminders use weekly_review_configure with enabled=false and preserve existing preferences.")]
@@ -38,8 +38,8 @@ public sealed class WeeklyReviewTools(IWeeklyReviewService service, WeeklyReview
 	[McpServerTool(Name = "weekly_review_offer"), Description("After answering a suitable planning request, check once for an eligible missed weekly reminder or due deferral. Do not call during urgent/unrelated work or switch modes. Returns a counts-only invitation or no invitation; repeat only the returned invitation. This claims the offer across web/Telegram but never changes tasks. Delivered, finished, skipped, disabled and previously offered reviews are suppressed.")]
 	public async Task<object> Offer(CancellationToken ct = default) => new { invitation = await service.OfferAsync(ct) };
 
-	[McpServerTool(Name = "weekly_review_apply"), Description("Apply one explicitly authorized review task action, using reviewId, taskId and revision from a fresh weekly_review_open result. Actions: focus (focusDate yyyy-MM-dd in target week), clearFocus, complete, trash (recoverable), deadline (dueAt ISO8601 instant with offset), clearDeadline (#61). Rechecks current task/list and revision; returns applied=false for changed/missing/completed/archived targets. Report each result and partial failures; never claim all tasks changed from a sample. Merely accepting/opening a review does not authorize this tool. Focus changes preserve deadlines; deadline changes preserve focus.")]
-	public async Task<object> Apply(string reviewId, string taskId, string revision, string action, string? focusDate = null, string? dueAt = null, CancellationToken ct = default)
+	[McpServerTool(Name = "weekly_review_apply"), Description("Apply one explicitly authorized review task action with reviewId, taskId and revision from a fresh review result or targeted task lookup. Existing actions: focus, clearFocus, complete, trash, deadline, clearDeadline. goalFocus plans an existing task already linked to the selected active goal for focusDate in the target week, even when it is outside the ordinary task page; specify goalId. linkGoal links an unlinked task in the task review to an active goal only after user confirmation; specify goalId. Rechecks task, list, revision, goal and review; applied=false means refresh. Opening alone never authorizes mutations. Report partial failures; focus preserves deadlines.")]
+	public async Task<object> Apply(string reviewId, string taskId, string revision, string action, string? focusDate = null, string? dueAt = null, CancellationToken ct = default, string? goalId = null)
 	{
 		if (!DateTimeOffset.TryParse(revision, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.AssumeUniversal, out var version))
 			throw new ArgumentException("revision must be the timestamp returned by the review.");
@@ -58,7 +58,8 @@ public sealed class WeeklyReviewTools(IWeeklyReviewService service, WeeklyReview
 				throw new ArgumentException("dueAt must include an explicit UTC offset or Z.");
 			deadline = parsed.UtcDateTime;
 		}
-		return await actions.ApplyAsync(ParseRequiredId(reviewId, nameof(reviewId)), ParseRequiredId(taskId, nameof(taskId)), version.UtcDateTime, action, focus, deadline, ct);
+		return await actions.ApplyAsync(ParseRequiredId(reviewId, nameof(reviewId)), ParseRequiredId(taskId, nameof(taskId)), version.UtcDateTime, action, focus, deadline, ct,
+			ParseId(goalId, nameof(goalId)));
 	}
 
 	private static Guid? ParseId(string? value, string parameterName) => value is null ? null :

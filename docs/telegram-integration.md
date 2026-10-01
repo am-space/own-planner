@@ -67,7 +67,10 @@ personal access tokens, usage counters, Telegram identifiers, token hashes, or p
 
 The optional [weekly review](weekly-review.md) sends counts-only reminders when explicitly enabled in
 Settings or chat. It shares lifecycle state with web chat and never changes tasks automatically.
-`/review` opens the current review in any saved mode without switching modes. Explicit controls:
+`/review` opens the current review in any saved mode without switching modes. Its summary lists
+active goals and their calculated flags before the remaining task list. A review with active goals
+is eligible for a reminder even with no overdue or carryover tasks. Reminder text contains counts
+only, never goal titles. Explicit controls:
 
 - `/review enable Europe/London 1 18:00` selects a timezone, Monday week start (0=Sunday…6=Saturday),
   and 18:00 on the last day, and opts in. Use the user's own selected timezone.

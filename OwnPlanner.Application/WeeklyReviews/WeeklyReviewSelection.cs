@@ -3,7 +3,7 @@ using OwnPlanner.Domain.Tasks;
 
 namespace OwnPlanner.Application.WeeklyReviews;
 
-public sealed record WeeklyReviewTaskRow(Guid Id, string Title, Guid TaskListId, DateTime? FocusAt, DateTime? DueAt, DateTime Revision);
+public sealed record WeeklyReviewTaskRow(Guid Id, string Title, Guid TaskListId, DateTime? FocusAt, DateTime? DueAt, DateTime Revision, Guid? GoalId = null);
 
 /// <summary>Application-owned selection rules, exposed as expressions so persistence can count and page in SQL.</summary>
 public sealed class WeeklyReviewSelection(WeeklyReviewState review, DateTime nowUtc)
@@ -26,5 +26,5 @@ public sealed class WeeklyReviewSelection(WeeklyReviewState review, DateTime now
 		int offset, int limit, IReadOnlyList<WeeklyReviewTaskRow> rows) =>
 		new(nowUtc, carryoverCount, overdueCount, targetWeekCount, totalCount, offset, limit,
 			rows.Select(t => new WeeklyReviewTask(t.Id, t.Title, t.TaskListId, t.FocusAt, t.DueAt, t.Revision,
-				t.FocusAt < _focusBefore, t.DueAt < nowUtc, t.DueAt >= _start && t.DueAt < _end)).ToArray());
+				t.FocusAt < _focusBefore, t.DueAt < nowUtc, t.DueAt >= _start && t.DueAt < _end, t.GoalId)).ToArray());
 }

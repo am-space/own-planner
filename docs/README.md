@@ -19,7 +19,7 @@ describe.
 | [`dependency-baselines.md`](dependency-baselines.md) | Supported dependency majors, compatibility exclusions, and audit commands |
 | [`planner-workspace.md`](planner-workspace.md) | Read-only planner UI, HTTP contract, and tenant-safe read path |
 | [`telegram-integration.md`](telegram-integration.md) | Private Telegram bot setup, identity, delivery, and cleanup |
-| [`weekly-review.md`](weekly-review.md) | Local-calendar carryover reviews, reminders, settings and delivery policy |
+| [`weekly-review.md`](weekly-review.md) | Goal-focused local-calendar reviews, reminders, settings and delivery policy |
 | [`chat-presentation.md`](chat-presentation.md) | Scoped Markdown and responsive chat styles |
 
 ## Plans
@@ -68,6 +68,7 @@ ADRs describe decisions as actually shipped. Start new records from [`adr/templa
 - [`ADR-0024`](adr/0024-shared-weekly-carryover-review.md) — shared local-calendar weekly carryover review
 
 - [`ADR-0025`](adr/0025-microsoft-testing-platform.md) — xUnit package 4.x and native Microsoft Testing Platform verification
+- [`ADR-0026`](adr/0026-goal-focused-weekly-review.md) — goal-first review, computed flags and guarded commitments
 
 ## Historical plans
 
@@ -75,6 +76,7 @@ Archived plans preserve the original intent but may differ from the final implem
 implemented plans, prefer the linked ADR when determining current behavior.
 
 - [`archive/weekly-carryover-review-plan.md`](archive/weekly-carryover-review-plan.md)
+- [`archive/goal-focused-weekly-review-plan.md`](archive/goal-focused-weekly-review-plan.md)
 - [`archive/clear-task-deadline-plan.md`](archive/clear-task-deadline-plan.md)
 - [`archive/email-sending-plan.md`](archive/email-sending-plan.md)
 - [`archive/task-list-token-reduction-plan.md`](archive/task-list-token-reduction-plan.md)

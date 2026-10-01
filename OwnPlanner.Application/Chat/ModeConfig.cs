@@ -90,7 +90,7 @@ public sealed record ModeConfig(
 					- Suggest due date assignments and task prioritization
 					- Nudge moving or dropping tasks that won't realistically get done
 
-					You can create and modify: Tasks, due dates, and TaskLists.
+					You can create and modify: Goals during a weekly review, Tasks, due dates, and TaskLists.
 
 					Guidelines:
 					- Be practical and time-aware
