@@ -1,10 +1,13 @@
+using OwnPlanner.Application.Calendar;
+
 namespace OwnPlanner.Application.Reporting;
 
 public sealed record ReflectionReportOptions(
 	int PeriodDays = 7,
 	DateTime? EndAtUtc = null,
 	int TaskSampleLimit = 3,
-	int NoteSampleLimit = 3)
+	int NoteSampleLimit = 3,
+	string? CalendarPeriod = null)
 {
 	public const int MinPeriodDays = 1;
 	public const int MaxPeriodDays = 31;
@@ -13,6 +16,12 @@ public sealed record ReflectionReportOptions(
 
 	public void Validate()
 	{
+		if (CalendarPeriod is not null)
+		{
+			PlanningCalendarResolver.Validate(CalendarPeriod);
+			if (EndAtUtc.HasValue || PeriodDays != 7) throw new ArgumentException("Use calendarPeriod or periodDays/endAtUtc overrides, not both.");
+		}
+
 		if (PeriodDays is < MinPeriodDays or > MaxPeriodDays)
 			throw new ArgumentOutOfRangeException(nameof(PeriodDays), $"Period days must be between {MinPeriodDays} and {MaxPeriodDays}.");
 		if (EndAtUtc.HasValue && EndAtUtc.Value.Kind != DateTimeKind.Utc)
@@ -35,7 +44,11 @@ public sealed record ReflectionReport(
 	IReadOnlyList<ReflectionContextSummary> Contexts,
 	IReadOnlyList<ReflectionGoalSummary> Goals,
 	ReflectionInboxSummary Inbox,
-	ReflectionSignals Signals);
+	ReflectionSignals Signals)
+{
+	/// <summary>Present only for explicitly requested user-calendar periods; legacy UTC requests retain their meanings.</summary>
+	public PlanningPeriod? Calendar { get; init; }
+}
 
 public sealed record ReflectionOverallTotals(
 	int CompletedTaskCount,

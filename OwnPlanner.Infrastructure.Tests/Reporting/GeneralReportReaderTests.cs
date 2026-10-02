@@ -1,3 +1,5 @@
+using OwnPlanner.Application.Calendar;
+using OwnPlanner.Infrastructure.WeeklyReviews;
 using System.Text.Json;
 using FluentAssertions;
 using Microsoft.Data.Sqlite;
@@ -35,7 +37,7 @@ public sealed class GeneralReportReaderTests
 		db.AddRange(inbox, notes, archive, otherNotes, activeGoal, archivedTask, trashed, completed, visible,
 			new TaskItem("Unscheduled", inbox.Id), new NoteItem("Capture", notes.Id, "PRIVATE BODY"), new NoteItem("Filed", otherNotes.Id));
 		await db.SaveChangesAsync(ct);
-		var reader = new GeneralReportReader(new TestPlannerDbContextFactory(connection), new FixedTimeProvider(now));
+		var reader = new GeneralReportReader(new TestPlannerDbContextFactory(connection), new FixedTimeProvider(now), new PlanningCalendar(new WeeklyReviewStore(new TestPlannerDbContextFactory(connection)), new FixedTimeProvider(now)));
 
 		var report = await reader.GetAsync(ct);
 
@@ -60,7 +62,7 @@ public sealed class GeneralReportReaderTests
 		await connection.OpenAsync(ct);
 		await using var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseSqlite(connection).Options);
 		await db.Database.EnsureCreatedAsync(ct);
-		var reader = new GeneralReportReader(new TestPlannerDbContextFactory(connection), TimeProvider.System);
+		var reader = new GeneralReportReader(new TestPlannerDbContextFactory(connection), TimeProvider.System, new PlanningCalendar(new WeeklyReviewStore(new TestPlannerDbContextFactory(connection)), TimeProvider.System));
 		var report = await reader.GetAsync(ct);
 		report.Tasks.Should().BeEmpty();
 		report.Today.FocusTaskCount.Should().Be(0);

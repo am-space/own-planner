@@ -20,11 +20,11 @@ public sealed partial class ChatSkillOrchestrationTests
 		await using var adapter = CreateAdapter(provider, mcp);
 		await using var planning = new PlanningService(adapter, mcp, Microsoft.Extensions.Logging.Abstractions.NullLogger<PlanningService>.Instance);
 		await planning.GetResponseAsync("I'm considering learning Spanish", TestContext.Current.CancellationToken);
-		mcp.Calls.Should().Equal("general_report_get");
+		mcp.Calls.Should().Equal("general_report_get", "calendar_period_get");
 		var prompt = provider.Requests[0].GetProperty("contents").ToString();
 		prompt.Should().Contain("write only when the user expresses intent").And.Contain("Do not automatically print a briefing").And.Contain("Initial snapshot");
 		await planning.GetResponseAsync("Capture that idea in a note", TestContext.Current.CancellationToken);
-		mcp.Calls.Should().Equal("general_report_get", "noteitem_create");
+		mcp.Calls.Should().Equal("general_report_get", "calendar_period_get", "calendar_period_get", "noteitem_create");
 		Names(provider.Requests[1]).Should().BeEquivalentTo(ModeConfig.All[PlanningMode.General].InitialTools!);
 		Names(provider.Requests[2]).Should().Contain("noteitem_create");
 	}
@@ -265,6 +265,7 @@ public sealed partial class ChatSkillOrchestrationTests
 	private sealed class RecordingMcpAdapter(string? missingTool = null) : IMcpAdapter
 	{
 		public List<string> Calls { get; } = [];
+		public List<(string Tool, IReadOnlyDictionary<string, object?>? Values)> Arguments { get; } = [];
 		public Dictionary<string, string> Results { get; } = [];
 		public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
 		public Task<IReadOnlyList<McpToolDefinition>> ListToolDetailsAsync(CancellationToken cancellationToken = default) =>
@@ -276,6 +277,7 @@ public sealed partial class ChatSkillOrchestrationTests
 		{
 			cancellationToken.ThrowIfCancellationRequested();
 			Calls.Add(toolName);
+			Arguments.Add((toolName, arguments));
 			return Task.FromResult(Results.GetValueOrDefault(toolName, "{}"));
 		}
 		public ValueTask DisposeAsync() => ValueTask.CompletedTask;

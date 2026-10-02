@@ -121,6 +121,7 @@ namespace OwnPlanner.Mcp.StdioApp
 					services.AddScoped<IPlanningContextService, PlanningContextService>();
 					services.AddSingleton(TimeProvider.System);
 					services.AddScoped<IWeeklyReviewStore, WeeklyReviewStore>();
+					services.AddScoped<OwnPlanner.Application.Calendar.IPlanningCalendar, OwnPlanner.Application.Calendar.PlanningCalendar>();
 					services.AddScoped<IWeeklyReviewService, WeeklyReviewService>();
 					services.AddScoped<WeeklyReviewActions>();
 					services.AddScoped<IStrategicReportReader, StrategicReportReader>();
@@ -150,6 +151,7 @@ namespace OwnPlanner.Mcp.StdioApp
 						.WithTools<StrategicReportTools>()
 						.WithTools<WeeklyReportTools>()
 						.WithTools<WeeklyReviewTools>(serializerOptions: TaskToolSerialization.Options)
+						.WithTools<PlanningCalendarTools>()
 						.WithTools<GeneralReportTools>()
 						.WithTools<ReflectionReportTools>()
 						.WithTools<DateTimeTools>();

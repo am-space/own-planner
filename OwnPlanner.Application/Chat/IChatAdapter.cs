@@ -7,6 +7,9 @@ namespace OwnPlanner.Application.Chat;
 /// </summary>
 public interface IChatAdapter : IAsyncDisposable
 {
+	/// <summary>Replaces host-supplied per-turn context without adding it to replayed history. Called before each response, including after compaction.</summary>
+	void SetRequestContext(string context) { }
+
 	/// <summary>
 	/// Applies host-owned mode permissions and request-scoped skill configuration. Call when switching
 	/// modes before resetting the session; implementations must enforce this policy at execution time.

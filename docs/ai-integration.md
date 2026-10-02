@@ -32,10 +32,13 @@ When a user submits a prompt, the system executes the following loop:
 
 ## General initial context report
 
-`general_report_get` is parameterless and read-only. `GeneralReportReader` reads the host-bound
+`general_report_get` is read-only; optional `calendarPeriod` adds a separate user-calendar summary.
+`GeneralReportReader` reads the host-bound
 user database in one transaction without loading descriptions or note bodies. Application's
 `GeneralReportBuilder` owns the deterministic composition rules. The shared MCP handler is
 registered in-process, over HTTP MCP and in the stdio host.
+
+The original UTC fields retain these contracts even when local data is requested:
 
 | Section | Contract |
 |---|---|
@@ -56,7 +59,11 @@ tokenization varies by model and text. Fixed field/sample limits are the enforce
 The reader projects all eligible task metadata for exact counts, so database work still scales with
 planner size. No user timezone or historical completion timeline is inferred.
 
-See [ADR-0021](adr/0021-general-default-chat.md).
+General preloads `calendarPeriod=thisWeek`. The separate `calendar` section gives local today and
+requested-period counts/samples; the original UTC and rolling-window fields above keep their meanings.
+Every turn receives fresh clock/calendar metadata, and new date-scoped requests retrieve fresh reports.
+See [user calendar](user-calendar.md), [ADR-0021](adr/0021-general-default-chat.md) and
+[ADR-0029](adr/0029-shared-user-calendar.md).
 
 ## Clearing task deadlines
 
@@ -81,12 +88,14 @@ values, and newly linked Telegram accounts. Explicit mode selections remain in f
 Telegram selections also survive `/new`. All six modes are selectable, including Day Work.
 General discusses exploratory ideas before writing and does not automatically switch modes.
 
-Its compact baseline is `general_report_get`, `datetime_get_current`, `skill_load`,
+Its compact baseline is `calendar_period_get`, `general_report_get`, `datetime_get_current`,
+`weekly_review_offer`, `skill_load`,
 `task_planning_agent_call`, and `search_agent_call`, alongside the compact skill catalog. Both
 agents are directly callable from the first request. Only the General report is preloaded on
 initialization or mode entry. The dated snapshot is labeled as initial context, does not trigger an
 automatic briefing, and is not appended again on ordinary turns or compaction. The assistant uses
-targeted reads after mutations or when fresh state matters. General starter prompts invite
+targeted reads after mutations and fresh named-period reports for new date-scoped requests. Lightweight
+calendar metadata refreshes every turn outside replayed history. General starter prompts invite
 exploration, capture, and attention review. Specialized modes retain their original tools and purpose.
 
 `ChatSkillRegistry` in Application defines six trusted skills:
@@ -96,7 +105,7 @@ exploration, capture, and attention review. Specialized modes retain their origi
 | `task_management` | Targeted task reads, edits, completion, reopening, recoverable Trash and restoration |
 | `notes` | Targeted note retrieval, capture, editing and organization |
 | `goals_organization` | Goals, contexts and task/note list structure |
-| `weekly_planning` | Seven-day workload, prioritization and scheduling guidance |
+| `weekly_planning` | Calendar-period workload, prioritization and scheduling guidance |
 | `reflection` | Current-state reflection report, captures, retrospective notes and goal status |
 | `strategic_review` | Read-only alignment and structural diagnosis |
 
@@ -135,7 +144,7 @@ are retained, with additive weekly-review and task goal-link capabilities descri
 
 | Mode | Explicit baseline skills and additional capabilities |
 |---|---|
-| General | Five compact baseline tools; six skills loaded on demand |
+| General | Seven compact baseline tools; six skills loaded on demand |
 | Global Planning | Goals/organization, notes and strategic review; existing recovery, removal and delegation capabilities; focused task goal linking |
 | Week Planning | Weekly planning and task management; existing task-list maintenance |
 | Day Work | Narrow task-read/progress groups, quick capture, goal reads and focused task goal linking; no full task skill or agents |
@@ -289,14 +298,19 @@ no user ID, database path, or other tenant selector.
 
 ## Weekly Report Preloading
 
-Week Planning preloads `weekly_report_get` instead of broad goal, task-list, and task snapshots. The
-existing entity tools remain available for targeted drill-down and permitted task changes. Calling
+Week Planning preloads `weekly_report_get calendarPeriod=thisWeek` instead of broad goal, task-list, and task
+snapshots. The existing entity tools remain available for targeted drill-down and permitted task changes. Calling
 the report again refreshes the point-in-time workload after a conversation changes planner data.
 
-The optional `startDate` is a strict ISO UTC calendar date (`yyyy-MM-dd`). When omitted, the reader
-uses the calendar date of its injected `asOfUtc` instant. The report covers exactly seven UTC dates
+When `calendarPeriod` is omitted, the optional `startDate` is a strict ISO UTC calendar date (`yyyy-MM-dd`).
+When startDate is also omitted, the reader uses the calendar date of its injected `asOfUtc` instant. The report covers exactly seven UTC dates
 using `[windowStartDate, windowEndExclusiveDate)` and returns both endpoints, `asOfUtc`, `timeZone:
-"UTC"`, and the interval notation. It does not apply a local week start or daylight-saving offset.
+"UTC"`, and the interval notation. This legacy path does not apply a local week start or daylight-saving offset.
+
+Named calendar requests use the explicit user timezone/week start and return `calendar` metadata.
+`thisWeek`, `nextWeek` and `nextSevenDays` are distinct requested windows, resolved afresh. Focus
+membership uses stored calendar dates; deadlines use UTC boundaries converted from the local calendar,
+including DST. Conflicting `calendarPeriod` and `startDate` return an error. See [user calendar](user-calendar.md).
 
 Only incomplete tasks in non-archived task lists contribute. Overall totals separately count tasks
 focused inside the window, due inside the window, currently overdue (`dueAt < asOfUtc`), currently
@@ -313,25 +327,31 @@ work, overdue tasks not focused inside the window, and important tasks without a
 1–20; a day is overloaded when its distinct focus-or-due task count is at least the threshold. Task
 samples sort overdue first, then important, due date, focus date, and stable identifier. Description
 previews contain at most 200 characters and include a truncation flag. The tool performs no capacity
-estimation, scheduling, timezone conversion, or historical reconstruction, and accepts no tenant
+estimation, scheduling or historical reconstruction, and accepts no tenant
 selector.
 
 ## Reflection Report Preloading
 
-Reflection mode preloads `reflection_report_get` instead of broad goal, note-list, note, and task
+Reflection mode preloads `reflection_report_get calendarPeriod=lastWeek` instead of broad goal, note-list, note, and task
 snapshots. Existing entity tools remain available for targeted drill-down and permitted Reflection
 mode writes. Calling the report again refreshes its current-state view after relevant changes.
 
-`periodDays` defaults to 7 and accepts 1–31. The optional `endAtUtc` must be an ISO timestamp with a
-zero UTC offset, such as `2026-08-19T12:00:00Z`; otherwise the injected current UTC instant is used.
+When `calendarPeriod` is omitted, `periodDays` defaults to 7 and accepts 1–31. The optional `endAtUtc` must be an ISO
+timestamp with a zero UTC offset, such as `2026-08-19T12:00:00Z`; otherwise the injected current UTC instant is used.
 The report returns `asOfUtc`, `periodStartUtc`, `periodEndExclusiveUtc`, `timeZone: "UTC"`, and the
 explicit interval `[periodStartUtc, periodEndExclusiveUtc)`.
+
+`calendarPeriod=lastWeek` selects the previous complete local calendar week, matching the starter.
+An explicit `lastSevenDays` request selects the rolling 168 hours ending now. The named-period path
+adds local date/timezone metadata and evaluates completion timestamps as instants and focus values
+as calendar dates. Combining it with an end override or a non-default periodDays returns an error.
+See [user calendar](user-calendar.md) for fallback and DST semantics.
 
 The report deterministically returns:
 
 - tasks currently completed whose persisted `completedAt` is inside the period;
 - tasks created inside the period and notes created or updated inside the period;
-- currently incomplete tasks whose current focus instant is inside the period;
+- currently incomplete tasks whose current focus value is inside the selected date range (or legacy UTC range);
 - currently overdue incomplete tasks as of `asOfUtc`;
 - completed and missed-focus summaries by non-archived context and active goal;
 - active-goal completion coverage plus current remaining and overdue task counts; and
@@ -385,7 +405,7 @@ Its `goalFocus` action schedules a linked goal task absent from the carryover pa
 links an unlinked task to an active goal after confirmation.
 
 Preferences and lifecycle are shared by web, Telegram and MCP transports. Timezones are explicit and
-local-calendar weeks do not alter the existing UTC weekly_report_get contract. Finishing, skipping,
+local-calendar requests are additive; omitted calendarPeriod preserves the existing UTC report contracts. Finishing, skipping,
 deferring and disabling are explicit operations. See [weekly review](weekly-review.md) and
 [ADR-0024](adr/0024-shared-weekly-carryover-review.md).
 

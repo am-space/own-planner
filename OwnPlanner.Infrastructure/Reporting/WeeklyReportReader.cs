@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using OwnPlanner.Application.Reporting;
+using OwnPlanner.Application.Calendar;
 using OwnPlanner.Domain.Contexts;
 using OwnPlanner.Domain.Goals;
 using OwnPlanner.Infrastructure.Persistence;
@@ -8,7 +9,8 @@ namespace OwnPlanner.Infrastructure.Reporting;
 
 public sealed class WeeklyReportReader(
 	IPlannerDbContextFactory dbContextFactory,
-	TimeProvider timeProvider) : IWeeklyReportReader
+	TimeProvider timeProvider,
+	IPlanningCalendar calendar) : IWeeklyReportReader
 {
 	private const int PreviewLength = 200;
 	private const string MissingContextName = "Unassigned or missing context";
@@ -18,11 +20,16 @@ public sealed class WeeklyReportReader(
 		CancellationToken cancellationToken = default)
 	{
 		options.Validate();
-		var asOfUtc = timeProvider.GetUtcNow().UtcDateTime;
-		var startDate = options.StartDate ?? DateOnly.FromDateTime(asOfUtc);
-		var endDate = startDate.AddDays(7);
-		var windowStartUtc = startDate.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
-		var windowEndUtc = endDate.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+		var period = options.CalendarPeriod is null ? null : await calendar.ResolveAsync(options.CalendarPeriod, cancellationToken);
+		var asOfUtc = period?.AsOfUtc ?? timeProvider.GetUtcNow().UtcDateTime;
+		var startDate = period?.StartDate ?? options.StartDate ?? DateOnly.FromDateTime(asOfUtc);
+		var endDate = period?.EndExclusiveDate ?? startDate.AddDays(7);
+		var focusStart = startDate.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+		var focusEnd = endDate.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+		var windowStartUtc = period?.StartsAtUtc ?? focusStart;
+		var windowEndUtc = period?.EndsAtUtc ?? focusEnd;
+		var zone = TimeZoneInfo.FindSystemTimeZoneById(period?.TimeZone ?? "UTC");
+		var dayCount = endDate.DayNumber - startDate.DayNumber;
 
 		await using var db = await dbContextFactory.CreateAsync(cancellationToken);
 		await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
@@ -49,18 +56,22 @@ public sealed class WeeklyReportReader(
 		var listContexts = activeLists.ToDictionary(list => list.Id, list => list.ContextId);
 		var contextNames = contexts.ToDictionary(context => context.Id, context => context.Name);
 		var orderedTasks = OrderTasks(tasks, asOfUtc).ToList();
-		var windowTasks = orderedTasks.Where(task => InWindow(task.FocusAt, windowStartUtc, windowEndUtc) || InWindow(task.DueAt, windowStartUtc, windowEndUtc)).ToList();
-		var overdueNotFocused = orderedTasks.Where(task => IsOverdue(task, asOfUtc) && !InWindow(task.FocusAt, windowStartUtc, windowEndUtc)).ToList();
+		var windowTasks = orderedTasks.Where(task => InWindow(task.FocusAt, focusStart, focusEnd) || InWindow(task.DueAt, windowStartUtc, windowEndUtc)).ToList();
+		var overdueNotFocused = orderedTasks.Where(task => IsOverdue(task, asOfUtc) && !InWindow(task.FocusAt, focusStart, focusEnd)).ToList();
 		var importantWithoutFocus = orderedTasks.Where(task => task.IsImportant && task.FocusAt is null).ToList();
-		var sampleIds = SelectSampleIds(startDate, options.TaskSampleLimit, windowTasks, overdueNotFocused, importantWithoutFocus, orderedTasks, goals, listContexts);
+		var sampleIds = SelectSampleIds(startDate, dayCount, zone, windowStartUtc, windowEndUtc, options.TaskSampleLimit, windowTasks, overdueNotFocused, importantWithoutFocus, orderedTasks, goals, listContexts);
 		var previews = await LoadPreviewsAsync(db, sampleIds, cancellationToken);
 
-		var days = Enumerable.Range(0, 7).Select(offset =>
+		var days = Enumerable.Range(0, dayCount).Select(offset =>
 		{
 			var date = startDate.AddDays(offset);
-			var dayStart = date.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
-			var dayEnd = date.AddDays(1).ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
-			var focused = orderedTasks.Where(task => InWindow(task.FocusAt, dayStart, dayEnd)).ToList();
+			var dayStart = CalendarRules.ToUtc(date, TimeOnly.MinValue, zone);
+			var dayEnd = CalendarRules.ToUtc(date.AddDays(1), TimeOnly.MinValue, zone);
+			if (dayStart < windowStartUtc) dayStart = windowStartUtc;
+			if (dayEnd > windowEndUtc) dayEnd = windowEndUtc;
+			var focusDayStart = date.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+			var focusDayEnd = date.AddDays(1).ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+			var focused = orderedTasks.Where(task => InWindow(task.FocusAt, focusDayStart, focusDayEnd)).ToList();
 			var due = orderedTasks.Where(task => InWindow(task.DueAt, dayStart, dayEnd)).ToList();
 			var distinctCount = focused.Select(task => task.Id).Union(due.Select(task => task.Id)).Count();
 			return new WeeklyDaySummary(
@@ -72,18 +83,18 @@ public sealed class WeeklyReportReader(
 		var contextGroups = orderedTasks.GroupBy(task => ResolveContext(task, listContexts, contextNames))
 			.OrderBy(group => group.Key.Name, StringComparer.OrdinalIgnoreCase)
 			.ThenBy(group => group.Key.Id)
-			.Select(group => BuildContextSummary(group.Key, group.ToList(), windowStartUtc, windowEndUtc, asOfUtc, listContexts, previews, options.TaskSampleLimit))
+			.Select(group => BuildContextSummary(group.Key, group.ToList(), windowStartUtc, windowEndUtc, focusStart, focusEnd, asOfUtc, listContexts, previews, options.TaskSampleLimit))
 			.ToList();
 		var goalGroups = orderedTasks.Where(task => task.GoalId.HasValue).GroupBy(task => task.GoalId!.Value)
 			.ToDictionary(group => group.Key, group => group.ToList());
 		var goalSummaries = goals.OrderBy(goal => goal.Title, StringComparer.OrdinalIgnoreCase).ThenBy(goal => goal.Id)
-			.Select(goal => BuildGoalSummary(goal, goalGroups.GetValueOrDefault(goal.Id) ?? [], windowStartUtc, windowEndUtc, asOfUtc, listContexts, previews, options.TaskSampleLimit))
+			.Select(goal => BuildGoalSummary(goal, goalGroups.GetValueOrDefault(goal.Id) ?? [], windowStartUtc, windowEndUtc, focusStart, focusEnd, asOfUtc, listContexts, previews, options.TaskSampleLimit))
 			.ToList();
 
 		return new WeeklyReport(
-			asOfUtc, startDate, endDate, "UTC", "[windowStartDate, windowEndExclusiveDate)", options.OverloadedDayThreshold,
+			asOfUtc, startDate, endDate, period?.TimeZone ?? "UTC", period is null ? "[windowStartDate, windowEndExclusiveDate)" : $"{period.Name}: focus calendar dates [startDate, endExclusiveDate); deadline instants [startsAtUtc, endsAtUtc)", options.OverloadedDayThreshold,
 			new WeeklyOverallTotals(
-				orderedTasks.Count(task => InWindow(task.FocusAt, windowStartUtc, windowEndUtc)),
+				orderedTasks.Count(task => InWindow(task.FocusAt, focusStart, focusEnd)),
 				orderedTasks.Count(task => InWindow(task.DueAt, windowStartUtc, windowEndUtc)),
 				windowTasks.Count,
 				orderedTasks.Count(task => IsOverdue(task, asOfUtc)),
@@ -94,38 +105,44 @@ public sealed class WeeklyReportReader(
 				days.Where(day => day.IsOverloaded).Select(day => new WeeklyOverloadedDay(day.Date, day.DistinctTaskCount)).ToList(),
 				goalSummaries.Where(goal => goal.FocusedInsideWindowCount == 0).Select(goal => new StrategicEntityReference(goal.Id, goal.Title)).ToList(),
 				overdueNotFocused.Take(options.TaskSampleLimit).Select(task => ToSample(task, listContexts, previews)).ToList(), overdueNotFocused.Count,
-				importantWithoutFocus.Take(options.TaskSampleLimit).Select(task => ToSample(task, listContexts, previews)).ToList(), importantWithoutFocus.Count));
+				importantWithoutFocus.Take(options.TaskSampleLimit).Select(task => ToSample(task, listContexts, previews)).ToList(), importantWithoutFocus.Count)) { Calendar = period };
 	}
 
-	private static WeeklyContextSummary BuildContextSummary(ContextKey key, IReadOnlyList<TaskRow> tasks, DateTime start, DateTime end, DateTime asOfUtc, IReadOnlyDictionary<Guid, Guid?> contexts, IReadOnlyDictionary<Guid, PreviewRow> previews, int limit)
+	private static WeeklyContextSummary BuildContextSummary(ContextKey key, IReadOnlyList<TaskRow> tasks, DateTime start, DateTime end, DateTime focusStart, DateTime focusEnd, DateTime asOfUtc, IReadOnlyDictionary<Guid, Guid?> contexts, IReadOnlyDictionary<Guid, PreviewRow> previews, int limit)
 	{
-		var windowTasks = tasks.Where(task => InWindow(task.FocusAt, start, end) || InWindow(task.DueAt, start, end)).ToList();
+		var windowTasks = tasks.Where(task => InWindow(task.FocusAt, focusStart, focusEnd) || InWindow(task.DueAt, start, end)).ToList();
 		return new WeeklyContextSummary(key.Id, key.Name, key.Id is null, windowTasks.Count,
-			tasks.Count(task => InWindow(task.FocusAt, start, end)), tasks.Count(task => InWindow(task.DueAt, start, end)),
+			tasks.Count(task => InWindow(task.FocusAt, focusStart, focusEnd)), tasks.Count(task => InWindow(task.DueAt, start, end)),
 			tasks.Count(task => task.IsImportant), tasks.Count(task => IsOverdue(task, asOfUtc)),
 			windowTasks.Take(limit).Select(task => ToSample(task, contexts, previews)).ToList());
 	}
 
-	private static WeeklyGoalSummary BuildGoalSummary(GoalRow goal, IReadOnlyList<TaskRow> tasks, DateTime start, DateTime end, DateTime asOfUtc, IReadOnlyDictionary<Guid, Guid?> contexts, IReadOnlyDictionary<Guid, PreviewRow> previews, int limit)
+	private static WeeklyGoalSummary BuildGoalSummary(GoalRow goal, IReadOnlyList<TaskRow> tasks, DateTime start, DateTime end, DateTime focusStart, DateTime focusEnd, DateTime asOfUtc, IReadOnlyDictionary<Guid, Guid?> contexts, IReadOnlyDictionary<Guid, PreviewRow> previews, int limit)
 	{
-		var windowTasks = tasks.Where(task => InWindow(task.FocusAt, start, end) || InWindow(task.DueAt, start, end)).ToList();
+		var windowTasks = tasks.Where(task => InWindow(task.FocusAt, focusStart, focusEnd) || InWindow(task.DueAt, start, end)).ToList();
 		return new WeeklyGoalSummary(goal.Id, goal.Title, windowTasks.Count,
-			tasks.Count(task => InWindow(task.FocusAt, start, end)), tasks.Count(task => InWindow(task.DueAt, start, end)),
+			tasks.Count(task => InWindow(task.FocusAt, focusStart, focusEnd)), tasks.Count(task => InWindow(task.DueAt, start, end)),
 			tasks.Count(task => task.IsImportant), tasks.Count(task => IsOverdue(task, asOfUtc)),
 			windowTasks.Take(limit).Select(task => ToSample(task, contexts, previews)).ToList());
 	}
 
-	private static HashSet<Guid> SelectSampleIds(DateOnly startDate, int limit, IReadOnlyList<TaskRow> windowTasks, IReadOnlyList<TaskRow> overdue, IReadOnlyList<TaskRow> important, IReadOnlyList<TaskRow> allTasks, IReadOnlyList<GoalRow> goals, IReadOnlyDictionary<Guid, Guid?> contexts)
+	private static HashSet<Guid> SelectSampleIds(DateOnly startDate, int dayCount, TimeZoneInfo zone, DateTime windowStart, DateTime windowEnd, int limit, IReadOnlyList<TaskRow> windowTasks, IReadOnlyList<TaskRow> overdue, IReadOnlyList<TaskRow> important, IReadOnlyList<TaskRow> allTasks, IReadOnlyList<GoalRow> goals, IReadOnlyDictionary<Guid, Guid?> contexts)
 	{
 		if (limit == 0) return [];
 		var ids = new HashSet<Guid>(windowTasks.Take(limit).Select(task => task.Id));
 		ids.UnionWith(overdue.Take(limit).Select(task => task.Id));
 		ids.UnionWith(important.Take(limit).Select(task => task.Id));
-		foreach (var offset in Enumerable.Range(0, 7))
+		foreach (var offset in Enumerable.Range(0, dayCount))
 		{
 			var start = startDate.AddDays(offset).ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
 			var end = startDate.AddDays(offset + 1).ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
-			ids.UnionWith(allTasks.Where(task => InWindow(task.FocusAt, start, end)).Take(limit).Select(task => task.Id));
+			var focusStart = start;
+			var focusEnd = end;
+			start = CalendarRules.ToUtc(startDate.AddDays(offset), TimeOnly.MinValue, zone);
+			end = CalendarRules.ToUtc(startDate.AddDays(offset + 1), TimeOnly.MinValue, zone);
+			if (start < windowStart) start = windowStart;
+			if (end > windowEnd) end = windowEnd;
+			ids.UnionWith(allTasks.Where(task => InWindow(task.FocusAt, focusStart, focusEnd)).Take(limit).Select(task => task.Id));
 			ids.UnionWith(allTasks.Where(task => InWindow(task.DueAt, start, end)).Take(limit).Select(task => task.Id));
 		}
 		foreach (var group in windowTasks.GroupBy(task => contexts.GetValueOrDefault(task.TaskListId))) ids.UnionWith(group.Take(limit).Select(task => task.Id));

@@ -111,6 +111,7 @@ namespace OwnPlanner.Web.Server
 				builder.Services.AddScoped<IPlannerReadStore, PlannerReadStore>();
 				builder.Services.AddSingleton(TimeProvider.System);
 				builder.Services.AddScoped<IWeeklyReviewStore, WeeklyReviewStore>();
+				builder.Services.AddScoped<OwnPlanner.Application.Calendar.IPlanningCalendar, OwnPlanner.Application.Calendar.PlanningCalendar>();
 				builder.Services.AddScoped<IWeeklyReviewService, WeeklyReviewService>();
 				builder.Services.AddScoped<WeeklyReviewActions>();
 				builder.Services.AddScoped<OwnPlanner.Application.Reporting.IStrategicReportReader, OwnPlanner.Infrastructure.Reporting.StrategicReportReader>();
@@ -263,6 +264,7 @@ namespace OwnPlanner.Web.Server
 					.WithTools<StrategicReportTools>()
 					.WithTools<WeeklyReportTools>()
 					.WithTools<WeeklyReviewTools>(serializerOptions: TaskToolSerialization.Options)
+					.WithTools<PlanningCalendarTools>()
 					.WithTools<GeneralReportTools>()
 					.WithTools<ReflectionReportTools>()
 					.WithTools<DateTimeTools>();

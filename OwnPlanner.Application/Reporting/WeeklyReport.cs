@@ -1,9 +1,12 @@
+using OwnPlanner.Application.Calendar;
+
 namespace OwnPlanner.Application.Reporting;
 
 public sealed record WeeklyReportOptions(
 	DateOnly? StartDate = null,
 	int TaskSampleLimit = 3,
-	int OverloadedDayThreshold = 5)
+	int OverloadedDayThreshold = 5,
+	string? CalendarPeriod = null)
 {
 	public const int MinSampleLimit = 0;
 	public const int MaxSampleLimit = 5;
@@ -12,6 +15,12 @@ public sealed record WeeklyReportOptions(
 
 	public void Validate()
 	{
+		if (CalendarPeriod is not null)
+		{
+			PlanningCalendarResolver.Validate(CalendarPeriod);
+			if (StartDate.HasValue) throw new ArgumentException("Use calendarPeriod or startDate, not both.");
+		}
+
 		if (TaskSampleLimit is < MinSampleLimit or > MaxSampleLimit)
 			throw new ArgumentOutOfRangeException(nameof(TaskSampleLimit), $"Task sample limit must be between {MinSampleLimit} and {MaxSampleLimit}.");
 		if (OverloadedDayThreshold is < MinOverloadedDayThreshold or > MaxOverloadedDayThreshold)
@@ -30,7 +39,11 @@ public sealed record WeeklyReport(
 	IReadOnlyList<WeeklyDaySummary> Days,
 	IReadOnlyList<WeeklyContextSummary> Contexts,
 	IReadOnlyList<WeeklyGoalSummary> Goals,
-	WeeklyPlanningSignals Signals);
+	WeeklyPlanningSignals Signals)
+{
+	/// <summary>Present only for explicitly requested user-calendar periods; legacy UTC requests retain their meanings.</summary>
+	public PlanningPeriod? Calendar { get; init; }
+}
 
 public sealed record WeeklyOverallTotals(
 	int FocusedInsideWindowCount,

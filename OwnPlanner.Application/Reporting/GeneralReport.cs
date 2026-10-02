@@ -1,3 +1,5 @@
+using OwnPlanner.Application.Calendar;
+
 namespace OwnPlanner.Application.Reporting;
 
 /// <summary>A bounded current-state snapshot. Task IDs reference the deduplicated Tasks table.</summary>
@@ -5,7 +7,14 @@ public sealed record GeneralReport(
 	DateTime AsOfUtc, string TimeZone, DateOnly TodayDate, DateOnly UpcomingStartDate,
 	DateOnly UpcomingEndExclusiveDate, GeneralToday Today, GeneralCommitments Commitments,
 	GeneralInbox Inbox, GeneralDirection Direction, IReadOnlyList<GeneralTaskSample> Tasks,
-	int TitleCharacterLimit);
+	int TitleCharacterLimit)
+{
+	/// <summary>Separate user-calendar data; existing UTC dates, rolling commitments and samples keep their original semantics.</summary>
+	public GeneralCalendarSummary? Calendar { get; init; }
+}
+public sealed record GeneralCalendarSummary(PlanningPeriod Period, PlanningPeriod TodayPeriod, GeneralToday Today,
+	int OverdueDeadlineCount, int DueTodayCount, int FocusedInsidePeriodCount, int DueInsidePeriodCount,
+	GeneralSampleIds PeriodTasks, IReadOnlyList<GeneralTaskSample> Tasks);
 public sealed record GeneralToday(int FocusTaskCount, int CompletedCount, GeneralSampleIds Remaining);
 public sealed record GeneralSampleIds(int TotalCount, int SampleLimit, bool Truncated, IReadOnlyList<Guid> TaskIds);
 public sealed record GeneralCommitments(int OverdueCount, int DueTodayCount, int UpcomingSevenDayCount, GeneralSampleIds Nearest);
@@ -22,6 +31,26 @@ public sealed record GeneralGoalRow(Guid Id, string Title);
 public static class GeneralReportBuilder
 {
 	public const int TitleLimit = 80;
+	public static GeneralCalendarSummary BuildCalendar(PlanningPeriod period, IReadOnlyList<GeneralTaskRow> tasks)
+	{
+		var todayPeriod = PlanningCalendarResolver.Resolve("today", period.AsOfUtc, period.TimeZone, period.WeekStart)
+			with { FallbackExplanation = period.FallbackExplanation };
+		var focusToday = tasks.Where(t => InWindow(t.FocusAt, todayPeriod.FocusStart, todayPeriod.FocusEnd)).ToList();
+		var remaining = Order(focusToday.Where(t => !t.IsCompleted)).ToList();
+		var incomplete = tasks.Where(t => !t.IsCompleted).ToList();
+		var focused = incomplete.Where(t => InWindow(t.FocusAt, period.FocusStart, period.FocusEnd)).ToList();
+		var due = incomplete.Where(t => InWindow(t.DueAt, period.StartsAtUtc, period.EndsAtUtc)).ToList();
+		var selected = Order(focused.Concat(due).DistinctBy(t => t.Id)).ToList();
+		var todayIds = remaining.Take(5).Select(t => t.Id).ToArray();
+		var periodIds = selected.Take(5).Select(t => t.Id).ToArray();
+		var ids = todayIds.Concat(periodIds).ToHashSet();
+		return new(period, todayPeriod,
+			new(focusToday.Count, focusToday.Count(t => t.IsCompleted), new(remaining.Count, 5, remaining.Count > 5, todayIds)),
+			incomplete.Count(t => t.DueAt < period.AsOfUtc),
+			incomplete.Count(t => InWindow(t.DueAt, todayPeriod.StartsAtUtc, todayPeriod.EndsAtUtc)), focused.Count, due.Count,
+			new(selected.Count, 5, selected.Count > 5, periodIds),
+			Order(tasks.Where(t => ids.Contains(t.Id))).Select(t => new GeneralTaskSample(t.Id, Clip(t.Title), t.Title.Length > TitleLimit, t.FocusAt, t.DueAt)).ToArray());
+	}
 	public static GeneralReport Build(DateTime asOfUtc, IReadOnlyList<GeneralTaskRow> tasks,
 		IReadOnlyList<GeneralGoalRow> activeGoals, int unreviewedCaptureCount)
 	{

@@ -63,7 +63,7 @@ public sealed partial class ChatSkillOrchestrationTests
 		state.Should().Contain("pendingChoices").And.Contain(pending.ToString()).And.Contain(goal.ToString())
 			.And.Contain("declinedTaskIds").And.Contain(declined.ToString());
 		provider.Requests[^1].ToString().Should().Contain("A declined task cannot be suggested again");
-		mcp.Calls.Should().Equal("taskitem_list_by_focus_date"); // only the mode preload; repeat offer never reaches MCP
+		mcp.Calls.Should().Equal("taskitem_list_by_focus_date", "calendar_period_get", "calendar_period_get", "calendar_period_get", "calendar_period_get"); // mode preload and fresh calendars; repeat offer never reaches MCP
 		await planning.GetResponseAsync("Yes, link the remaining pending task", ct);
 		var completedState = provider.Requests[^1].GetProperty("systemInstruction").ToString();
 		completedState.Should().Contain(declined.ToString()).And.NotContain(pending.ToString());

@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using ModelContextProtocol.Server;
 using OwnPlanner.Application.Common;
+using OwnPlanner.Application.Calendar;
 using OwnPlanner.Application.Tasks;
 
 namespace OwnPlanner.Mcp.Tools;
@@ -17,10 +18,12 @@ public class TaskItemTools
 	private const string TruncationSuffix = "… [truncated — call taskitem_get for full description]";
 
 	private readonly ITaskItemService _service;
+	private readonly IPlanningCalendar _calendar;
 
-	public TaskItemTools(ITaskItemService service)
+	public TaskItemTools(ITaskItemService service, IPlanningCalendar calendar)
 	{
 		_service = service;
+		_calendar = calendar;
 	}
 
 	[McpServerTool(Name = "taskitem_create"), Description("Create a task. TaskListId is required. dueAt is optional and should be used only for real deadlines (external or fixed commitments). Returns task information.")]
@@ -188,11 +191,19 @@ public class TaskItemTools
 		}
 	}
 
-	[McpServerTool(Name = "taskitem_list_by_focus_date", Idempotent = true, ReadOnly = true), Description("List tasks by focus date (My Day / planned work date), paginated (default 25 per page, max 100). focusDate represents when you plan to work on the task, not the task deadline. If focusDate is empty, uses current UTC date. Returns { items, totalCount, offset, limit, hasMore }; increase offset to page when hasMore is true. Each item's description is a short preview — call taskitem_get for the full description. Set includeCompleted=true to also include completed tasks.")]
-	public async Task<object> ListTasksByFocusDate(string? focusDate = null, bool includeCompleted = false, int limit = 25, int offset = 0)
+	[McpServerTool(Name = "taskitem_list_by_focus_date", Idempotent = true, ReadOnly = true), Description("List tasks by focus date (My Day / planned work date), paginated (default 25 per page, max 100). focusDate represents when you plan to work on the task, not the task deadline. If focusDate is empty, uses current UTC date. Opt in with calendarPeriod=today to resolve fresh local today using user calendar settings; do not also provide focusDate. This adds calendar metadata while preserving page fields. Reminders need not be enabled. Returns { items, totalCount, offset, limit, hasMore }; increase offset to page when hasMore is true. Each item's description is a short preview — call taskitem_get for the full description. Set includeCompleted=true to also include completed tasks.")]
+	public async Task<object> ListTasksByFocusDate(string? focusDate = null, bool includeCompleted = false, int limit = 25, int offset = 0, string? calendarPeriod = null, CancellationToken cancellationToken = default)
 	{
+		PlanningPeriod? period = null;
+		if (calendarPeriod is not null)
+		{
+			if (calendarPeriod != "today" || focusDate is not null)
+				return new { error = "Use calendarPeriod=today without focusDate, or a legacy focusDate without calendarPeriod." };
+			period = await _calendar.ResolveAsync(calendarPeriod, cancellationToken);
+		}
 		DateTime date;
-		if (string.IsNullOrWhiteSpace(focusDate))
+		if (period is not null) date = period.FocusStart;
+		else if (string.IsNullOrWhiteSpace(focusDate))
 		{
 			date = DateTime.UtcNow.Date;
 		}
@@ -200,8 +211,12 @@ public class TaskItemTools
 		{
 			return new { error = "Invalid date format for focusDate" };
 		}
-		var page = await _service.ListByFocusDatePagedAsync(date, includeCompleted, offset, limit);
-		return ToEnvelope(page);
+		var page = await _service.ListByFocusDatePagedAsync(date, includeCompleted, offset, limit, cancellationToken);
+		return period is null ? ToEnvelope(page) : new
+		{
+			items = page.Items.Select(ToListItem).ToList(), totalCount = page.TotalCount,
+			offset = page.Offset, limit = page.Limit, hasMore = page.HasMore, calendar = period
+		};
 	}
 
 	[McpServerTool(Name = "taskitem_set_focus_date"), Description("Set or clear the focus date (My Day / planned work date) for a task. Use this for weekly planning to decide when to work on a task. This is separate from dueAt, which is for real deadlines. Provide id and focusDate. If focusDate is empty, clears the focus date.")]

@@ -1,4 +1,5 @@
 using System.Globalization;
+using OwnPlanner.Application.Calendar;
 
 namespace OwnPlanner.Application.WeeklyReviews;
 
@@ -20,17 +21,10 @@ public static class WeeklyReviewCalendar
 		{ throw new ArgumentException("Select a valid timezone."); }
 	}
 
-	public static DateOnly WeekStart(DateOnly date, int weekStart) => date.AddDays(-((7 + (int)date.DayOfWeek - weekStart) % 7));
+	public static DateOnly WeekStart(DateOnly date, int weekStart) => CalendarRules.WeekStart(date, weekStart);
 
 	/// <summary>Advances nonexistent wall times to the first valid minute; ambiguous times select the earlier instant.</summary>
-	public static DateTime ToUtc(DateOnly date, TimeOnly time, TimeZoneInfo zone)
-	{
-		var local = date.ToDateTime(time, DateTimeKind.Unspecified);
-		while (zone.IsInvalidTime(local)) local = local.AddMinutes(1);
-		if (zone.IsAmbiguousTime(local))
-			return new DateTimeOffset(local, zone.GetAmbiguousTimeOffsets(local).Max()).UtcDateTime;
-		return TimeZoneInfo.ConvertTimeToUtc(local, zone);
-	}
+	public static DateTime ToUtc(DateOnly date, TimeOnly time, TimeZoneInfo zone) => CalendarRules.ToUtc(date, time, zone);
 
 	public static WeeklyReviewState Create(WeeklyReviewPreferences preferences, DateTime nowUtc, bool scheduled)
 	{
