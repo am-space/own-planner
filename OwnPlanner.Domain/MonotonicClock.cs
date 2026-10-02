@@ -9,7 +9,7 @@ namespace OwnPlanner.Domain;
 /// increasing values so creation/update order is always reflected in the audit timestamps.
 /// </para>
 /// </summary>
-internal static class MonotonicClock
+public static class MonotonicClock
 {
 	private static long _lastTicks;
 

@@ -122,23 +122,23 @@ wait for the next round. Skill loads consume the same bounded tool-call rounds a
 
 Skill state is local to one request, and planner calls still use the host's authenticated
 `IMcpAdapter`. The web and Telegram paths use `DirectToolMcpAdapter`; the console's configured MCP
-adapter invokes the same stdio handlers. Like the agent calls, `skill_load` is a chat-local capability,
-not a public MCP server operation. Skills never accept tenant identifiers, database paths or code.
+adapter invokes the same stdio handlers. Like the agent calls, `skill_load` and
+`task_goal_link_choice` are chat-local capabilities, not public MCP server operations. Skills never accept tenant identifiers, database paths or code.
 Permanent deletion of tasks, notes, goals, contexts and lists is excluded from General. Clearly authorized simple task changes use `task_management` directly. Ambiguous targets require
 clarification; exploratory ideas invite discussion or proposal-only delegation. Multi-step planning
 can delegate with execution authorization already expressed by the user; it does not require another
 confirmation. Intent and routing are model instructions; declared permissions and proposal read-only
 behavior are independently enforced in code.
 
-Specialized modes compose the same operation groups through `ChatCapabilities`, retaining their exact
-pre-#59 effective permission sets (including delegated writes in Global Planning):
+Specialized modes compose operation groups through `ChatCapabilities`. Their original permissions
+are retained, with additive weekly-review and task goal-link capabilities described below:
 
 | Mode | Explicit baseline skills and additional capabilities |
 |---|---|
 | General | Five compact baseline tools; six skills loaded on demand |
-| Global Planning | Goals/organization, notes and strategic review; existing recovery, removal and delegation capabilities |
+| Global Planning | Goals/organization, notes and strategic review; existing recovery, removal and delegation capabilities; focused task goal linking |
 | Week Planning | Weekly planning and task management; existing task-list maintenance |
-| Day Work | Narrow task-read/progress groups and quick capture; no full task skill or agents |
+| Day Work | Narrow task-read/progress groups, quick capture, goal reads and focused task goal linking; no full task skill or agents |
 | Reflection | Reflection; existing note-list capture processing and Search Agent |
 | System Analysis | Strategic review with the independent read-only policy |
 
@@ -167,6 +167,41 @@ planning reports. `taskitem_list_trash` returns the authenticated user's paged T
 Permanent deletion is intentionally not an MCP tool. It is available only through the authenticated
 web Trash flow after explicit user confirmation, and the Application service rejects permanent
 deletion unless the task is already in Trash.
+
+## Goal links for newly created tasks
+
+General, Week Planning, Day Work and Global Planning delegation share Application's
+`TaskGoalLinkGuidance`. An explicitly named goal is resolved and passed as `goalId` when creating the
+task. Otherwise the assistant creates tasks unlinked, reads current active goals for relevant planning
+work, and offers at most one short sentence suggesting a link. With several candidates it names at
+most two or makes no suggestion. Batch creation and delegated plan decomposition produce one
+combined suggestion for successful unlinked tasks. Urgent or clearly unrelated capture skips optional
+goal reads and questions.
+
+The user confirms the specific task-to-goal choice before `taskitem_link_goal` is called. A bare yes
+to two alternatives requires clarification. Before an offer or decline reply, the model calls
+chat-local `task_goal_link_choice` with
+`action=offer`/`choices` (taskId/goalId pairs), or `action=decline`/`taskIds`. Application session state
+retains pending choices and declined IDs independently of history summaries and trimming; re-offering
+a declined ID is rejected. State is injected into permitted model requests and survives compaction,
+failed-summary fallback and recovery. Explicit reset or session expiration clears it. Successful
+links remove pending choices; failed links preserve them. The assistant can resolve names from the
+retained IDs using existing reads. Suggestions never automatically link tasks or sweep existing unlinked work.
+
+The focused shared tool takes required `taskId` and `goalId`, returning the existing task DTO or an
+`error`. Application maps an atomic repository outcome: SQLite checks task/list availability, Active
+goal status and conflicting associations together with a conditional update and task snapshot in one
+write transaction. Only GoalId/UpdatedAt are written, and an identical active link is idempotent.
+The web in-process adapter, HTTP MCP endpoint and stdio host expose the same handler and authenticated repositories.
+General loads goal reads, linking and choice recording through `task_management`; Day Work adds
+goal reads, focused linking and local choice recording, while Global Planning can apply confirmation
+after delegated creation and record choices locally.
+Reflection and System Analysis receive no additional writes.
+
+Relevance and natural-language consent follow trusted model instructions. Deterministic tests cover
+instruction delivery, scripted conversations, mutation validation and real web/Telegram tool and
+database paths; they do not evaluate live Gemini matching quality. See
+[ADR-0028](adr/0028-task-goal-link-suggestions.md) for the decision and limits.
 
 ## Delegated Agents
 

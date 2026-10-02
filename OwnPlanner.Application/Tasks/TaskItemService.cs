@@ -200,7 +200,7 @@ public class TaskItemService(ITaskItemRepository repository, ITaskListRepository
 	private static PagedResult<TaskItemDto> ToPage(IReadOnlyList<TaskItem> items, int total, int offset, int limit)
 		=> new(items.Select(Map).ToList(), total, offset, limit);
 
-	private static TaskItemDto Map(TaskItem item) => new(
+	internal static TaskItemDto Map(TaskItem item) => new(
 		item.Id,
 		item.Title,
 		item.Description,

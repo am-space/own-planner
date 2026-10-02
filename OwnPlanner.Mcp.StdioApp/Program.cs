@@ -112,6 +112,7 @@ namespace OwnPlanner.Mcp.StdioApp
 
 					// Application services
 					services.AddScoped<ITaskItemService, TaskItemService>();
+					services.AddScoped<ITaskGoalLinkService, TaskGoalLinkService>();
 					services.AddScoped<ITaskListService, TaskListService>();
 					services.AddScoped<INoteListService, NoteListService>();
 					services.AddScoped<INoteItemService, NoteItemService>();
@@ -140,6 +141,7 @@ namespace OwnPlanner.Mcp.StdioApp
 						.AddMcpServer()
 						.WithStdioServerTransport()
 						.WithTools<TaskItemTools>(serializerOptions: TaskToolSerialization.Options)
+						.WithTools<TaskGoalLinkTools>(serializerOptions: TaskToolSerialization.Options)
 						.WithTools<TaskListTools>()
 						.WithTools<NoteListTools>()
 						.WithTools<NoteItemTools>()

@@ -54,6 +54,11 @@ public interface ITaskItemRepository
 
 	Task AddAsync(TaskItem task, CancellationToken ct = default);
 	Task UpdateAsync(TaskItem task, CancellationToken ct = default);
+	/// <summary>Atomically links an untrashed, unlinked task in an available list to an Active goal.</summary>
+	/// <remarks>Checks eligibility and changes only GoalId/UpdatedAt within one write transaction.
+	/// An identical active link is idempotent; a conflicting association is never overwritten.
+	/// The successful task snapshot is read in the same transaction. All IDs are current-tenant IDs.</remarks>
+	Task<TaskGoalLinkResult> LinkToActiveGoalAsync(Guid taskId, Guid goalId, CancellationToken ct = default);
 	/// <summary>Atomically restores a trashed task when its original task list still exists.</summary>
 	Task<TaskRestoreResult> RestoreAsync(Guid id, CancellationToken ct = default);
 	/// <summary>Atomically removes a task only while it remains in Trash.</summary>

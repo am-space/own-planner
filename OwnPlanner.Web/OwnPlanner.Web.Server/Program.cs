@@ -121,6 +121,7 @@ namespace OwnPlanner.Web.Server
 				// Register application services
 				builder.Services.AddScoped<IAuthService, AuthService>();
 				builder.Services.AddScoped<ITaskItemService, TaskItemService>();
+				builder.Services.AddScoped<ITaskGoalLinkService, TaskGoalLinkService>();
 				builder.Services.AddScoped<ITaskListService, TaskListService>();
 				builder.Services.AddScoped<INoteListService, NoteListService>();
 				builder.Services.AddScoped<INoteItemService, NoteItemService>();
@@ -253,6 +254,7 @@ namespace OwnPlanner.Web.Server
 						options.Stateless = true;
 					})
 					.WithTools<TaskItemTools>(serializerOptions: TaskToolSerialization.Options)
+					.WithTools<TaskGoalLinkTools>(serializerOptions: TaskToolSerialization.Options)
 					.WithTools<TaskListTools>()
 					.WithTools<NoteListTools>()
 					.WithTools<NoteItemTools>()

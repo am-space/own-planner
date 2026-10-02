@@ -84,10 +84,12 @@ public sealed partial class DirectToolMcpAdapterTests : IDisposable
 		await using var adapter = CreateAdapter(serviceProvider);
 
 		var registered = (await adapter.ListToolDetailsAsync(ct)).Select(tool => tool.Name).ToHashSet();
+		registered.Should().NotContain("task_goal_link_choice"); // conversation-local, never a public MCP tool
 		// Delegated agents are built-in chat capabilities, not MCP registrations.
 		registered.Add("search_agent_call");
 		registered.Add("task_planning_agent_call");
 		registered.Add("skill_load");
+		registered.Add("task_goal_link_choice");
 
 		foreach (var (mode, config) in OwnPlanner.Application.Chat.ModeConfig.All)
 		{
@@ -545,6 +547,7 @@ public sealed partial class DirectToolMcpAdapterTests : IDisposable
 		services.AddScoped<IGoalService, GoalService>();
 		services.AddScoped<ITaskListService, TaskListService>();
 		services.AddScoped<ITaskItemService, TaskItemService>();
+		services.AddScoped<ITaskGoalLinkService, TaskGoalLinkService>();
 		services.AddSingleton(new TenantTestDirectory(_tempDirectory));
 		configure?.Invoke(services);
 		return services.BuildServiceProvider();

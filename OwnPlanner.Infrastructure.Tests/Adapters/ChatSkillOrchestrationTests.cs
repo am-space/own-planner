@@ -240,12 +240,19 @@ public sealed partial class ChatSkillOrchestrationTests
 		public List<JsonElement> Requests { get; } = [];
 		public List<string> EmittedToolCalls { get; } = [];
 		public Action<int>? OnRequest { get; set; }
+		public Func<int, int>? PromptTokens { get; set; }
 		public HttpClient CreateClient(string name) => new(this, disposeHandler: false);
 		protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
 		{
 			var json = await request.Content!.ReadAsStringAsync(cancellationToken);
 			Requests.Add(JsonSerializer.Deserialize<JsonElement>(json));
 			var response = _responses.Dequeue();
+			if (PromptTokens is not null)
+			{
+				var parsed = System.Text.Json.Nodes.JsonNode.Parse(response)!;
+				parsed["usageMetadata"]!["promptTokenCount"] = PromptTokens(Requests.Count);
+				response = parsed.ToJsonString();
+			}
 			using var document = JsonDocument.Parse(response);
 			foreach (var part in document.RootElement.GetProperty("candidates")[0].GetProperty("content").GetProperty("parts").EnumerateArray())
 				if (part.TryGetProperty("functionCall", out var call)) EmittedToolCalls.Add(call.GetProperty("name").GetString()!);
@@ -263,7 +270,7 @@ public sealed partial class ChatSkillOrchestrationTests
 		public Task<IReadOnlyList<McpToolDefinition>> ListToolDetailsAsync(CancellationToken cancellationToken = default) =>
 			Task.FromResult<IReadOnlyList<McpToolDefinition>>(ModeConfig.All.Values.SelectMany(config => config.AllowedTools)
 				.Concat(TaskPlanningMcpAdapter.ReadTools).Concat(TaskPlanningMcpAdapter.WriteTools)
-				.Where(name => name != missingTool && name is not "skill_load" and not "search_agent_call" and not "task_planning_agent_call")
+				.Where(name => name != missingTool && name is not "skill_load" and not "search_agent_call" and not "task_planning_agent_call" and not "task_goal_link_choice")
 				.Distinct().Select(name => new McpToolDefinition(name, name, JsonSerializer.SerializeToElement(new { type = "object" }))).ToArray());
 		public Task<string> CallToolAsync(string toolName, IReadOnlyDictionary<string, object?>? arguments = null, CancellationToken cancellationToken = default)
 		{
