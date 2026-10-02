@@ -10,7 +10,7 @@ using OwnPlanner.Infrastructure.WeeklyReviews;
 
 namespace OwnPlanner.Infrastructure.Tests.Reporting;
 
-public sealed class CalendarReportReaderTests
+public sealed partial class CalendarReportReaderTests
 {
 	[Theory]
 	[InlineData("Asia/Tokyo", "2026-10-04T16:00:00Z", "2026-10-05", "2026-10-04T15:00:00Z", "2026-10-11T15:00:00Z")]

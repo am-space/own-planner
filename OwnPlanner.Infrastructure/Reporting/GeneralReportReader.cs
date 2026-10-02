@@ -14,15 +14,26 @@ public sealed class GeneralReportReader(IPlannerDbContextFactory dbContextFactor
 	public async Task<GeneralReport> GetCalendarAsync(string period, CancellationToken cancellationToken = default) =>
 		await BuildAsync(await calendar.ResolveAsync(period, cancellationToken), cancellationToken);
 
+	public async Task<GeneralAttentionReport> GetAttentionAsync(GeneralAttentionOptions options, CancellationToken cancellationToken = default)
+	{
+		options.Validate();
+		var period = await calendar.ResolveAsync("thisWeek", cancellationToken);
+		await using var db = await dbContextFactory.CreateAsync(cancellationToken);
+		return GeneralAttentionBuilder.Build(period, await ReadTasksAsync(db, cancellationToken), options);
+	}
+
+	private static Task<List<GeneralTaskRow>> ReadTasksAsync(AppDbContext db, CancellationToken cancellationToken) =>
+		db.TaskItems.AsNoTracking()
+			.Where(t => t.TrashedAt == null && !db.TaskLists.Any(l => l.Id == t.TaskListId && l.IsArchived))
+			.Select(t => new GeneralTaskRow(t.Id, t.Title, t.IsCompleted, t.FocusAt, t.DueAt, t.TaskListId, t.GoalId))
+			.ToListAsync(cancellationToken);
+
 	private async Task<GeneralReport> BuildAsync(PlanningPeriod? period, CancellationToken cancellationToken)
 	{
 		var asOfUtc = period?.AsOfUtc ?? timeProvider.GetUtcNow().UtcDateTime;
 		await using var db = await dbContextFactory.CreateAsync(cancellationToken);
 		await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
-		var tasks = await db.TaskItems.AsNoTracking()
-			.Where(t => t.TrashedAt == null && !db.TaskLists.Any(l => l.Id == t.TaskListId && l.IsArchived))
-			.Select(t => new GeneralTaskRow(t.Id, t.Title, t.IsCompleted, t.FocusAt, t.DueAt, t.TaskListId, t.GoalId))
-			.ToListAsync(cancellationToken);
+		var tasks = await ReadTasksAsync(db, cancellationToken);
 		var goals = await db.Goals.AsNoTracking().Where(g => g.Status == GoalStatus.Active)
 			.Select(g => new GeneralGoalRow(g.Id, g.Title)).ToListAsync(cancellationToken);
 		var captures = await db.NoteItems.AsNoTracking()
@@ -30,7 +41,10 @@ public sealed class GeneralReportReader(IPlannerDbContextFactory dbContextFactor
 				db.NoteLists.Any(l => l.Id == n.NoteListId && !l.IsArchived), cancellationToken);
 		return GeneralReportBuilder.Build(asOfUtc, tasks, goals, captures) with
 		{
-			Calendar = period is null ? null : GeneralReportBuilder.BuildCalendar(period, tasks)
+			Calendar = period is null ? null : GeneralReportBuilder.BuildCalendar(period, tasks) with
+			{
+				Attention = period.Name == "thisWeek" ? GeneralAttentionBuilder.Build(period, tasks) : null
+			}
 		};
 	}
 }

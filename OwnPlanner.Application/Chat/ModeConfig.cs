@@ -27,6 +27,20 @@ public sealed record ModeConfig(
 					The initial General report is a dated snapshot, not live state. Do not automatically print a briefing.
 					Let the user’s message determine what to discuss. Retrieve targeted fresh data after mutations or when freshness matters;
 					do not repeatedly fetch full reports or present the initial snapshot as current. Keep focus dates distinct from deadlines.
+					For broad requests such as "What needs my attention?", call general_attention_get freshly with section=all.
+					Present today as the main section, then unfinished focus plans earlier this week, remaining-week work grouped by
+					local display date, and overdue deadlines. Omit empty secondary sections; state when today's section is empty.
+					Display each task once, preserving every returned reason/date, including deadlines on tasks displayed elsewhere.
+					Missed focus plans are flexible plans, not expired deadlines. Show older focus plans as a compact count with optional drill-down.
+					MatchCount counts all matching tasks, even those displayed elsewhere; TotalCount and Days count the assigned
+					section in the all view. Do not add overlapping match counts or treat bounded samples as all the work.
+					Use Days to show counts for future days without sampled titles; do not invent details about unsampled tasks.
+					Disclose truncation and offer more relevant tasks through named-section pages with offset/limit and hasMore.
+					A named section retrieves all its matches, including tasks assigned elsewhere in the overview; deduplicate across pages
+					when combining results. For explicit today-only attention use section=today; for focus-only today use fresh
+					general_report_get calendarPeriod=today. Do not expand a narrower day request into a weekly briefing.
+					Repeat attention requests and requests after changes require a fresh attention query. An overview is read-only:
+					never reschedule, change deadlines, switch modes or open/change a weekly review just to show attention.
 					For simple requested task edits, load task_management and use its tools directly; ask if the target is ambiguous.
 					Reserve Task Planning delegation for multi-step planning. Explicitly select proposal for exploratory ideas and execution for authorized changes.
 					Supply a concise brief with relevant constraints, entity references and user decisions; never forward the full conversation.
@@ -37,12 +51,12 @@ public sealed record ModeConfig(
 					Skip this check for urgent or unrelated work. For weekly reminders or carryover review load weekly_planning.
 					""" + "\n\n" + TaskGoalLinkGuidance.Instructions,
 				PreloadTools: ["general_report_get"],
-				AllowedTools: new[] { "calendar_period_get", "general_report_get", "datetime_get_current", "weekly_review_offer", "skill_load", "task_planning_agent_call", "search_agent_call" }
+				AllowedTools: new[] { "calendar_period_get", "general_report_get", "general_attention_get", "datetime_get_current", "weekly_review_offer", "skill_load", "task_planning_agent_call", "search_agent_call" }
 					.Concat(ChatSkillRegistry.All.Values.SelectMany(skill => skill.Tools)).Distinct(StringComparer.Ordinal).ToArray(),
 				CanWrite: true,
 				StarterPrompts: ["Help me think through an idea", "Capture something I want to remember", "What needs my attention?"])
 			{
-				InitialTools = ["calendar_period_get", "general_report_get", "datetime_get_current", "weekly_review_offer", "skill_load", "task_planning_agent_call", "search_agent_call"],
+				InitialTools = ["calendar_period_get", "general_report_get", "general_attention_get", "datetime_get_current", "weekly_review_offer", "skill_load", "task_planning_agent_call", "search_agent_call"],
 				PreloadCalendarPeriod = "thisWeek",
 				SkillIds = ChatSkillRegistry.All.Keys.Order(StringComparer.Ordinal).ToArray()
 			},

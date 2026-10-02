@@ -75,6 +75,7 @@ database path or timezone belonging to another account. No route or database mig
   remaining IDs; the period retains at most five IDs; their shared calendar sample table deduplicates
   IDs and clips titles to 80 UTF-16 units. Do not relabel legacy fields as local calendar values.
 
-General's summary is the calendar foundation for [#74](https://github.com/am-space/own-planner/issues/74).
-Its attention sections, selection-reason annotations and drill-down behavior remain separate work.
+General's `thisWeek` calendar summary also includes a deduplicated `attention` overview. Fresh
+`general_attention_get` reads provide today-first sections, reason annotations and bounded section
+pages. See [General attention](general-attention.md) for exact counts, overlap and drill-down rules.
 See [ADR-0029](adr/0029-shared-user-calendar.md) and [weekly review](weekly-review.md).

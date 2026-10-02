@@ -19,6 +19,7 @@ describe.
 | [`dependency-baselines.md`](dependency-baselines.md) | Supported dependency majors, compatibility exclusions, and audit commands |
 | [`planner-workspace.md`](planner-workspace.md) | Read-only planner UI, HTTP contract, and tenant-safe read path |
 | [`telegram-integration.md`](telegram-integration.md) | Private Telegram bot setup, identity, delivery, and cleanup |
+| [`general-attention.md`](general-attention.md) | Today-first General attention, exact counts and section drill-down |
 | [`user-calendar.md`](user-calendar.md) | Shared local dates, named periods, UTC fallback and compatible report options |
 | [`weekly-review.md`](weekly-review.md) | Goal-focused local-calendar reviews, reminders, settings and delivery policy |
 | [`chat-presentation.md`](chat-presentation.md) | Scoped Markdown and responsive chat styles |
@@ -75,11 +76,14 @@ ADRs describe decisions as actually shipped. Start new records from [`adr/templa
 
 - [`ADR-0029`](adr/0029-shared-user-calendar.md) — shared user-calendar periods across planning modes
 
+- [`ADR-0030`](adr/0030-general-week-attention.md) — today-first current-week attention in General
+
 ## Historical plans
 
 Archived plans preserve the original intent but may differ from the final implementation. For
 implemented plans, prefer the linked ADR when determining current behavior.
 
+- [`archive/general-week-attention-plan.md`](archive/general-week-attention-plan.md)
 - [`archive/shared-user-calendar-plan.md`](archive/shared-user-calendar-plan.md)
 - [`archive/weekly-carryover-review-plan.md`](archive/weekly-carryover-review-plan.md)
 - [`archive/goal-focused-weekly-review-plan.md`](archive/goal-focused-weekly-review-plan.md)

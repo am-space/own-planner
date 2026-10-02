@@ -48,6 +48,6 @@ public static class ChatSkillRegistry
 		"notelist_all", "notelist_get", "noteitem_list_items", "noteitem_list_by_goal", "noteitem_get",
 		"taskitem_list_items", "taskitem_list_by_goal", "taskitem_list_by_focus_date", "taskitem_get",
 		"taskitem_list_trash", "strategic_report_get", "weekly_report_get", "reflection_report_get",
-		"calendar_period_get", "general_report_get", "weekly_review_settings_get", "datetime_get_current", "search_agent_call", LoadToolName
+		"calendar_period_get", "general_report_get", "general_attention_get", "weekly_review_settings_get", "datetime_get_current", "search_agent_call", LoadToolName
 	}.ToFrozenSet(StringComparer.Ordinal);
 }

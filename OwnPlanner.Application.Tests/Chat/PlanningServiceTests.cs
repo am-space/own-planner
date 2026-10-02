@@ -88,7 +88,7 @@ public partial class PlanningServiceTests
 		Received.InOrder(() =>
 		{
 			_chatAdapter.ConfigureToolPolicy(Arg.Is<ChatToolPolicy>(policy =>
-					policy != null && policy.SkillIds.Count == 6 && policy.BaselineTools.Count == 7 && policy.AllowedTools.Contains("noteitem_create")));
+					policy != null && policy.SkillIds.Count == 6 && policy.BaselineTools.Count == 8 && policy.AllowedTools.Contains("noteitem_create")));
 			_chatAdapter.ResetChatSession(Arg.Any<string>(), ModeConfig.All[PlanningMode.General].InitialTools);
 		});
 		await _mcpAdapter.Received(1).CallToolAsync("general_report_get", Arg.Is<IReadOnlyDictionary<string, object?>?>(a => a != null && (string?)a["calendarPeriod"] == "thisWeek"), TestContext.Current.CancellationToken);
