@@ -28,7 +28,10 @@ public sealed record GeneralGoalSample(Guid Id, string Title, bool TitleTruncate
 public sealed record GeneralTaskSample(Guid Id, string Title, bool TitleTruncated, DateTime? FocusAt, DateTime? DueAt);
 
 /// <summary>Eligible task metadata supplied by the tenant-bound reader; excludes Trash and archived lists.</summary>
-public sealed record GeneralTaskRow(Guid Id, string Title, bool IsCompleted, DateTime? FocusAt, DateTime? DueAt, Guid TaskListId, Guid? GoalId);
+public sealed record GeneralTaskRow(Guid Id, string Title, bool IsCompleted, DateTime? FocusAt, DateTime? DueAt, Guid TaskListId, Guid? GoalId)
+{
+	public bool IsImportant { get; init; }
+}
 public sealed record GeneralGoalRow(Guid Id, string Title);
 
 /// <summary>Deterministic UTC calendar rules and bounded samples, independent of persistence and transport.</summary>

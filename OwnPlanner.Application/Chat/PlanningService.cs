@@ -243,7 +243,7 @@ public sealed class PlanningService : IPlanningService
 		{
 			try
 			{
-				var arguments = config.PreloadCalendarPeriod is null ? null : new Dictionary<string, object?> { ["calendarPeriod"] = config.PreloadCalendarPeriod };
+				var arguments = config.PreloadCalendarPeriod is null || !config.PreloadAcceptsCalendarPeriod ? null : new Dictionary<string, object?> { ["calendarPeriod"] = config.PreloadCalendarPeriod };
 				var result = await _mcpAdapter.CallToolAsync(tool, arguments, cancellationToken);
 				sb.AppendLine($"### {tool}");
 				sb.AppendLine(result);

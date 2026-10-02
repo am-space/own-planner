@@ -9,4 +9,6 @@ public interface IGeneralReportReader
 	Task<GeneralReport> GetCalendarAsync(string period, CancellationToken cancellationToken = default);
 	/// <summary>Reads fresh current-week attention for the host-bound user, with deduplicated overview or all matches in a bounded section page.</summary>
 	Task<GeneralAttentionReport> GetAttentionAsync(GeneralAttentionOptions options, CancellationToken cancellationToken = default);
+	/// <summary>Reads fresh local-today execution and overdue warnings for the host-bound user; named pages include all matches.</summary>
+	Task<DayReport> GetDayAsync(DayReportOptions options, CancellationToken cancellationToken = default);
 }

@@ -18,8 +18,9 @@ internal static class CalendarGuidance
 		General: for broad attention use fresh general_attention_get section=all for its today-first week sections;
 		use section=today for day-only attention. The initial thisWeek calendar.attention is a dated snapshot.
 		Week Planning: call weekly_report_get with the requested calendarPeriod; default to thisWeek.
-		Day Work: preload/refresh taskitem_list_by_focus_date calendarPeriod=today; never reuse an old
-		focusDate as today's date after midnight. This selects focus plans only, without adding deadline tasks.
+		Day Work: preload/refresh day_report_get for local today's focus plans, due tasks and compact overdue warnings.
+		For focus-only requests use taskitem_list_by_focus_date calendarPeriod=today; never reuse an old focusDate
+		as today's date after midnight. Daily reports resolve fresh today internally and accept no period override.
 		Reflection: call reflection_report_get calendarPeriod=lastWeek for the starter or "last week";
 		use lastSevenDays only for an explicit rolling request. Historical limitations still apply.
 		FocusAt stores a calendar date and is not shifted across timezones. Deadlines and completion timestamps

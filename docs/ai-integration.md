@@ -154,7 +154,7 @@ are retained, with additive weekly-review and task goal-link capabilities descri
 | General | Eight compact baseline tools; six skills loaded on demand |
 | Global Planning | Goals/organization, notes and strategic review; existing recovery, removal and delegation capabilities; focused task goal linking |
 | Week Planning | Weekly planning and task management; existing task-list maintenance |
-| Day Work | Narrow task-read/progress groups, quick capture, goal reads and focused task goal linking; no full task skill or agents |
+| Day Work | Daily execution read plus narrow task-read/progress groups, quick capture, goal reads and focused task goal linking; no full task skill or agents |
 | Reflection | Reflection; existing note-list capture processing and Search Agent |
 | System Analysis | Strategic review with the independent read-only policy |
 
@@ -430,3 +430,12 @@ warning claims are persisted by Application in the current user's database. Refr
 guidance. `weekly_review_open present=false` looks up review identity for skip/defer/finish requests
 without consuming presentation guidance. Reminder and fallback tools return counts-only invitations,
 never paused-goal mentions.
+
+## Day Work daily execution
+
+Day Work preloads the shared read-only `day_report_get` instead of only today's focus plans. It
+includes due-today tasks regardless of focus date, importance, all daily reasons, exact counts and
+bounded overdue warnings. Daily attention/priority requests and completion follow-ups require fresh
+reads by instruction; named today/overdue pages provide more matches. Only the daily read is added
+to Day Work permissions; existing execution tools remain unchanged. See [Day Work](day-work.md)
+for bounds, prioritization constraints, tenant binding and compatibility.

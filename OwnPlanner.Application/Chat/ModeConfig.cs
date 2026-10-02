@@ -12,6 +12,8 @@ public sealed record ModeConfig(
 	public IReadOnlyList<string>? InitialTools { get; init; }
 	/// <summary>Explicit user-calendar period for mode preload and per-turn calendar context.</summary>
 	public string? PreloadCalendarPeriod { get; init; }
+	/// <summary>False for fixed-period tools that resolve their own calendar and accept no period argument.</summary>
+	public bool PreloadAcceptsCalendarPeriod { get; init; } = true;
 	public IReadOnlyList<string> SkillIds { get; init; } = [];
 	public IReadOnlyList<string> BaselineSkillIds { get; init; } = [];
 
@@ -134,7 +136,19 @@ public sealed record ModeConfig(
 
 					Your focus: execute on today only.
 
-					On entry you have been given today's focused tasks. This snapshot can go stale as the user works — when you need the current state (for example after completing tasks, or if the user asks what's left), call taskitem_list_by_focus_date to refresh it. Use the task tools to look up overdue items or anything outside today's focus when the user asks.
+					On entry you have a compact daily execution report: incomplete planned-today and due-today work, plus a bounded overdue warning. It is a dated snapshot.
+					For every daily attention or priority request, repeated "what is left?", and after completion or other changes, call day_report_get freshly.
+					Use today as the main section. Display each task once, preserving all plannedToday, dueToday and overdueDeadline reasons and date annotations.
+					Focus dates are flexible plans, not deadlines. A deadline expired earlier today stays in today with its overdue reason.
+					Show overdue work as a short exact count with bounded examples and optional drill-down, not an entire backlog.
+					MatchCount includes all reason matches, including tasks displayed elsewhere; TotalCount is assigned count in all. Do not sum overlapping counts.
+					Disclose Truncated; retrieve additional tasks on request with section=today or overdue, offset/limit and HasMore. Named sections include every match;
+					deduplicate IDs when combining fresh pages. For explicitly focus-only requests use taskitem_list_by_focus_date calendarPeriod=today.
+					When today's planned/due count is zero, say so explicitly. Do not invent a schedule or automatically pull backlog tasks into today.
+					To suggest what to tackle first, consider deadline timing, IsImportant, today's plan, remaining work and the user's constraints.
+					A due-today task is not automatically first; sample order is not a priority ranking. Use taskitem_get for relevant missing detail,
+					and ask a brief clarification only when necessary. Do not invent duration estimates or assume unsampled tasks are less important.
+					No automatic rescheduling, deadline changes, mode switching or weekly review. Keep existing execution permissions; write only when requested.
 
 					- Suggest what to tackle first
 					- Mark tasks complete as the user works through them
@@ -149,10 +163,10 @@ public sealed record ModeConfig(
 					- Format responses clearly; don't show entity IDs unless asked
 					- Confirm all write actions taken
 					""" + "\n\n" + TaskGoalLinkGuidance.Instructions,
-				PreloadTools: ["taskitem_list_by_focus_date"],
+				PreloadTools: ["day_report_get"],
 				AllowedTools: ChatCapabilities.Combine(ChatCapabilities.TaskRead, ChatCapabilities.TaskProgress, ChatCapabilities.TaskListRead, ChatCapabilities.GoalRead,
-					["calendar_period_get", TaskGoalLinkConversationState.ToolName, "taskitem_link_goal", "taskitem_list_by_focus_date", "taskitem_create", "notelist_all", "noteitem_create", "datetime_get_current"]),
-				CanWrite: true) { PreloadCalendarPeriod = "today" },
+					["calendar_period_get", "day_report_get", TaskGoalLinkConversationState.ToolName, "taskitem_link_goal", "taskitem_list_by_focus_date", "taskitem_create", "notelist_all", "noteitem_create", "datetime_get_current"]),
+				CanWrite: true) { PreloadCalendarPeriod = "today", PreloadAcceptsCalendarPeriod = false },
 
 			[PlanningMode.Reflection] = new ModeConfig(
 				ModeId: PlanningMode.Reflection,
