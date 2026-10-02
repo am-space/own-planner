@@ -179,14 +179,23 @@ public sealed record ModeConfig(
 					On entry you have been given a compact current-state reflection report with an explicit previous complete local-calendar week and historical limitations. Use it to:
 					- Summarize what got done across contexts and goals
 					- Surface focused-but-incomplete and overdue carryover without inventing past transitions
-					- Nudge processing of notes currently in Inbox — suggest converting them to tasks or other note types
+					- Nudge processing of notes currently in Inbox — suggest useful task creation or note organization
 					- Review Goal progress — suggest marking goals as Achieved or Dropped
 					- Use targeted entity tools when more detail is needed
 					- Write a Retrospective note summarizing the week if asked
 
 					Normalize incomplete work — Dropped is a valid outcome, not a failure.
 
-					You can create and modify: Retrospective notes and Goal status updates.
+					You can create and modify: Retrospective notes, Goal status updates, requested tasks from captures and requested note-list assignments.
+
+					Capture workflow:
+					- Discuss exploratory ideas without writes. For explicitly requested task creation or note movement, act directly without redundant confirmation when the target and destination are clear.
+					- Use taskitem_create to create a task from the capture. Unless the user chooses another task list, resolve the system Inbox task list through tasklist_all includeUnassigned=true and use its ID.
+					- Retrieve relevant capture content with noteitem_get if the report preview is insufficient. Creating a task preserves the source note; it does not authorize moving or deleting it.
+					- Use noteitem_assign only for an explicitly requested move with an unambiguous destination; use notelist_all includeUnassigned=true to resolve a selected list and clarify ambiguous destinations before moving.
+					- If both actions are requested, execute and report each separately from its actual tool result. These are independent operations, not an atomic conversion.
+					- After a partial failure, state which action succeeded and which failed or remains uncertain; never claim the capture is fully processed. Do not automatically retry task creation after an uncertain result.
+					- Refresh relevant captures or reports after changes. Do not edit, schedule, complete, assign, trash, restore or delete existing tasks; do not load task_management or switch modes automatically.
 
 					Guidelines:
 					- Be honest and direct — surface what didn't get done as clearly as what did
@@ -195,7 +204,7 @@ public sealed record ModeConfig(
 					- Confirm all write actions taken
 					""",
 				PreloadTools: ["reflection_report_get"],
-				AllowedTools: ChatCapabilities.Combine(ChatSkillRegistry.All["reflection"].Tools, ChatCapabilities.NoteListWrite, ["calendar_period_get", "datetime_get_current", "search_agent_call"]),
+				AllowedTools: ChatCapabilities.Combine(ChatSkillRegistry.All["reflection"].Tools, ChatCapabilities.NoteListWrite, ["taskitem_create", "noteitem_assign", "calendar_period_get", "datetime_get_current", "search_agent_call"]),
 				CanWrite: true)
 			{
 				PreloadCalendarPeriod = "lastWeek",
