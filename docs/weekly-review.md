@@ -13,6 +13,15 @@ General and Week Planning chat can discuss priorities and apply explicitly reque
 chat modes retain their existing permissions. Telegram `/review` commands work in every mode without
 switching it (see [Telegram commands](telegram-integration.md)).
 
+## Calendar preferences outside review
+
+General, Week Planning, Day Work and Reflection also read the explicit timezone and week start,
+even with reminders disabled. Ordinary calendar reports are read-only and do not open a review,
+claim guidance or change reminder settings. Missing timezone uses a disclosed UTC fallback for
+ordinary reports; manual weekly review retains its explicit-timezone requirement. Ordinary this-week
+reports remain in the current week on the last day, independently of review targeting below.
+See [user-calendar rules and MCP options](user-calendar.md).
+
 ## Paused goals and focus guidance
 
 Ask chat to pause an active goal or resume a paused goal. The shared `goal_update` tool accepts
@@ -174,7 +183,8 @@ Additive cookie-authenticated endpoints under `/api/weekly-review`:
 Invalid input returns 400; another user's or missing review returns 404. The same Application service
 backs `weekly_review_settings_get`, `weekly_review_configure`, `weekly_review_open`,
 `weekly_review_transition`, `weekly_review_offer` and `weekly_review_apply` over direct, HTTP MCP and
-stdio paths. Existing `weekly_report_get` retains its seven-day UTC contract.
+stdio paths. Existing `weekly_report_get` retains its seven-day UTC contract when calendarPeriod is omitted; the
+additive named-period path is documented in [user calendar](user-calendar.md).
 
 Migration `AddWeeklyReviews` creates per-user `WeeklyReviewPreferences` and `WeeklyReviews`. It does
 not alter tasks or central auth records. Initialization applies it lazily to user databases, including

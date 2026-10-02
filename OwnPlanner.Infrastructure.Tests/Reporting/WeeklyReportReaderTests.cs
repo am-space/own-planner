@@ -1,3 +1,5 @@
+using OwnPlanner.Application.Calendar;
+using OwnPlanner.Infrastructure.WeeklyReviews;
 using FluentAssertions;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
@@ -187,7 +189,7 @@ public class WeeklyReportReaderTests
 	}
 
 	private static WeeklyReportReader CreateReader(SqliteConnection connection) =>
-		new(new TestPlannerDbContextFactory(connection), new FixedTimeProvider(AsOfUtc));
+		new(new TestPlannerDbContextFactory(connection), new FixedTimeProvider(AsOfUtc), new PlanningCalendar(new WeeklyReviewStore(new TestPlannerDbContextFactory(connection)), new FixedTimeProvider(AsOfUtc)));
 
 	private static AppDbContext CreateDb(out SqliteConnection connection)
 	{

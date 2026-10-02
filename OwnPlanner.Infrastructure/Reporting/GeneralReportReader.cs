@@ -1,16 +1,22 @@
 using Microsoft.EntityFrameworkCore;
 using OwnPlanner.Application.Reporting;
+using OwnPlanner.Application.Calendar;
 using OwnPlanner.Domain;
 using OwnPlanner.Domain.Goals;
 using OwnPlanner.Infrastructure.Persistence;
 
 namespace OwnPlanner.Infrastructure.Reporting;
 
-public sealed class GeneralReportReader(IPlannerDbContextFactory dbContextFactory, TimeProvider timeProvider) : IGeneralReportReader
+public sealed class GeneralReportReader(IPlannerDbContextFactory dbContextFactory, TimeProvider timeProvider, IPlanningCalendar calendar) : IGeneralReportReader
 {
-	public async Task<GeneralReport> GetAsync(CancellationToken cancellationToken = default)
+	public Task<GeneralReport> GetAsync(CancellationToken cancellationToken = default) => BuildAsync(null, cancellationToken);
+
+	public async Task<GeneralReport> GetCalendarAsync(string period, CancellationToken cancellationToken = default) =>
+		await BuildAsync(await calendar.ResolveAsync(period, cancellationToken), cancellationToken);
+
+	private async Task<GeneralReport> BuildAsync(PlanningPeriod? period, CancellationToken cancellationToken)
 	{
-		var asOfUtc = timeProvider.GetUtcNow().UtcDateTime;
+		var asOfUtc = period?.AsOfUtc ?? timeProvider.GetUtcNow().UtcDateTime;
 		await using var db = await dbContextFactory.CreateAsync(cancellationToken);
 		await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
 		var tasks = await db.TaskItems.AsNoTracking()
@@ -22,6 +28,9 @@ public sealed class GeneralReportReader(IPlannerDbContextFactory dbContextFactor
 		var captures = await db.NoteItems.AsNoTracking()
 			.CountAsync(n => n.NoteListId == WellKnownIds.InboxNoteList &&
 				db.NoteLists.Any(l => l.Id == n.NoteListId && !l.IsArchived), cancellationToken);
-		return GeneralReportBuilder.Build(asOfUtc, tasks, goals, captures);
+		return GeneralReportBuilder.Build(asOfUtc, tasks, goals, captures) with
+		{
+			Calendar = period is null ? null : GeneralReportBuilder.BuildCalendar(period, tasks)
+		};
 	}
 }

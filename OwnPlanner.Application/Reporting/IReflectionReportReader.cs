@@ -6,7 +6,7 @@ namespace OwnPlanner.Application.Reporting;
 /// </summary>
 public interface IReflectionReportReader
 {
-	/// <summary>Builds a bounded report for the requested UTC half-open period.</summary>
+	/// <summary>Builds a bounded report for the requested legacy UTC half-open period or an explicit user-calendar period, keeping focus calendar dates separate from timestamp instants.</summary>
 	Task<ReflectionReport> GetAsync(
 		ReflectionReportOptions options,
 		CancellationToken cancellationToken = default);

@@ -1,3 +1,5 @@
+using OwnPlanner.Application.Calendar;
+using OwnPlanner.Infrastructure.WeeklyReviews;
 using FluentAssertions;
 using System.Data.Common;
 using Microsoft.Data.Sqlite;
@@ -42,7 +44,7 @@ public class ReflectionReportReaderTests
 		using var db = CreateDb(out var connection);
 		await using var _ = connection;
 		var interceptor = new CommandCaptureInterceptor();
-		var reader = new ReflectionReportReader(new CapturingDbContextFactory(connection, interceptor), new FixedTimeProvider(AsOfUtc));
+		var reader = new ReflectionReportReader(new CapturingDbContextFactory(connection, interceptor), new FixedTimeProvider(AsOfUtc), new PlanningCalendar(new WeeklyReviewStore(new TestPlannerDbContextFactory(connection)), new FixedTimeProvider(AsOfUtc)));
 
 		await reader.GetAsync(new ReflectionReportOptions(), TestContext.Current.CancellationToken);
 
@@ -262,7 +264,7 @@ public class ReflectionReportReaderTests
 		db.Entry(entity).Property(nameof(EntityBase.UpdatedAt)).CurrentValue = updatedAt;
 	}
 
-	private static ReflectionReportReader CreateReader(SqliteConnection connection) => new(new TestPlannerDbContextFactory(connection), new FixedTimeProvider(AsOfUtc));
+	private static ReflectionReportReader CreateReader(SqliteConnection connection) => new(new TestPlannerDbContextFactory(connection), new FixedTimeProvider(AsOfUtc), new PlanningCalendar(new WeeklyReviewStore(new TestPlannerDbContextFactory(connection)), new FixedTimeProvider(AsOfUtc)));
 	private static AppDbContext CreateDb(out SqliteConnection connection)
 	{
 		connection = new SqliteConnection("DataSource=:memory:");

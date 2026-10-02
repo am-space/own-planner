@@ -16,7 +16,7 @@ public class TaskItemToolsTests
 
 	public TaskItemToolsTests()
 	{
-		_tools = new TaskItemTools(_service);
+		_tools = new TaskItemTools(_service, Substitute.For<OwnPlanner.Application.Calendar.IPlanningCalendar>());
 	}
 
 	private static TaskItemDto Task(string? description = null) => new(

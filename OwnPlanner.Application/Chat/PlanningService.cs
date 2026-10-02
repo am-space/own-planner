@@ -83,6 +83,22 @@ public sealed class PlanningService : IPlanningService
 
 		await EnsureContextWithinLimitAsync(userMessage, cancellationToken).ConfigureAwait(false);
 
+		var calendarContext = string.Empty;
+		if (_mcpAdapter is not null && _currentConfig.PreloadCalendarPeriod is not null)
+		{
+			try
+			{
+				calendarContext = "Current user calendar (fresh clock, not task data):\n" + await _mcpAdapter.CallToolAsync(
+					"calendar_period_get", new Dictionary<string, object?> { ["period"] = "today" }, cancellationToken);
+			}
+			catch (Exception ex) when (ex is not OperationCanceledException)
+			{
+				_logger.LogWarning("Calendar context lookup failed: {ExceptionType}", ex.GetType().Name);
+				calendarContext = "Current user calendar lookup failed. Fetch fresh calendar/report data before answering date-scoped questions; do not treat the initial snapshot as live.";
+			}
+		}
+		_chatAdapter.SetRequestContext(calendarContext);
+
 		var result = await _chatAdapter.GetResponse(userMessage, cancellationToken);
 
 		_transcript.Add(new ChatMessage(ChatRole.User, userMessage));
@@ -227,11 +243,12 @@ public sealed class PlanningService : IPlanningService
 		{
 			try
 			{
-				var result = await _mcpAdapter.CallToolAsync(tool, null, cancellationToken);
+				var arguments = config.PreloadCalendarPeriod is null ? null : new Dictionary<string, object?> { ["calendarPeriod"] = config.PreloadCalendarPeriod };
+				var result = await _mcpAdapter.CallToolAsync(tool, arguments, cancellationToken);
 				sb.AppendLine($"### {tool}");
 				sb.AppendLine(result);
 			}
-			catch (Exception ex)
+			catch (Exception ex) when (ex is not OperationCanceledException)
 			{
 				_logger.LogWarning(ex, "Preload tool {Tool} failed during context load", tool);
 			}
@@ -242,11 +259,12 @@ public sealed class PlanningService : IPlanningService
 
 	private static string BuildSystemPrompt(ModeConfig config, string context)
 	{
+		var prompt = config.PreloadCalendarPeriod is null ? config.SystemPrompt : $"{config.SystemPrompt}\n\n{CalendarGuidance.Instructions}";
 		if (string.IsNullOrEmpty(context))
-			return config.SystemPrompt;
+			return prompt;
 
 		var heading = config.ModeId == PlanningMode.General ? "Initial snapshot (not live state)" : "Current context";
-		return $"{config.SystemPrompt}\n\n## {heading}\n\n{context}";
+		return $"{prompt}\n\n## {heading}\n\n{context}";
 	}
 
 	public async ValueTask DisposeAsync()

@@ -43,7 +43,7 @@ public sealed partial class DirectToolMcpAdapterTests : IDisposable
 		toolDetails.Should().Contain(tool => tool.Name == "strategic_report_get");
 		toolDetails.Should().Contain(tool => tool.Name == "weekly_report_get");
 		var general = toolDetails.Single(tool => tool.Name == "general_report_get");
-		general.JsonSchema!.Value.GetProperty("properties").EnumerateObject().Should().BeEmpty();
+		general.JsonSchema!.Value.GetProperty("properties").EnumerateObject().Select(p => p.Name).Should().Equal("calendarPeriod");
 		toolDetails.Should().Contain(tool => tool.Name == "reflection_report_get");
 
 		var updateSchema = toolDetails.Single(tool => tool.Name == "taskitem_update").JsonSchema!.Value;
@@ -495,6 +495,7 @@ public sealed partial class DirectToolMcpAdapterTests : IDisposable
 		services.AddSingleton<PerUserAppInitializationService>();
 		services.AddScoped<IPlannerDbContextFactory>(_ => new FixedPathTestPlannerDbContextFactory(Path.Combine(_tempDirectory, "planner.db")));
 		services.AddScoped(_ => inboxSeeder);
+		services.AddSingleton(Substitute.For<OwnPlanner.Application.Calendar.IPlanningCalendar>());
 		if (taskService is not null)
 		{
 			services.AddScoped(_ => taskService);
@@ -537,6 +538,7 @@ public sealed partial class DirectToolMcpAdapterTests : IDisposable
 		services.AddScoped<IStrategicReportReader, StrategicReportReader>();
 		services.AddScoped<IWeeklyReportReader, WeeklyReportReader>();
 		services.AddScoped<OwnPlanner.Application.WeeklyReviews.IWeeklyReviewStore, OwnPlanner.Infrastructure.WeeklyReviews.WeeklyReviewStore>();
+		services.AddScoped<OwnPlanner.Application.Calendar.IPlanningCalendar, OwnPlanner.Application.Calendar.PlanningCalendar>();
 		services.AddScoped<OwnPlanner.Application.WeeklyReviews.IWeeklyReviewService, OwnPlanner.Application.WeeklyReviews.WeeklyReviewService>();
 		services.AddScoped<OwnPlanner.Application.WeeklyReviews.WeeklyReviewActions>();
 		services.AddScoped<IGeneralReportReader, GeneralReportReader>();

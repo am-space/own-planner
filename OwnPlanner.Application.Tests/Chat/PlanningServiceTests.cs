@@ -6,7 +6,7 @@ using OwnPlanner.Application.Chat;
 
 namespace OwnPlanner.Application.Tests.Chat;
 
-public class PlanningServiceTests
+public partial class PlanningServiceTests
 {
 	private readonly IChatAdapter _chatAdapter = Substitute.For<IChatAdapter>();
 	private readonly IMcpAdapter _mcpAdapter = Substitute.For<IMcpAdapter>();
@@ -31,13 +31,13 @@ public class PlanningServiceTests
 		var ct = TestContext.Current.CancellationToken;
 		await _svc.GetResponseAsync("I'm considering learning Spanish", ct);
 		await _svc.GetResponseAsync("Let's discuss my available time", ct);
-		await _mcpAdapter.Received(1).CallToolAsync("general_report_get", null, ct);
+		await _mcpAdapter.Received(1).CallToolAsync("general_report_get", Arg.Is<IReadOnlyDictionary<string, object?>?>(a => a != null && (string?)a["calendarPeriod"] == "thisWeek"), ct);
 		_chatAdapter.Received(1).ResetChatSession(Arg.Is<string>(p => p != null && p.Contains("Initial snapshot (not live state)")), Arg.Any<IReadOnlyList<string>>());
 		await _svc.SwitchModeAsync(PlanningMode.DayWork, ct);
 		await _svc.GetResponseAsync("Help with today", ct);
 		_svc.CurrentMode.Should().Be(PlanningMode.DayWork);
 		await _svc.SwitchModeAsync(PlanningMode.General, ct);
-		await _mcpAdapter.Received(2).CallToolAsync("general_report_get", null, ct);
+		await _mcpAdapter.Received(2).CallToolAsync("general_report_get", Arg.Is<IReadOnlyDictionary<string, object?>?>(a => a != null && (string?)a["calendarPeriod"] == "thisWeek"), ct);
 	}
 
 	[Fact]
@@ -88,10 +88,10 @@ public class PlanningServiceTests
 		Received.InOrder(() =>
 		{
 			_chatAdapter.ConfigureToolPolicy(Arg.Is<ChatToolPolicy>(policy =>
-					policy != null && policy.SkillIds.Count == 6 && policy.BaselineTools.Count == 6 && policy.AllowedTools.Contains("noteitem_create")));
+					policy != null && policy.SkillIds.Count == 6 && policy.BaselineTools.Count == 7 && policy.AllowedTools.Contains("noteitem_create")));
 			_chatAdapter.ResetChatSession(Arg.Any<string>(), ModeConfig.All[PlanningMode.General].InitialTools);
 		});
-		await _mcpAdapter.Received(1).CallToolAsync("general_report_get", null, TestContext.Current.CancellationToken);
+		await _mcpAdapter.Received(1).CallToolAsync("general_report_get", Arg.Is<IReadOnlyDictionary<string, object?>?>(a => a != null && (string?)a["calendarPeriod"] == "thisWeek"), TestContext.Current.CancellationToken);
 	}
 
 	[Fact]
@@ -221,7 +221,8 @@ public class PlanningServiceTests
 		await _svc.GetResponseAsync("what should I do?", ct);
 
 		captured.Should().Be("what should I do?");
-		await _mcpAdapter.DidNotReceive().CallToolAsync(Arg.Any<string>(), Arg.Any<Dictionary<string, object?>?>(), ct);
+		await _mcpAdapter.DidNotReceive().CallToolAsync("taskitem_list_by_focus_date", Arg.Any<IReadOnlyDictionary<string, object?>?>(), ct);
+		await _mcpAdapter.Received(1).CallToolAsync("calendar_period_get", Arg.Any<IReadOnlyDictionary<string, object?>?>(), ct);
 	}
 
 	[Fact]

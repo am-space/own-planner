@@ -1,7 +1,7 @@
 # ADR-0013: Deterministic weekly workload reporting
 
 **Date:** 2026-08-19
-**Status:** Accepted
+**Status:** Superseded by [ADR-0029](0029-shared-user-calendar.md)
 **Deciders:** OwnPlanner maintainers
 
 ---

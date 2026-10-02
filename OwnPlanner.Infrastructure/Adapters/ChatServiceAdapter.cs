@@ -72,6 +72,9 @@ namespace OwnPlanner.Infrastructure.Adapters
 			}))
 		};
 		private readonly TaskGoalLinkConversationState _goalLinkChoices = new();
+		private string _requestContext = string.Empty;
+
+		public void SetRequestContext(string context) => _requestContext = context;
 		private static readonly IReadOnlyList<FunctionDeclaration> LocalFunctionDeclarations =
 			[SearchAgentFunctionDeclaration, TaskPlanningAgentFunctionDeclaration, SkillLoadFunctionDeclaration, GoalLinkChoiceFunctionDeclaration];
 
@@ -137,6 +140,7 @@ namespace OwnPlanner.Infrastructure.Adapters
 		public void ResetChatSession(string? systemPrompt = null, IReadOnlyList<string>? allowedTools = null)
 		{
 			_goalLinkChoices.Clear();
+			_requestContext = string.Empty;
 			InitializeChatSession(systemPrompt, allowedTools);
 		}
 
@@ -331,8 +335,8 @@ namespace OwnPlanner.Infrastructure.Adapters
 			// Request metadata is not appended to chat history. Tool results contain only load status,
 			// so resetting the runtime also removes the previous request's trusted skill instructions.
 			var goalChoices = _toolPolicy.AllowedTools.Contains(TaskGoalLinkConversationState.ToolName) && _toolPolicy.CanWrite ? _goalLinkChoices.Context : string.Empty;
-			if (!string.IsNullOrEmpty(skills.Catalog) || !string.IsNullOrEmpty(skills.Instructions) || !string.IsNullOrEmpty(goalChoices))
-				request.SystemInstruction = new Content($"{skills.Catalog}\n\n{skills.Instructions}\n\n{goalChoices}");
+			if (!string.IsNullOrEmpty(skills.Catalog) || !string.IsNullOrEmpty(skills.Instructions) || !string.IsNullOrEmpty(goalChoices) || !string.IsNullOrEmpty(_requestContext))
+				request.SystemInstruction = new Content($"{skills.Catalog}\n\n{skills.Instructions}\n\n{goalChoices}\n\n{_requestContext}");
 			return request;
 		}
 

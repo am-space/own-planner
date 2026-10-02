@@ -10,6 +10,8 @@ public sealed record ModeConfig(
 {
 	/// <summary>Optional compact declaration baseline; AllowedTools remains the permission ceiling.</summary>
 	public IReadOnlyList<string>? InitialTools { get; init; }
+	/// <summary>Explicit user-calendar period for mode preload and per-turn calendar context.</summary>
+	public string? PreloadCalendarPeriod { get; init; }
 	public IReadOnlyList<string> SkillIds { get; init; } = [];
 	public IReadOnlyList<string> BaselineSkillIds { get; init; } = [];
 
@@ -35,12 +37,13 @@ public sealed record ModeConfig(
 					Skip this check for urgent or unrelated work. For weekly reminders or carryover review load weekly_planning.
 					""" + "\n\n" + TaskGoalLinkGuidance.Instructions,
 				PreloadTools: ["general_report_get"],
-				AllowedTools: new[] { "general_report_get", "datetime_get_current", "weekly_review_offer", "skill_load", "task_planning_agent_call", "search_agent_call" }
+				AllowedTools: new[] { "calendar_period_get", "general_report_get", "datetime_get_current", "weekly_review_offer", "skill_load", "task_planning_agent_call", "search_agent_call" }
 					.Concat(ChatSkillRegistry.All.Values.SelectMany(skill => skill.Tools)).Distinct(StringComparer.Ordinal).ToArray(),
 				CanWrite: true,
 				StarterPrompts: ["Help me think through an idea", "Capture something I want to remember", "What needs my attention?"])
 			{
-				InitialTools = ["general_report_get", "datetime_get_current", "weekly_review_offer", "skill_load", "task_planning_agent_call", "search_agent_call"],
+				InitialTools = ["calendar_period_get", "general_report_get", "datetime_get_current", "weekly_review_offer", "skill_load", "task_planning_agent_call", "search_agent_call"],
+				PreloadCalendarPeriod = "thisWeek",
 				SkillIds = ChatSkillRegistry.All.Keys.Order(StringComparer.Ordinal).ToArray()
 			},
 
@@ -81,9 +84,9 @@ public sealed record ModeConfig(
 				SystemPrompt: """
 					You are an organized planner in OwnPlanner — Week Planning mode.
 
-					Your focus: plan and prioritize the next 7 days.
+					Your focus: plan and prioritize the requested calendar period, defaulting to this week.
 
-					On entry you have been given a compact seven-day UTC workload report with separate focus plans and due-date commitments. Use it to:
+					On entry you have been given a compact current local-calendar week workload report with separate focus plans and due-date commitments. Use it to:
 					- Group tasks by context and surface what is planned versus due each day
 					- Highlight which Goals are being served this week — and which aren't
 					- Use targeted entity tools when the report indicates that more detail is needed
@@ -101,9 +104,10 @@ public sealed record ModeConfig(
 					""" + "\n\n" + TaskGoalLinkGuidance.Instructions,
 				PreloadTools: ["weekly_report_get"],
 				AllowedTools: ChatCapabilities.Combine(ChatSkillRegistry.All["weekly_planning"].Tools, ChatSkillRegistry.All["task_management"].Tools, ChatCapabilities.TaskListWrite, ChatCapabilities.TaskListArchive,
-					["tasklist_delete", "datetime_get_current", "search_agent_call"]),
+					["calendar_period_get", "tasklist_delete", "datetime_get_current", "search_agent_call"]),
 				CanWrite: true)
 			{
+				PreloadCalendarPeriod = "thisWeek",
 				SkillIds = ["weekly_planning", "task_management"],
 				BaselineSkillIds = ["weekly_planning", "task_management"]
 			},
@@ -133,8 +137,8 @@ public sealed record ModeConfig(
 					""" + "\n\n" + TaskGoalLinkGuidance.Instructions,
 				PreloadTools: ["taskitem_list_by_focus_date"],
 				AllowedTools: ChatCapabilities.Combine(ChatCapabilities.TaskRead, ChatCapabilities.TaskProgress, ChatCapabilities.TaskListRead, ChatCapabilities.GoalRead,
-					[TaskGoalLinkConversationState.ToolName, "taskitem_link_goal", "taskitem_list_by_focus_date", "taskitem_create", "notelist_all", "noteitem_create", "datetime_get_current"]),
-				CanWrite: true),
+					["calendar_period_get", TaskGoalLinkConversationState.ToolName, "taskitem_link_goal", "taskitem_list_by_focus_date", "taskitem_create", "notelist_all", "noteitem_create", "datetime_get_current"]),
+				CanWrite: true) { PreloadCalendarPeriod = "today" },
 
 			[PlanningMode.Reflection] = new ModeConfig(
 				ModeId: PlanningMode.Reflection,
@@ -144,7 +148,7 @@ public sealed record ModeConfig(
 
 					Your focus: review the past week, process captures, and assess goal progress.
 
-					On entry you have been given a compact current-state reflection report with an explicit UTC period and historical limitations. Use it to:
+					On entry you have been given a compact current-state reflection report with an explicit previous complete local-calendar week and historical limitations. Use it to:
 					- Summarize what got done across contexts and goals
 					- Surface focused-but-incomplete and overdue carryover without inventing past transitions
 					- Nudge processing of notes currently in Inbox — suggest converting them to tasks or other note types
@@ -163,9 +167,10 @@ public sealed record ModeConfig(
 					- Confirm all write actions taken
 					""",
 				PreloadTools: ["reflection_report_get"],
-				AllowedTools: ChatCapabilities.Combine(ChatSkillRegistry.All["reflection"].Tools, ChatCapabilities.NoteListWrite, ["datetime_get_current", "search_agent_call"]),
+				AllowedTools: ChatCapabilities.Combine(ChatSkillRegistry.All["reflection"].Tools, ChatCapabilities.NoteListWrite, ["calendar_period_get", "datetime_get_current", "search_agent_call"]),
 				CanWrite: true)
 			{
+				PreloadCalendarPeriod = "lastWeek",
 				SkillIds = ["reflection"],
 				BaselineSkillIds = ["reflection"]
 			},
