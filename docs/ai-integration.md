@@ -65,6 +65,13 @@ Every turn receives fresh clock/calendar metadata, and new date-scoped requests 
 See [user calendar](user-calendar.md), [ADR-0021](adr/0021-general-default-chat.md) and
 [ADR-0029](adr/0029-shared-user-calendar.md).
 
+General broad attention requests use fresh `general_attention_get` data, organized today-first with
+current-week focus plans, future commitments and overdue deadlines. The existing thisWeek preload
+adds `calendar.attention`, but remains a dated snapshot. Named-section pages retrieve all matching
+tasks with exact counts and bounded reason-annotated samples; explicitly day-scoped attention uses
+section=today. See [General attention](general-attention.md) and
+[ADR-0030](adr/0030-general-week-attention.md). These reads do not open a weekly review or mutate tasks.
+
 ## Clearing task deadlines
 
 Use `taskitem_update` with `id` and `clearDueAt: true` to remove a deadline. The optional flag
@@ -88,7 +95,7 @@ values, and newly linked Telegram accounts. Explicit mode selections remain in f
 Telegram selections also survive `/new`. All six modes are selectable, including Day Work.
 General discusses exploratory ideas before writing and does not automatically switch modes.
 
-Its compact baseline is `calendar_period_get`, `general_report_get`, `datetime_get_current`,
+Its compact baseline is `calendar_period_get`, `general_report_get`, `general_attention_get`, `datetime_get_current`,
 `weekly_review_offer`, `skill_load`,
 `task_planning_agent_call`, and `search_agent_call`, alongside the compact skill catalog. Both
 agents are directly callable from the first request. Only the General report is preloaded on
@@ -144,7 +151,7 @@ are retained, with additive weekly-review and task goal-link capabilities descri
 
 | Mode | Explicit baseline skills and additional capabilities |
 |---|---|
-| General | Seven compact baseline tools; six skills loaded on demand |
+| General | Eight compact baseline tools; six skills loaded on demand |
 | Global Planning | Goals/organization, notes and strategic review; existing recovery, removal and delegation capabilities; focused task goal linking |
 | Week Planning | Weekly planning and task management; existing task-list maintenance |
 | Day Work | Narrow task-read/progress groups, quick capture, goal reads and focused task goal linking; no full task skill or agents |

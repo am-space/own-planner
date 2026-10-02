@@ -15,6 +15,8 @@ internal static class CalendarGuidance
 		General: call general_report_get calendarPeriod=thisWeek for broad current-week questions, or the
 		requested named period, and use its separate calendar section for local today/week data. Its original
 		UTC today and upcoming rolling fields keep their legacy meanings; never relabel them as local dates.
+		General: for broad attention use fresh general_attention_get section=all for its today-first week sections;
+		use section=today for day-only attention. The initial thisWeek calendar.attention is a dated snapshot.
 		Week Planning: call weekly_report_get with the requested calendarPeriod; default to thisWeek.
 		Day Work: preload/refresh taskitem_list_by_focus_date calendarPeriod=today; never reuse an old
 		focusDate as today's date after midnight. This selects focus plans only, without adding deadline tasks.

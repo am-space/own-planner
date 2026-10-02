@@ -14,7 +14,11 @@ public sealed record GeneralReport(
 }
 public sealed record GeneralCalendarSummary(PlanningPeriod Period, PlanningPeriod TodayPeriod, GeneralToday Today,
 	int OverdueDeadlineCount, int DueTodayCount, int FocusedInsidePeriodCount, int DueInsidePeriodCount,
-	GeneralSampleIds PeriodTasks, IReadOnlyList<GeneralTaskSample> Tasks);
+	GeneralSampleIds PeriodTasks, IReadOnlyList<GeneralTaskSample> Tasks)
+{
+	/// <summary>Today-first deduplicated attention, present only for thisWeek; all existing summary fields retain their meanings.</summary>
+	public GeneralAttentionReport? Attention { get; init; }
+}
 public sealed record GeneralToday(int FocusTaskCount, int CompletedCount, GeneralSampleIds Remaining);
 public sealed record GeneralSampleIds(int TotalCount, int SampleLimit, bool Truncated, IReadOnlyList<Guid> TaskIds);
 public sealed record GeneralCommitments(int OverdueCount, int DueTodayCount, int UpcomingSevenDayCount, GeneralSampleIds Nearest);
@@ -78,7 +82,7 @@ public static class GeneralReportBuilder
 				linkedGoals.Take(3).Select(g => new GeneralGoalSample(g.Id, Clip(g.Title), g.Title.Length > TitleLimit)).ToArray()),
 			Order(tasks.Where(t => sampleIds.Contains(t.Id))).Select(t => new GeneralTaskSample(t.Id, Clip(t.Title), t.Title.Length > TitleLimit, t.FocusAt, t.DueAt)).ToArray(), TitleLimit);
 	}
-	private static string Clip(string title)
+	internal static string Clip(string title)
 	{
 		var length = Math.Min(title.Length, TitleLimit);
 		if (length < title.Length && char.IsHighSurrogate(title[length - 1]) && char.IsLowSurrogate(title[length]))

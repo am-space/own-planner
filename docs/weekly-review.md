@@ -21,6 +21,8 @@ claim guidance or change reminder settings. Missing timezone uses a disclosed UT
 ordinary reports; manual weekly review retains its explicit-timezone requirement. Ordinary this-week
 reports remain in the current week on the last day, independently of review targeting below.
 See [user-calendar rules and MCP options](user-calendar.md).
+General's [today-first attention overview](general-attention.md) uses the same current-week calendar
+without opening a review; its sections and pages do not use the review's frozen target week.
 
 ## Paused goals and focus guidance
 
