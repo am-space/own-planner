@@ -81,11 +81,14 @@ ADRs describe decisions as actually shipped. Start new records from [`adr/templa
 
 - [`ADR-0031`](adr/0031-day-work-deadlines.md) — daily execution with today's deadlines in Day Work
 
+- [`ADR-0032`](adr/0032-reflection-capture-actions.md) — narrow capture actions in Reflection
+
 ## Historical plans
 
 Archived plans preserve the original intent but may differ from the final implementation. For
 implemented plans, prefer the linked ADR when determining current behavior.
 
+- [`archive/reflection-capture-actions-plan.md`](archive/reflection-capture-actions-plan.md)
 - [`archive/day-work-deadlines-plan.md`](archive/day-work-deadlines-plan.md)
 - [`archive/general-week-attention-plan.md`](archive/general-week-attention-plan.md)
 - [`archive/shared-user-calendar-plan.md`](archive/shared-user-calendar-plan.md)

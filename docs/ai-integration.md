@@ -147,7 +147,8 @@ confirmation. Intent and routing are model instructions; declared permissions an
 behavior are independently enforced in code.
 
 Specialized modes compose operation groups through `ChatCapabilities`. Their original permissions
-are retained, with additive weekly-review and task goal-link capabilities described below:
+are retained, with additive daily-report, weekly-review, task goal-link and narrow capture capabilities
+described below:
 
 | Mode | Explicit baseline skills and additional capabilities |
 |---|---|
@@ -155,7 +156,7 @@ are retained, with additive weekly-review and task goal-link capabilities descri
 | Global Planning | Goals/organization, notes and strategic review; existing recovery, removal and delegation capabilities; focused task goal linking |
 | Week Planning | Weekly planning and task management; existing task-list maintenance |
 | Day Work | Daily execution read plus narrow task-read/progress groups, quick capture, goal reads and focused task goal linking; no full task skill or agents |
-| Reflection | Reflection; existing note-list capture processing and Search Agent |
+| Reflection | Reflection; direct capture-task creation and note movement, existing note-list maintenance and Search Agent |
 | System Analysis | Strategic review with the independent read-only policy |
 
 Full skills require every operation to fit the permission ceiling. Smaller internal groups avoid
@@ -212,7 +213,7 @@ The web in-process adapter, HTTP MCP endpoint and stdio host expose the same han
 General loads goal reads, linking and choice recording through `task_management`; Day Work adds
 goal reads, focused linking and local choice recording, while Global Planning can apply confirmation
 after delegated creation and record choices locally.
-Reflection and System Analysis receive no additional writes.
+Reflection and System Analysis receive no additional goal-link writes.
 
 Relevance and natural-language consent follow trusted model instructions. Deterministic tests cover
 instruction delivery, scripted conversations, mutation validation and real web/Telegram tool and
@@ -381,6 +382,31 @@ assignments, and notes removed from Inbox cannot be reconstructed. These limitat
 the tool result so the model does not present unavailable history as fact. The tool performs no note
 type inference, sentiment analysis, scoring, comparison, or retrospective-note generation and
 accepts no tenant or timezone selector.
+
+### Narrow capture actions in Reflection
+
+Reflection directly declares two existing tools from the first request: `taskitem_create` and
+`noteitem_assign`. Its public reflection skill and `reflection_report_get calendarPeriod=lastWeek`
+preload are unchanged. There is no new skill or broad task-management load.
+
+For requested task creation from a capture, resolve the system Inbox task list with
+`tasklist_all includeUnassigned=true` unless the user selects another list. Fetch full capture content with `noteitem_get` if its preview
+is insufficient. Task creation preserves the source note, including its original list; it does not
+authorize movement or deletion. Move a note only when explicitly requested and the destination is
+unambiguous, using `notelist_all includeUnassigned=true` to resolve the selected list. Clear requests
+execute directly; exploratory discussion produces no automatic writes and ambiguous destinations require clarification.
+
+If both actions are requested, they remain independent calls. Report each confirmed success or
+failure separately; a partial failure does not mean the capture was fully processed. An uncertain
+creation result must not trigger an automatic task-creation retry. Refresh relevant captures/report
+after changes. Existing handlers, schemas, host-bound persistence and web/HTTP MCP/stdio delivery are
+reused without contract changes. Reflection still cannot edit, schedule, complete, assign, trash,
+restore, delete or link existing tasks, or delete the source note.
+
+Policy and scripted provider tests verify immediate declarations, retained denials, call routing and
+independent result delivery; they do not evaluate live Gemini judgment or establish transactional
+conversion. A real two-user handler check verifies Inbox creation, source preservation, independent
+failed movement and tenant isolation. See [ADR-0032](adr/0032-reflection-capture-actions.md).
 
 ## Telegram presentation channel
 
