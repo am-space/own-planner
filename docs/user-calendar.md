@@ -38,7 +38,7 @@ exclusive end excludes the newly starting date from focus membership.
 | --- | --- |
 | General | `general_report_get calendarPeriod=thisWeek` |
 | Week Planning | `weekly_report_get calendarPeriod=thisWeek` |
-| Day Work | `taskitem_list_by_focus_date calendarPeriod=today` |
+| Day Work | `day_report_get` (resolves local today internally) |
 | Reflection | `reflection_report_get calendarPeriod=lastWeek` |
 
 Each turn obtains lightweight `calendar_period_get period=today` metadata from the current clock
@@ -49,7 +49,8 @@ fresh report for a new date-scoped request, with the requested named period, and
 in its answer. Natural-language interpretation and tool selection remain model behavior, verified
 with scripted orchestration tests rather than claimed as live-model evaluation.
 
-Day Work remains focused on focus plans; this feature does not add deadline tasks. Reflection still
+Day Work includes today's focus plans and deadlines with compact overdue warnings through its
+[daily execution report](day-work.md). Focus-only requests retain the existing focus query. Reflection still
 classifies currently incomplete tasks by current focus membership and preserves its historical
 limitations; it cannot reconstruct reopened completions or prior assignments.
 

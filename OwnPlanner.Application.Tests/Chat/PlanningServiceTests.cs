@@ -221,7 +221,7 @@ public partial class PlanningServiceTests
 		await _svc.GetResponseAsync("what should I do?", ct);
 
 		captured.Should().Be("what should I do?");
-		await _mcpAdapter.DidNotReceive().CallToolAsync("taskitem_list_by_focus_date", Arg.Any<IReadOnlyDictionary<string, object?>?>(), ct);
+		await _mcpAdapter.DidNotReceive().CallToolAsync("day_report_get", Arg.Any<IReadOnlyDictionary<string, object?>?>(), ct);
 		await _mcpAdapter.Received(1).CallToolAsync("calendar_period_get", Arg.Any<IReadOnlyDictionary<string, object?>?>(), ct);
 	}
 

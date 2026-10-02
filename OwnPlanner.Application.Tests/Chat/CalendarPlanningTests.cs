@@ -10,7 +10,7 @@ public partial class PlanningServiceTests
 	[Theory]
 	[InlineData(PlanningMode.General, "general_report_get", "thisWeek")]
 	[InlineData(PlanningMode.WeekPlanning, "weekly_report_get", "thisWeek")]
-	[InlineData(PlanningMode.DayWork, "taskitem_list_by_focus_date", "today")]
+	[InlineData(PlanningMode.DayWork, "day_report_get", "today")]
 	[InlineData(PlanningMode.Reflection, "reflection_report_get", "lastWeek")]
 	public async Task CalendarModesPreloadExplicitPeriodsAndReceiveFreshContextAcrossMidnight(PlanningMode mode, string tool, string period)
 	{
@@ -23,7 +23,7 @@ public partial class PlanningServiceTests
 		await _svc.GetResponseAsync("What is planned today?", ct);
 		await _svc.GetResponseAsync("What is planned today?", ct);
 		await _mcpAdapter.Received(1).CallToolAsync(tool,
-			Arg.Is<IReadOnlyDictionary<string, object?>?>(a => a != null && (string?)a["calendarPeriod"] == period), ct);
+			Arg.Is<IReadOnlyDictionary<string, object?>?>(a => mode == PlanningMode.DayWork ? a == null : a != null && (string?)a["calendarPeriod"] == period), ct);
 		contexts.Should().HaveCount(2);
 		contexts[0].Should().Contain("2026-10-02").And.Contain("Asia/Tokyo");
 		contexts[1].Should().Contain("2026-10-03").And.NotContain("2026-10-02");

@@ -22,10 +22,18 @@ public sealed class GeneralReportReader(IPlannerDbContextFactory dbContextFactor
 		return GeneralAttentionBuilder.Build(period, await ReadTasksAsync(db, cancellationToken), options);
 	}
 
+	public async Task<DayReport> GetDayAsync(DayReportOptions options, CancellationToken cancellationToken = default)
+	{
+		options.Validate();
+		var period = await calendar.ResolveAsync("today", cancellationToken);
+		await using var db = await dbContextFactory.CreateAsync(cancellationToken);
+		return DayReportBuilder.Build(period, await ReadTasksAsync(db, cancellationToken), options);
+	}
+
 	private static Task<List<GeneralTaskRow>> ReadTasksAsync(AppDbContext db, CancellationToken cancellationToken) =>
 		db.TaskItems.AsNoTracking()
 			.Where(t => t.TrashedAt == null && !db.TaskLists.Any(l => l.Id == t.TaskListId && l.IsArchived))
-			.Select(t => new GeneralTaskRow(t.Id, t.Title, t.IsCompleted, t.FocusAt, t.DueAt, t.TaskListId, t.GoalId))
+			.Select(t => new GeneralTaskRow(t.Id, t.Title, t.IsCompleted, t.FocusAt, t.DueAt, t.TaskListId, t.GoalId) { IsImportant = t.IsImportant })
 			.ToListAsync(cancellationToken);
 
 	private async Task<GeneralReport> BuildAsync(PlanningPeriod? period, CancellationToken cancellationToken)
