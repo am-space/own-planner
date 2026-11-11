@@ -83,6 +83,48 @@ public class StrategicReportReaderTests
 	}
 
 	[Fact]
+	public async Task GetAsync_SignalsObserveSelectedStructureWithoutDistinguishingCompletedWorkOrNotes()
+	{
+		using var db = CreateDb(out var connection);
+		await using var _ = connection;
+		var ct = TestContext.Current.CancellationToken;
+		var completedGoal = new Goal("Delivered", GoalHorizon.Yearly, targetPeriod: "2026");
+		var neverLinkedGoal = new Goal("Considering", GoalHorizon.Yearly, targetPeriod: "2026");
+		var inactiveGoal = new Goal("On hold", GoalHorizon.Yearly, targetPeriod: "2026");
+		inactiveGoal.SetStatus(GoalStatus.Paused);
+		var newContext = new PlanningContext("New setup", ContextType.Project);
+		var notesContext = new PlanningContext("Reference", ContextType.Area);
+		var doneContext = new PlanningContext("Delivered project", ContextType.Project);
+		var operationalContext = new PlanningContext("Household", ContextType.Area);
+		var doneList = new TaskList("Completed work", contextId: doneContext.Id);
+		var operations = new TaskList("Errands", contextId: operationalContext.Id);
+		var notes = new NoteList("Reference notes", contextId: notesContext.Id);
+		var archived = new TaskList("Old setup", contextId: newContext.Id);
+		archived.Archive();
+		db.AddRange(completedGoal, neverLinkedGoal, inactiveGoal, newContext, notesContext, doneContext,
+			operationalContext, doneList, operations, notes, archived);
+		await db.SaveChangesAsync(ct);
+		var completed = new TaskItem("Delivered step", doneList.Id, goalId: completedGoal.Id);
+		completed.Complete();
+		var operational = new TaskItem("Buy groceries", operations.Id);
+		db.AddRange(completed, operational, new TaskItem("Paused goal step", operations.Id, goalId: inactiveGoal.Id),
+			new NoteItem("Useful reference", notes.Id), new TaskItem("Archived step", archived.Id, goalId: neverLinkedGoal.Id));
+		await db.SaveChangesAsync(ct);
+
+		var report = await CreateReader(connection).GetAsync(new StrategicReportOptions(), ct);
+
+		report.Signals.ActiveGoalsWithoutActiveTasks.Select(item => item.Id).Should()
+			.BeEquivalentTo([completedGoal.Id, neverLinkedGoal.Id]);
+		report.Goals.Should().OnlyContain(goal => goal.IncompleteTaskCount == 0 && goal.TaskSamples.Count == 0);
+		report.Signals.ContextsWithoutActiveTasks.Select(item => item.Id).Should()
+			.BeEquivalentTo([newContext.Id, notesContext.Id, doneContext.Id]);
+		report.Contexts.Single(context => context.Id == notesContext.Id).NoteCount.Should().Be(1);
+		report.Signals.ContextsWithoutTaskOrNoteLists.Should().ContainSingle(item => item.Id == newContext.Id);
+		report.Signals.TasksWithoutGoalCount.Should().Be(1);
+		report.Signals.TasksWithoutGoal.Should().ContainSingle(item => item.Id == operational.Id);
+	}
+
+	[Fact]
 	public async Task GetAsync_StructuralSignalsHaveDeterministicNameOrdering()
 	{
 		using var db = CreateDb(out var connection);

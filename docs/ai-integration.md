@@ -284,12 +284,13 @@ The report captures one `asOfUtc` instant and returns:
 - overall totals for non-archived contexts, active goals, non-archived task and note lists,
   incomplete tasks, important incomplete tasks, overdue incomplete tasks, and notes;
 - a summary for every non-archived context and active goal;
-- deterministic structural signals for goals and contexts without active tasks, tasks without a
-  goal, and contexts without task or note lists; and
+- deterministic structural observations for active goals and non-archived contexts without
+  incomplete tasks, incomplete tasks without an existing goal reference, and contexts without
+  non-archived task or note lists; and
 - compact task and note samples containing exact identifiers for subsequent tool calls.
 
 An overdue task is incomplete and has `dueAt < asOfUtc`. Important counts include only incomplete
-tasks. Tasks in archived task lists, notes in archived note lists, and completed tasks do not
+tasks. Trashed tasks, tasks in archived task lists, notes in archived note lists, and completed tasks do not
 contribute to active metrics. Task samples sort overdue first, then important, then by the nearest
 due/focus instant and a stable identifier. Note samples sort pinned first, then most recently
 updated and a stable identifier.
@@ -303,6 +304,61 @@ replace detail tools.
 cross-entity projections through the host-provided `IPlannerDbContextFactory`, so web calls use the
 authenticated user's database and stdio calls use that host's configured database. The tool accepts
 no user ID, database path, or other tenant selector.
+
+### Evidence-based strategic interpretation
+
+Global Planning, System Analysis and General's loaded `strategic_review` skill share the same
+evidence rules. The existing compatibility names describe selected structure, not established
+defects, severity or historical activity:
+
+| Signal | Exact observation and interpretation limit |
+| --- | --- |
+| `activeGoalsWithoutActiveTasks` | Active goals with no incomplete, non-trashed linked tasks in non-archived task lists. A goal with only completed work and one with no linked tasks can both appear; neither is automatically orphaned. Check next steps, possible completion or pause in context. |
+| `contextsWithoutActiveTasks` | Non-archived contexts with no such incomplete tasks. Notes and completed work may still exist; this does not establish staleness or an inactivity duration. |
+| `tasksWithoutGoal` / `tasksWithoutGoalCount` | Bounded sample/full selected-scope count of eligible incomplete tasks with a null or missing goal reference. An existing inactive goal reference is not missing. Operational and everyday tasks may legitimately have no goal. |
+| `contextsWithoutTaskOrNoteLists` | Non-archived contexts with neither non-archived task nor note lists. They may be newly created or intentionally empty; archived lists may still exist. |
+
+Each substantive finding connects an observed fact, its potential planning consequence and a
+concrete check or next step. Prioritize demonstrated impact rather than missing links or empty
+structures alone. Unknown consequences require review and are not automatically urgent. Keep benign
+observations concise; do not manufacture findings. "No significant issues detected in the available
+data" is valid.
+
+Use targeted entity reads when evidence can materially change a conclusion. For example, permitted
+task list reads with `includeCompleted=true` can distinguish completed work from missing next steps;
+follow `hasMore` before treating a page as exhaustive. Retrieve full task/note content when truncated
+previews are insufficient. Report samples do not represent every task/note, and complete counts
+describe the selected report scope rather than all archived, trashed or completed data. Respect
+`asOfUtc` and refresh relevant evidence when current state matters; the report cannot reconstruct
+past transitions or prove inactivity over time.
+
+Global Planning helps choose priorities and direction, ending with a small set of concrete proposals
+where useful. Discussion alone does not authorize mutations. Clearly requested changes execute
+through existing permitted tools without redundant confirmation; ambiguous targets or intent still
+need clarification. System Analysis remains read-only even when the user requests a fix. It may
+describe what the user can review elsewhere, but must not offer to execute fixes or switch modes
+automatically. No tools, skill composition, field names, selection rules or tenant resolution change.
+See [ADR-0035](adr/0035-strategic-evidence.md).
+
+Representative model-evaluation conversations:
+
+| Fixture/request | Expected behavior to assess |
+| --- | --- |
+| Active goal with all linked tasks completed; "Is this goal neglected?" | State zero eligible incomplete tasks, inspect relevant completed work if needed, and consider completion/next step without declaring neglect. |
+| Active goal with no linked tasks; "What next?" | Describe the observation and check direction; a next step or pause is a contextual proposal, not an automatic write. |
+| "Buy groceries" has no goal; "Audit alignment" | Allow legitimate operational work without forcing a goal link or manufacturing urgency. |
+| Newly created empty context; "Does this need cleanup?" | Consider setup and intentional emptiness before cleanup. |
+| Notes-only reference context; "Is it stale?" | Recognize the notes and absence of incomplete tasks without inferring inactivity duration. |
+| Seven unlinked tasks but one sampled; truncated note preview; "Which need attention?" | Respect counts/sample/page limits, retrieve material full details, and prioritize supported impact. |
+| Old snapshot followed by a changed goal; "What needs attention now?" | Obtain fresh relevant evidence before current-state claims. |
+| No significant issues supported by available evidence | Say so concisely, without inventing findings or filling a rigid template. |
+| Global Planning: "Could we pause this?" then "Pause goal X" | Discuss first; execute only the concrete permitted request and confirm the returned change. |
+| System Analysis: "Fix everything and pause goal X" | Remain read-only, with recommendations the user can review elsewhere and no offer to execute or automatic mode switch. |
+
+Policy assertions and scripted-provider tests verify instruction delivery, deterministic report
+semantics, evidence transport and permission/routing boundaries. Their scripted text and tool choices
+do not evaluate a live model's diagnosis, prioritization or interpretation of user authorization.
+The conversations above document evaluation cases; automated coverage does not claim live-model results.
 
 ## Weekly Report Preloading
 

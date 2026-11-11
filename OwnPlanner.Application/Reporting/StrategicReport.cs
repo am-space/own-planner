@@ -17,6 +17,10 @@ public sealed record StrategicReportOptions(int TaskSampleLimit = 3, int NoteSam
 	}
 }
 
+/// <summary>
+/// A current-state snapshot at <c>AsOfUtc</c>, not historical activity evidence. Counts cover the
+/// selected scope; task/note samples are bounded independently and text previews may be truncated.
+/// </summary>
 public sealed record StrategicReport(
 	DateTime AsOfUtc,
 	StrategicOverallTotals Totals,
@@ -91,6 +95,19 @@ public sealed record StrategicNoteSample(
 
 public sealed record StrategicEntityReference(Guid Id, string Name);
 
+/// <summary>
+/// Structural observations, not established defects or severity ratings. "Active tasks" means
+/// incomplete, non-trashed tasks in non-archived task lists. Goals are active; contexts non-archived.
+/// </summary>
+/// <param name="ActiveGoalsWithoutActiveTasks">Active goals with no eligible incomplete linked tasks;
+/// completed-only and never-linked goals are indistinguishable here.</param>
+/// <param name="ContextsWithoutActiveTasks">Non-archived contexts with no eligible incomplete tasks,
+/// including contexts containing notes or completed work; does not establish inactivity duration.</param>
+/// <param name="TasksWithoutGoal">Bounded sample of eligible incomplete tasks with a null or missing
+/// goal reference. Existing inactive goal references are not missing. Operational tasks may be valid.</param>
+/// <param name="TasksWithoutGoalCount">Full count in the selected task scope, independent of sample limit.</param>
+/// <param name="ContextsWithoutTaskOrNoteLists">Non-archived contexts with neither non-archived task
+/// nor note lists; may represent new setup or intentional emptiness.</param>
 public sealed record StrategicStructuralSignals(
 	IReadOnlyList<StrategicEntityReference> ActiveGoalsWithoutActiveTasks,
 	IReadOnlyList<StrategicEntityReference> ContextsWithoutActiveTasks,

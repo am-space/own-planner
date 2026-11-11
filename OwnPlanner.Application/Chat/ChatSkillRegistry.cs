@@ -50,7 +50,26 @@ public static class ChatSkillRegistry
 				ChatCapabilities.TaskListRead, ChatCapabilities.TaskRead,
 				["reflection_report_get", "goal_update", "noteitem_list_by_goal", "taskitem_list_by_goal"])),
 		new("strategic_review", "Read-only alignment review and structural diagnosis.",
-			"Use the strategic report and targeted reads for goal alignment, orphaned goals, stale contexts and list structure. This skill supplies only read tools. Diagnose and propose improvements; applying requested changes requires separately permitted write capabilities. Respect read-only modes. A preloaded report is a dated snapshot; retrieve fresh targeted evidence when necessary and respect report limitations.",
+			"""
+			Use the strategic report and targeted reads to review goal alignment and planning structure from evidence.
+			ActiveGoalsWithoutActiveTasks means active goals with no incomplete, non-trashed linked tasks in non-archived task lists; it does not mean no linked tasks ever.
+			Completed-only goals and goals with no linked tasks can have the same signal. Check relevant task/goal details when this distinction matters.
+			Use permitted task list reads with includeCompleted=true when completed work matters; follow hasMore before treating a page as exhaustive.
+			Consider a next step, completing or pausing a goal only as possibilities supported by context, not automatic corrections.
+			ContextsWithoutActiveTasks means non-archived contexts with no such incomplete tasks; notes and completed work may still exist.
+			Do not infer staleness or inactivity duration from this snapshot.
+			TasksWithoutGoal covers eligible incomplete tasks with a null or missing goal reference; links to existing inactive goals are not counted as missing.
+			Missing goal links are candidates for review, not mandatory errors: everyday and operational tasks need not serve a goal.
+			ContextsWithoutTaskOrNoteLists means no non-archived task or note lists. Consider new setup or intentional emptiness before proposing cleanup.
+			For each substantive finding, connect the observed fact, potential planning consequence and concrete check or proposed next step. Keep benign observations concise.
+			Prioritize by demonstrated planning impact, not missing links or empty structures alone. Label unknown consequences as requiring review, not automatically urgent.
+			Do not manufacture findings; "no significant issues detected in the available data" is a valid result.
+			Task/note samples are bounded and previews may be truncated; neither represents the full dataset or complete content. Counts describe only the report's selected scope.
+			Use targeted get/list reads when additional evidence can materially change a conclusion; retrieve full content when a truncated preview is insufficient.
+			A preloaded report is a dated snapshot. Obtain fresh relevant evidence when current state matters; do not infer historical activity or past transitions.
+			This skill supplies only read tools. Exploratory analysis and proposals do not authorize writes. Execute clearly requested changes only through separately permitted write capabilities, without redundant confirmation; clarify ambiguous targets or intent.
+			Respect read-only modes: System Analysis must not offer to execute fixes or switch modes automatically. Recommendations may describe what the user can review elsewhere.
+			""",
 			ChatCapabilities.Combine(ChatCapabilities.GoalRead, ChatCapabilities.ContextRead, ChatCapabilities.TaskListRead,
 				ChatCapabilities.TaskRead, ChatCapabilities.NoteListRead, ChatCapabilities.NoteRead,
 				["strategic_report_get", "taskitem_list_by_focus_date"]))
