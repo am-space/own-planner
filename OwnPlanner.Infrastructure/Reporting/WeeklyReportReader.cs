@@ -74,6 +74,7 @@ public sealed class WeeklyReportReader(
 			var focused = orderedTasks.Where(task => InWindow(task.FocusAt, focusDayStart, focusDayEnd)).ToList();
 			var due = orderedTasks.Where(task => InWindow(task.DueAt, dayStart, dayEnd)).ToList();
 			var distinctCount = focused.Select(task => task.Id).Union(due.Select(task => task.Id)).Count();
+			// Preserve the inclusive count heuristic behind the legacy IsOverloaded field; no capacity is measured.
 			return new WeeklyDaySummary(
 				date, focused.Count, due.Count, distinctCount, distinctCount >= options.OverloadedDayThreshold,
 				focused.Take(options.TaskSampleLimit).Select(task => ToSample(task, listContexts, previews)).ToList(),

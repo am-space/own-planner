@@ -328,15 +328,59 @@ are flexible work plans; due dates are fixed commitments and are never inferred 
 
 Each day contains separate focus and due counts and bounded samples. Context summaries include an
 explicit `Unassigned or missing context` bucket for legacy associations; active-goal summaries make
-coverage available for drill-down. Signals identify overloaded days, active goals without focused
+coverage available for drill-down. Signals identify days meeting the task-count threshold, active goals without focused
 work, overdue tasks not focused inside the window, and important tasks without a focus date.
 
 `taskSampleLimit` defaults to 3 and accepts 0–5. `overloadedDayThreshold` defaults to 5 and accepts
-1–20; a day is overloaded when its distinct focus-or-due task count is at least the threshold. Task
+1–20. The compatibility fields `isOverloaded` and `signals.overloadedDays` mean only that a day's
+distinct focus-or-due task count is at least that threshold. They flag concentration worth reviewing;
+they do not establish overload or feasibility. Duration and available time are not measured. A
+deadline day does not imply that all work on its due tasks happens that day. Task
 samples sort overdue first, then important, due date, focus date, and stable identifier. Description
 previews contain at most 200 characters and include a truncation flag. The tool performs no capacity
 estimation, scheduling or historical reconstruction, and accepts no tenant
 selector.
+
+### Weekly workload interpretation and proposals
+
+Week Planning and General's loaded `weekly_planning` skill share the same evidence rules. For
+"What's realistic to get done this week?", use available time, task sizes and constraints already
+supplied in the conversation. If essential information is missing, ask briefly about available time
+and the largest tasks, without repeating answered questions or a full intake questionnaire. State
+when capacity or duration is unknown; never invent estimates, free time or precise feasibility
+conclusions from task counts or bounded samples. Five short tasks and five large tasks may require
+very different effort despite producing the same report signal.
+
+When useful, propose a small core set and optional reserve work. Explain choices through actual
+deadlines, importance, goals and user constraints. These are proposals: a capacity discussion does
+not authorize task changes. Concrete requested changes retain the existing execution behavior,
+without redundant confirmation; ambiguous targets or intent still need clarification.
+
+Distribute flexible planned work using `FocusAt` through `taskitem_set_focus_date` (or the existing
+guarded review focus actions). Create/change `DueAt` only for genuine deadlines supported by user
+intent. Scheduling work without a real deadline preserves an existing deadline and changes only
+the focus date; the assistant must not manufacture deadlines to fill the week. Focus and due counts
+remain separate, and their overlap is deduplicated in distinct totals. Shared user-calendar windows,
+weekly-review lifecycle and permissions remain unchanged. See
+[ADR-0034](adr/0034-weekly-workload-evidence.md).
+
+Representative conversation checks for model evaluation:
+
+| Conversation evidence/request | Expected behavior |
+| --- | --- |
+| Five ten-minute tasks; two hours available | Use those supplied estimates; do not call the day overloaded just because the count is five. |
+| Five four-hour tasks; two hours available | Explain the conflict using supplied time/size evidence; propose a smaller commitment or discuss a next step. |
+| Five tasks with no time/size information | Disclose uncertainty and briefly ask about available time and the largest tasks. |
+| Time and task sizes supplied earlier, then "What's realistic this week?" | Reuse the earlier constraints and avoid repeating the intake. |
+| "What could I move to next week?" | Propose changes without writing. |
+| "Schedule this task for Monday; it has no deadline" | Set its focus date after resolving the requested calendar date; do not add a deadline. |
+| "The client deadline is Friday at 17:00 UTC; set it" | Update the genuine deadline while preserving focus. |
+
+Policy tests check the delivered instructions; scripted provider fixtures cover prior constraints,
+report evidence, dynamic General skill loading, exploratory reads and authorized focus/deadline
+routing. They do not prove a live model will make the expected judgments. No live-model evaluation
+is part of the deterministic repository gate; use the cases above when evaluating an actual model
+and report those observations separately from scripted test results.
 
 ## Reflection Report Preloading
 

@@ -100,7 +100,9 @@ public sealed partial class ChatSkillOrchestrationTests
 		foreach (var request in provider.Requests)
 		{
 			Names(request).Should().BeEquivalentTo(ModeConfig.All[mode].AllowedTools);
-			request.GetProperty("systemInstruction").ToString().Should().Contain(ChatSkillRegistry.All[skill].Instructions);
+			var instructions = string.Join("\n", request.GetProperty("systemInstruction").GetProperty("parts").EnumerateArray()
+				.Select(part => part.GetProperty("text").GetString()));
+			instructions.Should().Contain(ChatSkillRegistry.All[skill].Instructions);
 		}
 	}
 
