@@ -30,9 +30,23 @@ public sealed class WeeklyReviewE2eTests(E2eWebApplicationFactory application) :
 		await Expect(Page.GetByRole(AriaRole.Switch, new() { Name = "Enable weekly reminders" })).Not.ToBeCheckedAsync();
 		await Page.GetByRole(AriaRole.Combobox, new() { Name = "Review timezone" }).FillAsync("UTC");
 		await Page.GetByRole(AriaRole.Option, new() { Name = "UTC", Exact = true }).ClickAsync();
-		await Page.GetByRole(AriaRole.Button, new() { Name = "Save weekly review settings" }).ClickAsync();
+		var releaseSave = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+		await Page.RouteAsync("**/api/weekly-review/settings", async route =>
+		{
+			if (route.Request.Method == "PUT") await releaseSave.Task;
+			await route.ContinueAsync();
+		});
+		var openReview = Page.GetByRole(AriaRole.Link, new() { Name = "Open weekly review", Exact = true });
+		try
+		{
+			await Page.GetByRole(AriaRole.Button, new() { Name = "Save weekly review settings" }).ClickAsync();
+			await Expect(openReview).ToBeDisabledAsync();
+			await Expect(Page).ToHaveURLAsync(new Regex("/settings#weekly-review$"));
+		}
+		finally { releaseSave.TrySetResult(); }
 		await Expect(Page.GetByText("Weekly review settings saved.", new() { Exact = true })).ToBeVisibleAsync();
-		await Page.GetByRole(AriaRole.Link, new() { Name = "Open weekly review", Exact = true }).ClickAsync();
+		await Expect(openReview).ToBeEnabledAsync();
+		await openReview.ClickAsync();
 		await Expect(Page.GetByText("No tasks need review.", new() { Exact = true })).ToBeVisibleAsync();
 		await Page.ReloadAsync();
 		await Expect(Page.GetByText("No tasks need review.", new() { Exact = true })).ToBeVisibleAsync();

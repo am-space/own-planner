@@ -56,7 +56,7 @@ export default function WeeklyReviewSettings() {
       <Box><Button variant="contained" disabled={busy || (preferences.enabled && !preferences.timeZoneId)} onClick={() => void run(async () => {
         setPreferences(await apiService.saveWeeklyReviewPreferences(preferences)); setNotice('Weekly review settings saved.');
       })}>Save weekly review settings</Button></Box>
-      <Box><Button component={RouterLink} to="/planner/review">Open weekly review</Button></Box>
+      <Box><Button component={RouterLink} to="/planner/review" disabled={busy}>Open weekly review</Button></Box>
     </Stack>}
   </Paper>;
 }
