@@ -2,6 +2,11 @@ using OwnPlanner.Application.Calendar;
 
 namespace OwnPlanner.Application.Reporting;
 
+/// <summary>Bounds report samples and the task-count concentration heuristic; does not specify time capacity.</summary>
+/// <param name="StartDate">Legacy UTC start date; mutually exclusive with CalendarPeriod.</param>
+/// <param name="TaskSampleLimit">Maximum samples per view; exact counts do not depend on this limit.</param>
+/// <param name="OverloadedDayThreshold">Inclusive distinct focus-or-due task count threshold (default 5), not an effort or feasibility limit.</param>
+/// <param name="CalendarPeriod">Optional named period resolved through shared user-calendar rules.</param>
 public sealed record WeeklyReportOptions(
 	DateOnly? StartDate = null,
 	int TaskSampleLimit = 3,
@@ -53,6 +58,14 @@ public sealed record WeeklyOverallTotals(
 	int ImportantIncompleteTaskCount,
 	int UnscheduledIncompleteTaskCount);
 
+/// <summary>Separate focus/deadline evidence for a calendar day, without duration or availability estimates.</summary>
+/// <param name="Date">The report calendar date.</param>
+/// <param name="FocusedTaskCount">Number of tasks planned for this date.</param>
+/// <param name="DueTaskCount">Number of deadline commitments on this date.</param>
+/// <param name="DistinctTaskCount">Union of focused and due task identifiers; a task in both views counts once.</param>
+/// <param name="IsOverloaded">Compatibility name for DistinctTaskCount &gt;= OverloadedDayThreshold; a concentration signal, not proof of overload or feasibility.</param>
+/// <param name="FocusedTaskSamples">Bounded focus samples; not the complete task set.</param>
+/// <param name="DueTaskSamples">Bounded deadline samples; not the complete task set.</param>
 public sealed record WeeklyDaySummary(
 	DateOnly Date,
 	int FocusedTaskCount,
@@ -83,6 +96,7 @@ public sealed record WeeklyGoalSummary(
 	int OverdueIncompleteTaskCount,
 	IReadOnlyList<StrategicTaskSample> TaskSamples);
 
+/// <summary>A day meeting the inclusive task-count threshold; the legacy name makes no capacity diagnosis.</summary>
 public sealed record WeeklyOverloadedDay(DateOnly Date, int DistinctTaskCount);
 
 public sealed record WeeklyPlanningSignals(

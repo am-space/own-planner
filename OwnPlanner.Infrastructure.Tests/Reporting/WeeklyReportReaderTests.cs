@@ -104,6 +104,40 @@ public class WeeklyReportReaderTests
 		summary.TaskSamples.Should().ContainSingle(item => item.Id == legacy.Id);
 	}
 
+	[Theory]
+	[InlineData(4, false)]
+	[InlineData(5, true)]
+	[InlineData(6, true)]
+	public async Task GetAsync_DefaultThresholdIsInclusiveAndCountsOverlappingTasksOnceEvenWithoutSamples(int count, bool meetsThreshold)
+	{
+		using var db = CreateDb(out var connection);
+		await using var _ = connection;
+		var ct = TestContext.Current.CancellationToken;
+		var list = new TaskList("Tasks");
+		db.Add(list);
+		await db.SaveChangesAsync(ct);
+		for (var index = 0; index < count; index++)
+		{
+			var task = new TaskItem($"Task {index}", list.Id, dueAt: Utc(2026, 8, 17, 18));
+			task.SetFocusAt(Utc(2026, 8, 17));
+			db.Add(task);
+		}
+		await db.SaveChangesAsync(ct);
+
+		var report = await CreateReader(connection).GetAsync(new WeeklyReportOptions(StartDate, TaskSampleLimit: 0), ct);
+
+		report.OverloadedDayThreshold.Should().Be(5);
+		var day = report.Days[0];
+		day.FocusedTaskCount.Should().Be(count);
+		day.DueTaskCount.Should().Be(count);
+		day.DistinctTaskCount.Should().Be(count);
+		day.IsOverloaded.Should().Be(meetsThreshold);
+		day.FocusedTaskSamples.Should().BeEmpty();
+		day.DueTaskSamples.Should().BeEmpty();
+		report.Totals.DistinctWindowTaskCount.Should().Be(count);
+		report.Signals.OverloadedDays.Should().Equal(meetsThreshold ? [new WeeklyOverloadedDay(StartDate, count)] : []);
+	}
+
 	[Fact]
 	public async Task GetAsync_ExcludesTrashedTasksFromTotalsSignalsAndSamples()
 	{
