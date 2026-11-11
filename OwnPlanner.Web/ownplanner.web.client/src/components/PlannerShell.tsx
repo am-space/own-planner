@@ -19,6 +19,7 @@ import {
 } from '@mui/material';
 import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutlined';
 import ChecklistIcon from '@mui/icons-material/Checklist';
+import EventRepeatIcon from '@mui/icons-material/EventRepeat';
 import FlagOutlinedIcon from '@mui/icons-material/FlagOutlined';
 import NotesOutlinedIcon from '@mui/icons-material/NotesOutlined';
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
@@ -44,6 +45,7 @@ export interface PlannerShellOutletContext {
 const navigationItems = [
   { label: 'Chat', path: '/chat', icon: <ChatBubbleOutlineIcon /> },
   { label: 'Tasks', path: '/planner/tasks', icon: <ChecklistIcon /> },
+  { label: 'Weekly Review', path: '/planner/review', icon: <EventRepeatIcon /> },
   { label: 'Trash', path: '/planner/trash', icon: <DeleteOutlineIcon /> },
   { label: 'Goals', path: '/planner/goals', icon: <FlagOutlinedIcon /> },
   { label: 'Notes', path: '/planner/notes', icon: <NotesOutlinedIcon /> },

@@ -7,9 +7,9 @@ providing deterministic browsing for tasks, goals, and notes plus a recoverable 
 
 The protected React routes share one `PlannerShell`:
 
-- a responsive left navigation area links Chat, Tasks, Trash, Goals, Notes, and Settings;
+- a responsive left navigation area links Chat, Tasks, Weekly Review, Trash, Goals, Notes, and Settings;
 - Chat uses the full central workspace;
-- Tasks, Goals, and Notes use the upper workspace with the same mounted chat session in a horizontal
+- Tasks, Weekly Review, Goals, and Notes use the upper workspace with the same mounted chat session in a horizontal
   assistant panel below;
 - the assistant can be collapsed for more vertical planner space;
 - selecting an item opens complete read-only details in a full-height right-side inspector, making
@@ -29,6 +29,12 @@ query string. The assistant's collapsed state is a local `sessionStorage` prefer
 
 The Trash route lists recoverable tasks with restore and permanent-delete actions. Permanent deletion
 uses an explicit confirmation dialog and cannot be undone.
+
+The [Weekly Review page](weekly-review.md) at `/planner/review` presents the existing shared goal and
+unfinished-task review with pagination and explicit finish, skip and defer controls. It scrolls
+within the planner surface and links to its preferences, which are the first Settings section.
+Settings contains configuration and a navigation link rather than an inline review. A timezone is
+required for manual review; reminders and a Telegram connection are optional.
 
 ## HTTP planner API
 
