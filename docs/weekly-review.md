@@ -1,14 +1,29 @@
 # Weekly reminders and goal-focused review
 
+Open **Weekly Review** next to Tasks in the desktop navigation or mobile navigation drawer. The
+dedicated authenticated page at `/planner/review` opens the shared review and supports direct links
+and browser refresh. It shows the target week, timezone, status, existing goal guidance, carryover,
+overdue deadlines and upcoming commitments, with task pagination and Finish review, Skip this week
+and Defer review controls. Its content scrolls within the planner workspace, alongside the existing
+assistant (or the switchable chat surface on mobile). Opening and paging never change tasks.
+
+Weekly Review preferences are the first section in Settings, before Telegram and access tokens.
+The review page's **Review settings** link opens that section; **Open weekly review** in Settings
+navigates to the dedicated page instead of rendering the workflow inline. Without a configured
+timezone, the review page shows a setup prompt linking to preferences. Loading, request failures
+with retry, and an empty remaining task list have explicit feedback.
+
 Configure Weekly review in Settings or ask General/Week Planning chat. Reminders start disabled.
 Choose a timezone explicitly, a week-start day, and a local reminder time. The default suggestion is
 Monday-start weeks with Sunday 18:00 delivery. Telegram is the supported proactive channel and
 requires an enabled host integration plus a connected account. No timezone is inferred from the
 server or browser. Disabling reminders suppresses automatic Telegram and chat offers; manual review
-remains available after timezone selection.
+remains available after timezone selection, including without a connected Telegram account. This
+page reviews unfinished work and commitments for its target week; it does not add a completed-work
+retrospective or task-editing controls.
 
 Web and Telegram share preferences and review state even though their conversations are separate.
-Settings can open a review, show goals, page through remaining tasks, finish it, skip it, or defer to a specified local time.
+The Weekly Review page can show goals, page through remaining tasks, finish it, skip it, or defer to a specified local time.
 General and Week Planning chat can discuss priorities and apply explicitly requested changes. Other
 chat modes retain their existing permissions. Telegram `/review` commands work in every mode without
 switching it (see [Telegram commands](telegram-integration.md)).
@@ -39,7 +54,7 @@ remaining task review and count as other work.
 
 Once per local calendar month, the first actual live review opening with paused goals includes one
 sentence naming them, their approximate pause ages in days/weeks/months, and an invitation to resume.
-Settings, web chat and Telegram `/review` share this claim. The month is determined by the current
+The Weekly Review page, web chat and Telegram `/review` share this claim. The month is determined by the current
 opening instant in the review's frozen timezone, rather than its target-week date. Empty paused-goal
 sets, task pagination, expired/finished reviews, reminders and lookups solely to skip/defer/finish do
 not consume the mention. A review already presented has delivered its mention even if later skipped
@@ -72,7 +87,7 @@ from within the review even if it was absent from the carryover page. A user may
 without a plan after one confirmation. Stalled or past-period goals prompt a keep, pause, achieve, drop,
 or target-period change decision. Metric progress can be updated during the review. Every goal
 edit requires an explicit user instruction. When there are no active goals, the first conversational
-opening of that review offers once to formulate one to three goals, even if Settings or Telegram
+opening of that review offers once to formulate one to three goals, even if the Weekly Review page or Telegram
 `/review` was opened earlier; declining continues to tasks.
 
 After the goal step, the ordinary task review continues. A task already linked to an active goal

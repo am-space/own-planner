@@ -83,11 +83,14 @@ ADRs describe decisions as actually shipped. Start new records from [`adr/templa
 
 - [`ADR-0032`](adr/0032-reflection-capture-actions.md) — narrow capture actions in Reflection
 
+- [`ADR-0033`](adr/0033-dedicated-weekly-review-page.md) — dedicated Weekly Review route and preference-only Settings
+
 ## Historical plans
 
 Archived plans preserve the original intent but may differ from the final implementation. For
 implemented plans, prefer the linked ADR when determining current behavior.
 
+- [`archive/weekly-review-page-plan.md`](archive/weekly-review-page-plan.md)
 - [`archive/reflection-capture-actions-plan.md`](archive/reflection-capture-actions-plan.md)
 - [`archive/day-work-deadlines-plan.md`](archive/day-work-deadlines-plan.md)
 - [`archive/general-week-attention-plan.md`](archive/general-week-attention-plan.md)

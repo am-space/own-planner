@@ -2,6 +2,7 @@ using FluentAssertions;
 using Microsoft.Playwright;
 using OwnPlanner.E2E.Tests.Infrastructure;
 using OwnPlanner.Application.Chat;
+using OwnPlanner.Domain;
 
 namespace OwnPlanner.E2E.Tests;
 
@@ -9,6 +10,135 @@ namespace OwnPlanner.E2E.Tests;
 [Trait("Category", "E2E")]
 public sealed class WeeklyReviewE2eTests(E2eWebApplicationFactory application) : E2ePageTest(application)
 {
+	[Theory]
+	[InlineData(1440)]
+	[InlineData(390)]
+	public async Task NavigationAndSetup_LeadToDedicatedManualReview_WithoutRemindersOrTelegram(int width)
+	{
+		await RegisterAsync(Page, CreateUser());
+		await Page.SetViewportSizeAsync(width, 844);
+		if (width < 600)
+			await Page.GetByRole(AriaRole.Button, new() { Name = "Open navigation", Exact = true }).ClickAsync();
+		await Page.GetByRole(AriaRole.Button, new() { Name = "Weekly Review", Exact = true }).ClickAsync();
+		await Expect(Page).ToHaveURLAsync(new Regex("/planner/review$"));
+		await Expect(Page.GetByRole(AriaRole.Heading, new() { Name = "Weekly Review", Exact = true })).ToBeVisibleAsync();
+		await Expect(Page.GetByText("Choose your review timezone", new() { Exact = false })).ToBeVisibleAsync();
+		await Expect(Page.GetByRole(AriaRole.Button, new() { Name = "Finish review", Exact = true })).ToHaveCountAsync(0);
+		await Page.GetByRole(AriaRole.Link, new() { Name = "Weekly Review settings", Exact = true }).ClickAsync();
+		await Expect(Page).ToHaveURLAsync(new Regex("/settings#weekly-review$"));
+		await Expect(Page.Locator("main h6").First).ToHaveTextAsync("Weekly review");
+		await Expect(Page.GetByRole(AriaRole.Switch, new() { Name = "Enable weekly reminders" })).Not.ToBeCheckedAsync();
+		await Page.GetByRole(AriaRole.Combobox, new() { Name = "Review timezone" }).FillAsync("UTC");
+		await Page.GetByRole(AriaRole.Option, new() { Name = "UTC", Exact = true }).ClickAsync();
+		await Page.GetByRole(AriaRole.Button, new() { Name = "Save weekly review settings" }).ClickAsync();
+		await Expect(Page.GetByText("Weekly review settings saved.", new() { Exact = true })).ToBeVisibleAsync();
+		await Page.GetByRole(AriaRole.Link, new() { Name = "Open weekly review", Exact = true }).ClickAsync();
+		await Expect(Page.GetByText("No tasks need review.", new() { Exact = true })).ToBeVisibleAsync();
+		await Page.ReloadAsync();
+		await Expect(Page.GetByText("No tasks need review.", new() { Exact = true })).ToBeVisibleAsync();
+		await Expect(Page.GetByRole(AriaRole.Status)).ToContainTextAsync("UTC · inProgress");
+		if (width < 600)
+		{
+			await Page.GetByRole(AriaRole.Button, new() { Name = "Chat", Exact = true }).ClickAsync();
+			await Expect(Page.GetByRole(AriaRole.Heading, new() { Name = "Weekly Review", Exact = true })).ToBeHiddenAsync();
+			await Page.GetByRole(AriaRole.Button, new() { Name = "Weekly Review", Exact = true }).ClickAsync();
+			await Expect(Page.GetByText("No tasks need review.", new() { Exact = true })).ToBeVisibleAsync();
+		}
+		await Page.GetByRole(AriaRole.Button, new() { Name = "Finish review", Exact = true }).ClickAsync();
+		await Expect(Page.GetByRole(AriaRole.Status)).ToContainTextAsync("completed");
+		await Page.GetByRole(AriaRole.Link, new() { Name = "Review settings", Exact = true }).ClickAsync();
+		await Expect(Page.Locator("#weekly-review")).ToBeVisibleAsync();
+		await Expect(Page.GetByRole(AriaRole.Button, new() { Name = "Finish review", Exact = true })).ToHaveCountAsync(0);
+		await Expect(Page.GetByRole(AriaRole.Switch, new() { Name = "Enable weekly reminders" })).Not.ToBeCheckedAsync();
+	}
+
+	[Fact]
+	public async Task ReviewPagesAndTransitions_PersistSharedState_WithoutChangingTasks()
+	{
+		await RegisterAsync(Page, CreateUser());
+		var prompt = Application.Scenarios.Register(async mcpAdapter =>
+		{
+			var mcp = mcpAdapter!;
+			await mcp.CallToolAsync("weekly_review_configure", new Dictionary<string, object?> { ["enabled"] = false, ["timeZoneId"] = "UTC" });
+			for (var index = 0; index < 21; index++)
+				await mcp.CallToolAsync("taskitem_create", new Dictionary<string, object?>
+				{
+					["title"] = $"Review task {index}", ["taskListId"] = WellKnownIds.InboxTaskList, ["dueAt"] = "2000-01-01T00:00:00Z"
+				});
+			return new ChatTurnResult("Review tasks prepared", 100);
+		});
+		await SendPromptAsync(Page, prompt);
+		await Expect(Page.GetByText("Review tasks prepared", new() { Exact = true })).ToBeVisibleAsync();
+		var originalTasks = await ReadTasksAsync();
+		await Page.GotoAsync("/planner/review");
+		await Expect(Page.GetByText("1–20 of 21 tasks", new() { Exact = true })).ToBeVisibleAsync();
+		var firstPage = await Page.Locator("main ul li").AllTextContentsAsync();
+		firstPage.Should().HaveCount(20);
+		await Page.GetByRole(AriaRole.Button, new() { Name = "Next", Exact = true }).ClickAsync();
+		await Expect(Page.GetByText("21–21 of 21 tasks", new() { Exact = true })).ToBeVisibleAsync();
+		await Expect(Page.GetByRole(AriaRole.Button, new() { Name = "Next", Exact = true })).ToBeDisabledAsync();
+		var lastPage = await Page.Locator("main ul li").AllTextContentsAsync();
+		lastPage.Should().ContainSingle();
+		firstPage.Should().NotContain(lastPage.Single());
+		await Page.GetByRole(AriaRole.Button, new() { Name = "Previous", Exact = true }).ClickAsync();
+		await Expect(Page.GetByText("1–20 of 21 tasks", new() { Exact = true })).ToBeVisibleAsync();
+		(await Page.Locator("main ul li").AllTextContentsAsync()).Should().Equal(firstPage);
+
+		await Page.GetByLabel("Remind me later (UTC)", new() { Exact = true }).FillAsync("2000-01-01T12:00");
+		await Page.GetByRole(AriaRole.Button, new() { Name = "Defer review", Exact = true }).ClickAsync();
+		await Expect(Page.GetByRole(AriaRole.Alert)).ToContainTextAsync("future time");
+		await Expect(Page.GetByText("1–20 of 21 tasks", new() { Exact = true })).ToBeVisibleAsync();
+		var futureTime = DateTime.UtcNow.AddMinutes(5).ToString("yyyy-MM-dd'T'HH:mm", System.Globalization.CultureInfo.InvariantCulture);
+		await Page.GetByLabel("Remind me later (UTC)", new() { Exact = true }).FillAsync(futureTime);
+		await Page.GetByRole(AriaRole.Button, new() { Name = "Defer review", Exact = true }).ClickAsync();
+		await Expect(Page.GetByRole(AriaRole.Status)).ToContainTextAsync("deferred");
+		await Page.ReloadAsync();
+		await Expect(Page.GetByRole(AriaRole.Status)).ToContainTextAsync("deferred");
+		await Page.GetByRole(AriaRole.Button, new() { Name = "Skip this week", Exact = true }).ClickAsync();
+		await Expect(Page.GetByRole(AriaRole.Status)).ToContainTextAsync("skipped");
+		await Page.ReloadAsync();
+		await Expect(Page.GetByRole(AriaRole.Button, new() { Name = "Finish review", Exact = true })).ToBeDisabledAsync();
+		await Expect(Page.GetByRole(AriaRole.Button, new() { Name = "Skip this week", Exact = true })).ToBeDisabledAsync();
+		(await ReadTasksAsync()).Should().Be(originalTasks);
+
+		async Task<string> ReadTasksAsync() => await Page.EvaluateAsync<string>("async () => JSON.stringify((await (await fetch('/api/planner/tasks?limit=100')).json()).items)");
+	}
+
+	[Theory]
+	[InlineData("settings")]
+	[InlineData("open?*")]
+	public async Task LoadingAndRequestErrors_AllowRetryWithoutLosingThePage(string endpoint)
+	{
+		await RegisterAsync(Page, CreateUser());
+		(await Page.EvaluateAsync<int>("async () => (await fetch('/api/weekly-review/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ enabled: false, timeZoneId: 'UTC', weekStart: 1, reminderTime: '18:00', channel: 'telegram' }) })).status")).Should().Be(200);
+		var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+		var pattern = $"**/api/weekly-review/{endpoint}";
+		await Page.RouteAsync(pattern, async route =>
+		{
+			await release.Task;
+			await route.FulfillAsync(new() { Status = 503, ContentType = "application/json", Body = "{\"message\":\"Review temporarily unavailable\"}" });
+		});
+		try
+		{
+			await Page.GotoAsync("/planner/review");
+			await Expect(Page.GetByRole(AriaRole.Status)).ToHaveTextAsync("Loading weekly review…");
+		}
+		finally { release.TrySetResult(); }
+		await Expect(Page.GetByRole(AriaRole.Alert)).ToContainTextAsync("Review temporarily unavailable");
+		await Expect(Page.GetByText("Loading weekly review…", new() { Exact = true })).ToHaveCountAsync(0);
+		await Page.UnrouteAsync(pattern);
+		await Page.GetByRole(AriaRole.Button, new() { Name = "Retry", Exact = true }).ClickAsync();
+		await Expect(Page.GetByText("No tasks need review.", new() { Exact = true })).ToBeVisibleAsync();
+	}
+
+	[Fact]
+	public async Task ReviewDirectRoute_RequiresAuthentication()
+	{
+		await Page.GotoAsync("/planner/review");
+		await Expect(Page).ToHaveURLAsync(new Regex("/login$"));
+		await Expect(Page.GetByRole(AriaRole.Heading, new() { Name = "Weekly Review", Exact = true })).ToHaveCountAsync(0);
+	}
+
 	[Fact]
 	public async Task PausedGoalsAreQueryableAndReviewGuidanceIsDisplayedOnlyOnce()
 	{
@@ -37,11 +167,12 @@ public sealed class WeeklyReviewE2eTests(E2eWebApplicationFactory application) :
 		await Expect(Page.GetByText("Paused Spanish", new() { Exact = true }).First).ToBeVisibleAsync();
 		await Expect(Page.GetByText("Active goal 1", new() { Exact = true })).ToHaveCountAsync(0);
 		await Page.GotoAsync("/settings");
-		var open = Page.GetByRole(AriaRole.Button, new() { Name = "Open weekly review", Exact = true });
+		var open = Page.GetByRole(AriaRole.Link, new() { Name = "Open weekly review", Exact = true });
 		await open.ClickAsync();
 		await Expect(Page.GetByText("You now have 6 active goals.", new() { Exact = false })).ToBeVisibleAsync();
 		await Expect(Page.GetByText("1 goal is paused:", new() { Exact = false })).ToContainTextAsync("Paused Spanish");
-		await open.ClickAsync();
+		await Page.ReloadAsync();
+		await Expect(Page.GetByRole(AriaRole.Button, new() { Name = "Finish review", Exact = true })).ToBeEnabledAsync();
 		await Expect(Page.GetByText("You now have 6 active goals.", new() { Exact = false })).ToHaveCountAsync(0);
 		await Expect(Page.GetByText("1 goal is paused:", new() { Exact = false })).ToHaveCountAsync(0);
 	}
@@ -61,7 +192,7 @@ public sealed class WeeklyReviewE2eTests(E2eWebApplicationFactory application) :
 		await Expect(Page.GetByText("Weekly review settings saved.", new() { Exact = true })).ToBeVisibleAsync();
 		await Page.ReloadAsync();
 		await Expect(enabled).ToBeCheckedAsync();
-		await Page.GetByRole(AriaRole.Button, new() { Name = "Open weekly review", Exact = true }).ClickAsync();
+		await Page.GetByRole(AriaRole.Link, new() { Name = "Open weekly review", Exact = true }).ClickAsync();
 		await Expect(Page.GetByText("No tasks need review.")).ToBeVisibleAsync();
 		await Page.GetByRole(AriaRole.Button, new() { Name = "Finish review", Exact = true }).ClickAsync();
 		await Expect(Page.GetByRole(AriaRole.Button, new() { Name = "Finish review", Exact = true })).ToBeDisabledAsync();

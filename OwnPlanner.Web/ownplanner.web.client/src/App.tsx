@@ -12,6 +12,7 @@ import SettingsPage from './pages/SettingsPage';
 import PlannerPage from './pages/PlannerPage';
 import PlannerShell from './components/PlannerShell';
 import TrashPage from './pages/TrashPage';
+import WeeklyReviewPage from './pages/WeeklyReviewPage';
 
 function ThemedApp() {
   const { theme } = useThemeContext();
@@ -35,6 +36,7 @@ function ThemedApp() {
               <Route path="/chat" element={null} />
               <Route path="/planner" element={<Navigate to="/planner/tasks" replace />} />
               <Route path="/planner/tasks" element={<PlannerPage section="tasks" />} />
+              <Route path="/planner/review" element={<WeeklyReviewPage />} />
               <Route path="/planner/trash" element={<TrashPage />} />
               <Route path="/planner/goals" element={<PlannerPage section="goals" />} />
               <Route path="/planner/notes" element={<PlannerPage section="notes" />} />

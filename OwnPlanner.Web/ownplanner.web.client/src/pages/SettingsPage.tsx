@@ -240,6 +240,8 @@ export default function SettingsPage() {
         </Alert>
       )}
 
+      <WeeklyReviewSettings />
+
       <Paper sx={{ p: 3, mb: 3 }}>
         <Typography variant="h6" gutterBottom>Telegram</Typography>
         <Divider sx={{ mb: 2 }} />
@@ -457,8 +459,6 @@ export default function SettingsPage() {
           </Button>
         </DialogActions>
       </Dialog>
-
-      <WeeklyReviewSettings />
 
       <Snackbar
         open={copyNotice !== null}
