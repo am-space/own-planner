@@ -22,6 +22,7 @@ describe.
 | [`day-work.md`](day-work.md) | Daily execution, deadlines, overdue warnings and bounded drill-down |
 | [`general-attention.md`](general-attention.md) | Today-first General attention, exact counts and section drill-down |
 | [`user-calendar.md`](user-calendar.md) | Shared local dates, named periods, UTC fallback and compatible report options |
+| [`recurring-tasks.md`](recurring-tasks.md) | Internal recurrence contracts/calendar engine and staged lifecycle/read boundaries; no public creation yet |
 | [`weekly-review.md`](weekly-review.md) | Goal-focused local-calendar reviews, reminders, settings and delivery policy |
 | [`chat-presentation.md`](chat-presentation.md) | Scoped Markdown and responsive chat styles |
 
@@ -29,7 +30,8 @@ describe.
 
 Active implementation plans live directly in `docs/` as `*-plan.md`:
 
-No implementation plans are currently active.
+- [`recurring-tasks-plan.md`](recurring-tasks-plan.md) — staged #84 recurrence implementation;
+  stage 1 contracts/calendar engine, with persistence and public integration still to follow.
 
 Potential work without an implementation commitment lives in `backlog/`:
 
@@ -88,6 +90,8 @@ ADRs describe decisions as actually shipped. Start new records from [`adr/templa
 - [`ADR-0034`](adr/0034-weekly-workload-evidence.md) — count-based concentration signals and evidence-based weekly proposals
 
 - [`ADR-0035`](adr/0035-strategic-evidence.md) — evidence-based strategic diagnoses and mode-specific proposals
+
+- [`ADR-0036`](adr/0036-recurrence-calendar-foundations.md) — internal recurrence contracts and bounded calendar calculation
 
 ## Historical plans
 
