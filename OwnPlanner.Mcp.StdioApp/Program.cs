@@ -120,6 +120,10 @@ namespace OwnPlanner.Mcp.StdioApp
 					services.AddScoped<IGoalService, GoalService>();
 					services.AddScoped<IPlanningContextService, PlanningContextService>();
 					services.AddSingleton(TimeProvider.System);
+					services.AddScoped<OwnPlanner.Application.Tasks.Recurrence.IRecurringTaskStore, OwnPlanner.Infrastructure.Tasks.RecurringTaskStore>();
+					services.AddScoped<OwnPlanner.Application.Tasks.Recurrence.IRecurrenceCalculator, OwnPlanner.Application.Tasks.Recurrence.RecurrenceCalculator>();
+					services.AddScoped<OwnPlanner.Application.Tasks.Recurrence.IRecurringTaskLifecycle, OwnPlanner.Application.Tasks.Recurrence.RecurringTaskLifecycle>();
+					services.AddHostedService<FixedTenantRecurrenceWorker>();
 					services.AddScoped<IWeeklyReviewStore, WeeklyReviewStore>();
 					services.AddScoped<OwnPlanner.Application.Calendar.IPlanningCalendar, OwnPlanner.Application.Calendar.PlanningCalendar>();
 					services.AddScoped<IWeeklyReviewService, WeeklyReviewService>();

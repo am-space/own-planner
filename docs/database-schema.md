@@ -34,6 +34,29 @@ where it is set. Restoring verifies that `TaskListId` still resolves in the curr
 before re-establishing `ActiveTaskListId`; a missing list is reported rather than replaced silently.
 Only an already-trashed row can be permanently deleted.
 
+## Recurring series and terminal occurrence facts
+
+`AddRecurringTaskLifecycle` changes only AppDbContext. Existing ordinary task values are preserved;
+their new `Recurrence`, `RecurrenceCheckedBefore` and `RecurrenceCalendarKey` columns are null,
+and `RecurrenceRevision` defaults to zero. No AuthDbContext migration or data backfill is needed.
+
+| Column/table | Stored contract |
+| --- | --- |
+| `TaskItems.Recurrence` | Nullable JSON schedule with validated frequency/interval/day selections/captured week start, ISO DateOnly start/inclusive end and explicit missed policy |
+| `TaskItems.RecurrenceCheckedBefore` | Nullable ISO DateOnly exclusive processed-prefix boundary; no user-visible UpdatedAt change for checkpoint-only progress |
+| `TaskItems.RecurrenceCalendarKey` | Resolved timezone/week-start configuration; a changed key rescans from the original start without deleting facts |
+| `TaskItems.RecurrenceRevision` | Integer concurrency token advanced on recurring task writes, including bulk restore/goal-link operations |
+| `TaskOccurrenceFacts` | Composite primary key `(TaskId, OccurrenceDate)`; DateOnly `YYYY-MM-DD`, Status Completed=0/Skipped=1/Cancelled=2, nullable actual UTC ISO `CompletedAt` |
+
+A check constraint rejects undefined fact statuses and requires a completion timestamp exactly for
+Completed. An index on CompletedAt supports later completion-activity queries. There are no pending
+rows. Facts cascade from their TaskItem on permanent deletion or active-list cascade deletion;
+Trash clears the existing active-list relationship and preserves facts. Restoring a recurring task
+does not reopen it. Recurring administrative closure leaves parent CompletedAt null. Schedule JSON
+is immutable in this stage; successor changes arrive in stage 3. Export's SQLite snapshot includes
+these tables and columns automatically; account erasure removes the user database as before.
+See [recurring tasks](recurring-tasks.md) for transaction, reconciliation and activation rules.
+
 ## Weekly review data
 
 Per-user `WeeklyReviewPreferences` stores the explicit timezone, week start, local reminder time,

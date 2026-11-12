@@ -110,6 +110,10 @@ namespace OwnPlanner.Web.Server
 				builder.Services.AddScoped<IUserQuotaOverrideRepository, UserQuotaOverrideRepository>();
 				builder.Services.AddScoped<IPlannerReadStore, PlannerReadStore>();
 				builder.Services.AddSingleton(TimeProvider.System);
+				builder.Services.AddScoped<OwnPlanner.Application.Tasks.Recurrence.IRecurringTaskStore, OwnPlanner.Infrastructure.Tasks.RecurringTaskStore>();
+				builder.Services.AddScoped<OwnPlanner.Application.Tasks.Recurrence.IRecurrenceCalculator, OwnPlanner.Application.Tasks.Recurrence.RecurrenceCalculator>();
+				builder.Services.AddScoped<OwnPlanner.Application.Tasks.Recurrence.IRecurringTaskLifecycle, OwnPlanner.Application.Tasks.Recurrence.RecurringTaskLifecycle>();
+				builder.Services.AddHostedService<RecurrenceReconciliationWorker>();
 				builder.Services.AddScoped<IWeeklyReviewStore, WeeklyReviewStore>();
 				builder.Services.AddScoped<OwnPlanner.Application.Calendar.IPlanningCalendar, OwnPlanner.Application.Calendar.PlanningCalendar>();
 				builder.Services.AddScoped<IWeeklyReviewService, WeeklyReviewService>();

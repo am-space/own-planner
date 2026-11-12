@@ -118,6 +118,7 @@ public sealed class AccountExportService(IPlannerDbContextFactory dbContextFacto
 		  - Goals            : your goals
 		  - TaskLists        : your task lists
 		  - TaskItems        : the tasks within those lists
+		  - TaskOccurrenceFacts : recorded recurring-task outcomes and actual completion instants
 		  - NoteLists        : your note lists
 		  - NoteItems        : the notes within those lists
 

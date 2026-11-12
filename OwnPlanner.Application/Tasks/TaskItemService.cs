@@ -1,9 +1,11 @@
 using OwnPlanner.Application.Common;
 using OwnPlanner.Domain.Tasks;
+using OwnPlanner.Application.Tasks.Recurrence;
 
 namespace OwnPlanner.Application.Tasks;
 
-public class TaskItemService(ITaskItemRepository repository, ITaskListRepository taskListRepository) : ITaskItemService
+public class TaskItemService(ITaskItemRepository repository, ITaskListRepository taskListRepository,
+	IRecurringTaskLifecycle? recurringLifecycle = null) : ITaskItemService
 {
 	/// <summary>Default page size when a caller does not specify a positive limit.</summary>
 	public const int DefaultPageLimit = 25;
@@ -83,6 +85,11 @@ public class TaskItemService(ITaskItemRepository repository, ITaskListRepository
 	public async Task CompleteAsync(Guid id, CancellationToken ct = default)
 	{
 		var item = await _repository.GetAsync(id, ct) ?? throw new KeyNotFoundException($"Task {id} not found");
+		if (item.Recurrence is not null)
+		{
+			await (recurringLifecycle ?? throw new InvalidOperationException("Recurring lifecycle service is required.")).EndSeriesAsync(id, ct);
+			return;
+		}
 		item.Complete();
 		await _repository.UpdateAsync(item, ct);
 	}
@@ -98,6 +105,11 @@ public class TaskItemService(ITaskItemRepository repository, ITaskListRepository
 	{
 		var item = await _repository.GetAsync(id, ct) ?? await _repository.GetTrashedAsync(id, ct)
 			?? throw new KeyNotFoundException($"Task {id} not found");
+		if (item.Recurrence is not null)
+		{
+			await (recurringLifecycle ?? throw new InvalidOperationException("Recurring lifecycle service is required.")).TrashSeriesAsync(id, ct);
+			return;
+		}
 		item.Trash();
 		await _repository.UpdateAsync(item, ct);
 	}
