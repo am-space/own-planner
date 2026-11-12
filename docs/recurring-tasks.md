@@ -146,6 +146,8 @@ actions but do not suspend the calendar schedule: background expiry continues. P
 deletion cascades facts. List deletion cascades active tasks/facts while trashed tasks/facts remain
 recoverable under the existing original-list restore checks. A recurrence revision rejects stale
 detached updates that could overwrite closure or checkpoint state; callers must refresh and retry.
+Failed or cancelled saves restore the pre-save revision and its modification flag, so repeatedly
+reattaching the same stale instance cannot acquire a newer token and bypass the conflict.
 
 Reads, including calendar lookup, reports, preview and history, remain read-only. They may compute
 effective expiry from one clock/calendar snapshot while a background writer is catching up, but

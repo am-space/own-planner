@@ -56,7 +56,8 @@ unchanged. Recurring reopen requires a successor with an explicit start (stage 3
 series and restore keeps it closed so inactive gaps cannot become obligations. Archiving a list
 hides work without suspending its calendar; background expiry continues. A recurrence concurrency
 revision prevents stale detached writes from undoing closure/checkpoints, including bulk restore
-and goal-link updates.
+and goal-link updates. Failed synchronous/asynchronous saves (including cancellation) restore the
+pre-save revision and modification flag; a stale detached retry cannot inherit an unsaved token.
 
 ## Consequences
 

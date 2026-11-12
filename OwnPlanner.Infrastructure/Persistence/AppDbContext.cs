@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using OwnPlanner.Domain.Contexts;
 using OwnPlanner.Domain.Goals;
 using OwnPlanner.Domain.Tasks;
@@ -148,21 +149,52 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 		planningContext.Property(c => c.UpdatedAt);
 	}
 
-	public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+	public override async Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
 	{
-		AdvanceRecurrenceRevisions();
-		return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+		var revisions = CaptureRecurrenceRevisions();
+		try
+		{
+			foreach (var revision in revisions) revision.Advance();
+			return await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken).ConfigureAwait(false);
+		}
+		catch
+		{
+			foreach (var revision in revisions) revision.Restore();
+			throw;
+		}
 	}
 
 	public override int SaveChanges(bool acceptAllChangesOnSuccess)
 	{
-		AdvanceRecurrenceRevisions();
-		return base.SaveChanges(acceptAllChangesOnSuccess);
+		var revisions = CaptureRecurrenceRevisions();
+		try
+		{
+			foreach (var revision in revisions) revision.Advance();
+			return base.SaveChanges(acceptAllChangesOnSuccess);
+		}
+		catch
+		{
+			foreach (var revision in revisions) revision.Restore();
+			throw;
+		}
 	}
 
-	private void AdvanceRecurrenceRevisions()
+	private RecurrenceRevisionSnapshot[] CaptureRecurrenceRevisions() => ChangeTracker.Entries<TaskItem>()
+		.Where(e => e.State == EntityState.Modified && e.Entity.Recurrence is not null)
+		.Select(e => e.Property(t => t.RecurrenceRevision))
+		.Select(property => new RecurrenceRevisionSnapshot(property, property.CurrentValue, property.IsModified))
+		.ToArray();
+
+	private sealed record RecurrenceRevisionSnapshot(PropertyEntry<TaskItem, long> Property, long Value, bool WasModified)
 	{
-		foreach (var entry in ChangeTracker.Entries<TaskItem>().Where(e => e.State == EntityState.Modified && e.Entity.Recurrence is not null))
-			entry.Property(t => t.RecurrenceRevision).CurrentValue = checked(entry.Property(t => t.RecurrenceRevision).OriginalValue + 1);
+		public void Advance() => Property.CurrentValue = checked(Property.OriginalValue + 1);
+
+		public void Restore()
+		{
+			// A detached instance can be attached to a fresh context on retry. Never leave it
+			// carrying a revision that was not successfully saved, even after cancellation.
+			Property.IsModified = WasModified;
+			Property.CurrentValue = Value;
+		}
 	}
 }

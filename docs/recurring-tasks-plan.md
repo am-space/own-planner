@@ -127,6 +127,13 @@ Completed-diff review: route existing TaskItemService completion and Trash throu
 lifecycle (including catch-up before stopping); keep Trash available in archived lists. Cover
 this with archived/non-archived regression cases and foreign-tenant rejection.
 
+PR #98 revision-failure review plan: snapshot each affected recurrence revision before advancing
+it, restore the snapshot on any synchronous/asynchronous save failure, and rethrow the original
+error. Extend regression coverage to repeated retries of the same detached task and retries in
+the same context, plus cancellation and a recoverable failed write. Review: scoped to Infrastructure
+and its tests; no schema, tenant selection or external contract changes. Verify the regression
+fails before the fix, then run focused tests and full verification before pushing to the PR.
+
 Validation: setup, matching focused projects, upgrade/concurrency/two-user worker tests, then
 `./scripts/verify.sh --all`; inspect generated SQL/snapshot, complete diff and documentation links.
 
@@ -140,14 +147,18 @@ Validation: setup, matching focused projects, upgrade/concurrency/two-user worke
   stored-task completion/Trash, archived-list behavior and recurrence revision protection.
 - CLI generated `20261112215654_AddRecurringTaskLifecycle` for AppDbContext; inspected migration
   and snapshot. Upgrade test compares every pre-existing ordinary task column before/after.
-- Focused new cases: Domain 4; Application 3; Infrastructure 42; Web 3. Evidence includes independent
+- Focused new cases: Domain 4; Application 3; Infrastructure 48; Web 3. Evidence includes independent
   connection races, first-timestamp preservation, rollback/resume after committed batches, both
   policies, DST expiry, calendar changes, closed/out-of-bounds history corrections, Trash/cascades,
   unauthenticated/foreign-task rejection, disabled reminders, independent repeated tenant ticks
   and isolation of a broken account database.
-- `./scripts/setup.sh`: passed. Final frontend lint/build and all 1,074 backend cases passed
-  (Domain 62, Application 437, Infrastructure 344, MCP 95, Web 136).
-- Final `./scripts/verify.sh --all`: passed frontend lint/build, all 1,074 backend cases and
+- PR #98 retry regression failed before the fix for both sync/async saves: the same stale detached
+  instance could overwrite reconciled state on its second attempt. After the fix, three retries
+  remain rejected, including reused contexts; cancellation and foreign-key failure restore the
+  token and permit a valid repaired retry with exactly one revision increment.
+- `./scripts/setup.sh`: passed. Final frontend lint/build and all 1,080 backend cases passed
+  (Domain 62, Application 437, Infrastructure 350, MCP 95, Web 136).
+- Final `./scripts/verify.sh --all`: passed frontend lint/build, all 1,080 backend cases and
   all 32 browser E2E cases after review refinements. Existing frontend chunk-size and ASP.NET
   test-host deprecation warnings remain. No live-model evaluation; existing scripted provider only.
 - Documentation relative links and final whitespace validation passed.

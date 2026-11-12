@@ -440,19 +440,99 @@ public sealed class RecurringTaskLifecycleTests : IAsyncLifetime
 		(await Facts()).Should().BeEmpty();
 	}
 
-	[Fact]
-	public async Task StaleDetachedWriteCannotUndoCheckpointOrClosure()
+	[Theory]
+	[InlineData(false)]
+	[InlineData(true)]
+	public async Task StaleDetachedWriteCannotUndoCheckpointOrClosure(bool asynchronous)
 	{
 		var task = await Seed(end: new(2026, 11, 13));
 		var stale = (await Repository.GetAsync(task.Id, Ct))!;
+		var revision = stale.RecurrenceRevision;
+		_clock.Now = new(2026, 11, 16, 12, 0, 0, DateTimeKind.Utc);
+		await Service.ReconcileAsync(Ct);
+		var reconciled = await Repository.GetAsync(task.Id, Ct);
+		var facts = await Facts();
+		stale.SetTitle("Stale edit");
+		Func<Task> update = async () =>
+		{
+			if (asynchronous) await Repository.UpdateAsync(stale, Ct);
+			else
+			{
+				await using var db = await _factory.CreateAsync(Ct);
+				db.Update(stale);
+				db.SaveChanges();
+			}
+		};
+		for (var retry = 0; retry < 3; retry++)
+			await update.Should().ThrowAsync<DbUpdateConcurrencyException>();
+		stale.RecurrenceRevision.Should().Be(revision);
+		var current = (await Repository.GetAsync(task.Id, Ct))!;
+		current.Should().BeEquivalentTo(reconciled);
+		(await Facts()).Should().BeEquivalentTo(facts);
+	}
+
+	[Theory]
+	[InlineData(false)]
+	[InlineData(true)]
+	public async Task FailedConcurrencySaveRestoresRevisionWhenRetryingTheSameContext(bool asynchronous)
+	{
+		await Seed(end: new(2026, 11, 13));
+		await using var db = await _factory.CreateAsync(Ct);
+		var stale = await db.TaskItems.SingleAsync(Ct);
+		var revision = stale.RecurrenceRevision;
 		_clock.Now = new(2026, 11, 16, 12, 0, 0, DateTimeKind.Utc);
 		await Service.ReconcileAsync(Ct);
 		stale.SetTitle("Stale edit");
-		var update = () => Repository.UpdateAsync(stale, Ct);
-		await update.Should().ThrowAsync<DbUpdateConcurrencyException>();
-		var current = (await Repository.GetAsync(task.Id, Ct))!;
-		current.IsCompleted.Should().BeTrue(); current.Title.Should().Be(task.Title);
+		for (var retry = 0; retry < 3; retry++)
+		{
+			var save = () => Save(db, asynchronous);
+			await save.Should().ThrowAsync<DbUpdateConcurrencyException>();
+			stale.RecurrenceRevision.Should().Be(revision);
+			db.Entry(stale).Property(t => t.RecurrenceRevision).OriginalValue.Should().Be(revision);
+			db.Entry(stale).Property(t => t.RecurrenceRevision).IsModified.Should().BeFalse();
+		}
+		(await Repository.GetAsync(stale.Id, Ct))!.IsCompleted.Should().BeTrue();
 	}
+
+	[Theory]
+	[InlineData(false)]
+	[InlineData(true)]
+	public async Task FailedWriteRestoresRevisionAndRepairCanSaveExactlyOneRevision(bool asynchronous)
+	{
+		var task = await Seed();
+		await using var db = await _factory.CreateAsync(Ct);
+		var tracked = await db.TaskItems.SingleAsync(Ct);
+		var revision = tracked.RecurrenceRevision;
+		tracked.AssignToList(Guid.NewGuid()); // Foreign key failure, rather than a stale token.
+		var save = () => Save(db, asynchronous);
+		await save.Should().ThrowAsync<DbUpdateException>();
+		tracked.RecurrenceRevision.Should().Be(revision);
+		tracked.AssignToList(task.TaskListId);
+		await Save(db, asynchronous);
+		tracked.RecurrenceRevision.Should().Be(revision + 1);
+		(await Repository.GetAsync(task.Id, Ct))!.RecurrenceRevision.Should().Be(revision + 1);
+	}
+
+	[Fact]
+	public async Task CancelledSaveRestoresRevisionAndCanBeRetriedWithAnActiveToken()
+	{
+		await Seed();
+		await using var db = await _factory.CreateAsync(Ct);
+		var tracked = await db.TaskItems.SingleAsync(Ct);
+		var revision = tracked.RecurrenceRevision;
+		tracked.SetTitle("Updated title");
+		using var cancelled = new CancellationTokenSource();
+		await cancelled.CancelAsync();
+		var save = () => db.SaveChangesAsync(cancelled.Token);
+		await save.Should().ThrowAsync<OperationCanceledException>();
+		tracked.RecurrenceRevision.Should().Be(revision);
+		await db.SaveChangesAsync(Ct);
+		tracked.RecurrenceRevision.Should().Be(revision + 1);
+		(await Repository.GetAsync(tracked.Id, Ct))!.Title.Should().Be("Updated title");
+	}
+
+	private Task<int> Save(AppDbContext db, bool asynchronous) => asynchronous
+		? db.SaveChangesAsync(Ct) : Task.FromResult(db.SaveChanges());
 
 	[Fact]
 	public async Task TrashRestorePreservesFactsAndClosureAndPermanentDeletionCascadesHistory()
