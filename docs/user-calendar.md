@@ -24,6 +24,11 @@ week. Weekly review's rule of targeting next week on the final day applies only 
 An ordinary report does not reuse its target or frozen boundaries. "After today" excludes today;
 chat must distinguish this from a remainder including today and clarify ambiguous requested ranges.
 
+The internal [recurrence foundations](recurring-tasks.md) reuse these preferences and boundary
+helpers for current-plus-next weeks/months and occurrence expiry. They do not add a public
+calendar period name or enable recurring-task creation. Weekly rule alignment is captured when
+configured; current preferences determine reporting periods and expiry of unresolved occurrences.
+
 Focus dates retain their stored calendar-date meaning: a UTC-labelled `FocusAt` of Monday stays
 Monday in every timezone. Deadlines, completion times, creation and update times are instants,
 compared against the selected local boundaries converted to UTC. For calendar windows, local
