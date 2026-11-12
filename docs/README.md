@@ -87,11 +87,14 @@ ADRs describe decisions as actually shipped. Start new records from [`adr/templa
 
 - [`ADR-0034`](adr/0034-weekly-workload-evidence.md) — count-based concentration signals and evidence-based weekly proposals
 
+- [`ADR-0035`](adr/0035-strategic-evidence.md) — evidence-based strategic diagnoses and mode-specific proposals
+
 ## Historical plans
 
 Archived plans preserve the original intent but may differ from the final implementation. For
 implemented plans, prefer the linked ADR when determining current behavior.
 
+- [`archive/strategic-evidence-plan.md`](archive/strategic-evidence-plan.md)
 - [`archive/weekly-workload-guidance-plan.md`](archive/weekly-workload-guidance-plan.md)
 - [`archive/weekly-review-page-plan.md`](archive/weekly-review-page-plan.md)
 - [`archive/reflection-capture-actions-plan.md`](archive/reflection-capture-actions-plan.md)

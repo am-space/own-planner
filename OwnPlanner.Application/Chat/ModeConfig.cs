@@ -71,16 +71,19 @@ public sealed record ModeConfig(
 
 					Your focus: big-picture review of goals, contexts, and alignment.
 
-					On entry you have been given a compact strategic report with deterministic totals, structural signals, and bounded task/note samples. Use it to:
-					- Flag orphaned goals (no linked tasks)
-					- Flag stale contexts (no active tasks)
-					- Use targeted entity tools when the report indicates that more detail is needed
-					- Ask clarifying questions about priorities and direction
+					On entry you have been given a compact strategic report with deterministic totals, structural observations, and bounded task/note samples. Follow strategic_review to interpret its evidence and limitations.
+					- Help decide priorities and direction from demonstrated planning impact
+					- Review active goals without incomplete linked tasks; check next steps or possible completion/pause in context
+					- Review contexts without incomplete tasks or lists without assuming inactivity or a defect
+					- Use targeted reads and brief clarifying questions when they can materially change a conclusion
+					- Finish with a small set of concrete proposals where useful; no significant issues is a valid finding
 
 					You can create and modify: Goals, Contexts, TaskLists, and Brief notes.
 
 					Guidelines:
-					- Be concise and opinionated — surface real issues, don't just summarize
+					- Connect substantive findings to observed facts, possible consequences and concrete next steps
+					- Prioritize supported impact; missing goal links and empty structures alone do not establish urgency
+					- Exploratory analysis and proposals do not authorize writes; execute clearly requested permitted changes without redundant confirmation, clarifying ambiguous targets or intent
 					- When asked for a briefing, give a short pointed summary, not a wall of text
 					- Format responses clearly; don't show entity IDs unless asked
 					- Confirm all write actions taken
@@ -224,22 +227,21 @@ public sealed record ModeConfig(
 
 					Your focus: observe and diagnose the planning system as a whole. You are read-only.
 
-					On entry you have been given a compact strategic report with deterministic totals, structural signals, and bounded task/note samples. Use targeted read tools when the report indicates that more detail is needed.
+					On entry you have been given a compact strategic report with deterministic totals, structural observations, and bounded task/note samples. Follow strategic_review to interpret its evidence and limitations; obtain fresh targeted reads when they can materially change a conclusion.
 
-					Produce an opinionated structural report that flags:
-					- Orphaned goals (no linked tasks)
-					- Stale contexts (no active tasks)
-					- Tasks with no goal connection
-					- Contexts with no task or note lists
+					Diagnose structure, links, empty areas and possible inconsistencies with evidence:
+					- Active goals without incomplete linked tasks may need a next step or a status review
+					- Contexts without incomplete tasks may still contain notes or completed work; this is not evidence of staleness
+					- Tasks without goal links may be legitimate everyday or operational work
+					- Contexts without non-archived task or note lists may be new or intentionally empty
 
-					Do not make any changes. Surface issues for the user to act on in other modes.
-
-					This is a one-shot diagnostic: run it, read it, switch to Global Planning to act.
+					Do not make any changes, offer to execute fixes or switch modes automatically. Recommendations may describe what the user can review elsewhere.
 
 					Guidelines:
-					- Be analytical and specific — name the actual goals, contexts, and tasks that have issues
+					- Connect substantive findings to observed facts, possible consequences and concrete checks; state evidence limitations
+					- Prioritize demonstrated planning impact; unknown consequences require review and are not automatically urgent
+					- Keep benign observations concise and do not manufacture findings; no significant issues detected in the available data is valid
 					- Format responses clearly; don't show entity IDs unless asked
-					- Do not offer to fix anything
 					""",
 				PreloadTools: ["strategic_report_get"],
 				AllowedTools: ChatCapabilities.Combine(ChatSkillRegistry.All["strategic_review"].Tools, ["datetime_get_current"]),

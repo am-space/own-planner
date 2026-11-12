@@ -1,3 +1,5 @@
+using System.ComponentModel;
+using System.Reflection;
 using System.Text.Json;
 using FluentAssertions;
 using NSubstitute;
@@ -24,6 +26,40 @@ public class StrategicReportToolsTests
 		await _reader.Received(1).GetAsync(
 			Arg.Is<StrategicReportOptions>(options => options != null && options.TaskSampleLimit == 3 && options.NoteSampleLimit == 2),
 			ct);
+	}
+
+	[Fact]
+	public async Task GetStrategicReport_PreservesSignalNamesAndBoundedCounts()
+	{
+		var report = EmptyReport() with
+		{
+			Signals = new StrategicStructuralSignals([new(Guid.NewGuid(), "Delivered")],
+				[new(Guid.NewGuid(), "Reference")], [], 7, [new(Guid.NewGuid(), "New")])
+		};
+		_reader.GetAsync(Arg.Any<StrategicReportOptions>(), Arg.Any<CancellationToken>()).Returns(report);
+		var result = await new StrategicReportTools(_reader).GetStrategicReport(0, 0, TestContext.Current.CancellationToken);
+		var json = JsonSerializer.SerializeToElement(result, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+		var signals = json.GetProperty("signals");
+		signals.EnumerateObject().Select(property => property.Name).Should().BeEquivalentTo(
+			["activeGoalsWithoutActiveTasks", "contextsWithoutActiveTasks", "tasksWithoutGoal", "tasksWithoutGoalCount", "contextsWithoutTaskOrNoteLists"]);
+		signals.GetProperty("activeGoalsWithoutActiveTasks")[0].GetProperty("name").GetString().Should().Be("Delivered");
+		signals.GetProperty("tasksWithoutGoal").GetArrayLength().Should().Be(0);
+		signals.GetProperty("tasksWithoutGoalCount").GetInt32().Should().Be(7);
+		await _reader.Received(1).GetAsync(Arg.Is<StrategicReportOptions>(options =>
+			options != null && options.TaskSampleLimit == 0 && options.NoteSampleLimit == 0), TestContext.Current.CancellationToken);
+	}
+
+	[Fact]
+	public void ToolDescriptionExplainsSignalScopeAndEvidenceLimits()
+	{
+		var description = typeof(StrategicReportTools).GetMethod(nameof(StrategicReportTools.GetStrategicReport))!
+			.GetCustomAttribute<DescriptionAttribute>()!.Description;
+		description.Should().Contain("incomplete, non-trashed tasks in non-archived lists")
+			.And.Contain("does not mean no linked tasks ever or historical inactivity")
+			.And.Contain("not links to existing inactive goals")
+			.And.Contain("not established defects or urgency")
+			.And.Contain("Samples are bounded, previews may be truncated")
+			.And.Contain("fresh evidence when current state matters");
 	}
 
 	[Fact]

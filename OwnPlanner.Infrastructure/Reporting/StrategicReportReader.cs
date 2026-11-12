@@ -40,6 +40,7 @@ public sealed class StrategicReportReader(
 
 		var activeTaskListIds = taskLists.Select(list => list.Id).ToHashSet();
 		var activeNoteListIds = noteLists.Select(list => list.Id).ToHashSet();
+		// Signal compatibility names use "active tasks" for this scope, not all linked work or history.
 		var tasks = await db.TaskItems.AsNoTracking()
 			.Where(task => task.TrashedAt == null)
 			.Where(task => !task.IsCompleted && activeTaskListIds.Contains(task.TaskListId))
@@ -61,6 +62,7 @@ public sealed class StrategicReportReader(
 		var taskListCountsByContext = CountById(taskLists, list => list.ContextId);
 		var noteListCountsByContext = CountById(noteLists, list => list.ContextId);
 		var allGoalIds = allGoals.Select(goal => goal.Id).ToHashSet();
+		// An existing inactive goal is still a valid reference; absence of a link is not itself a defect.
 		var tasksWithoutGoal = orderedTasks.Where(task => task.GoalId is null || !allGoalIds.Contains(task.GoalId.Value)).ToList();
 		var taskSampleIds = SelectTaskSampleIds(contexts, goals, tasksByContext, tasksByGoal, tasksWithoutGoal, options.TaskSampleLimit);
 		var noteSampleIds = SelectNoteSampleIds(contexts, goals, notesByContext, notesByGoal, options.NoteSampleLimit);
