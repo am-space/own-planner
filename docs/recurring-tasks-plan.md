@@ -1,6 +1,6 @@
 # Calendar-based recurring tasks implementation plan
 
-**Status:** Active — stage 1 (#89) implemented in this change; stages 2–8 remain unimplemented.\
+**Status:** Active — stage 1 (#89) merged; stage 2 (#90) implemented in this change; stages 3–8 remain unimplemented.\
 **Contract:** [#84](https://github.com/am-space/own-planner/issues/84), including the November 12 decisions.\
 **Outcome:** Represent each recurring series with one task, compute its calendar occurrences, and
 preserve occurrence facts and predecessor history across schedule changes.
@@ -87,7 +87,74 @@ through stage 8; the stage-1 ADR records only foundations actually delivered.
 - Reminders, time-of-day recurrence, occurrence overrides, completion-relative schedules and a
   calendar/expanded-occurrence UI remain excluded.
 
+## Stage 2 reviewed implementation plan
+
+Outcome: persist tenant-bound series and terminal facts, with atomic occurrence actions and
+restart-safe expiry/administrative closure, while public creation remains disabled.
+
+| Acceptance | Implementation and verification |
+| --- | --- |
+| Upgrade existing tasks unchanged; DateOnly/UTC round trips | Nullable immutable schedule on TaskItem; operational cursor/calendar key and revision; CLI AppDbContext migration; upgrade/raw-storage tests |
+| Unique facts and deterministic completion/expiry/correction races | Composite-key fact rows, status/timestamp check constraint; non-deferred SQLite transactions behind an Application unit-of-work port; concurrent independent-connection tests |
+| Both missed policies and downtime catch-up | Application lifecycle service using the existing calculator and one calendar snapshot; bounded atomic batches with persisted prefix checkpoints; policy, restart, preference-change and full-period expiry tests |
+| Bounded closure without unresolved work; no extra completion | Administrative recurring parent closure with no CompletedAt; end-date and complete eligible-prefix checks; ordinary completion regression tests |
+| Eligibility, history and isolation | Check current task/list in the transaction; closed-series skipped correction and retry support; authenticated two-user tests; trash/restore and cascade tests |
+| Reminder-independent wiring; read-only queries | Dedicated periodic web worker over active central accounts using existing trusted session scopes, plus a fixed-tenant stdio worker; lifecycle commands catch up explicitly; host tests with reminders disabled and read-only calendar tests |
+
+Impact: Domain (TaskItem invariants/checkpoints); Application (transaction port and lifecycle);
+Infrastructure (schedule mapping, fact rows/store, migration and fixed-tenant worker); Web and
+stdio (DI/background wiring only); matching Domain/Application/Infrastructure/Web tests; reference,
+schema and accepted ADR. HTTP/MCP schemas, Console chat, frontend, reports and history-query
+implementation are not applicable; console delegates planning persistence to stdio.
+
+Implementation order: domain administrative close/reopen guard, Application transaction/lifecycle,
+Infrastructure mapping/store and generated migration, host wiring, focused tests, docs, full verify.
+Reuse TaskGoalLinkRepository's non-deferred write transaction and WeeklyReminderHost's trusted
+per-user session scope. Do not hook reconciliation into reads or initialization.
+
+Review completed before feature code: all acceptance mapped; business policy remains inward;
+planning tables only in AppDbContext; no tenant selector or public creation. Checkpoints commit
+with facts and reset their scan on calendar-key changes without deleting history. Batches bound
+transaction size, not the reachable history. Retain policy stores no pending rows. Trashing a
+recurring parent administratively ends it; restore preserves that closure, so no inactive-gap
+obligations can appear. Archiving a list hides work but does not suspend its calendar schedule;
+background expiry continues, while user actions require an available list. Permanent task/list
+deletion cascades facts. Recurring stale detached writes use an operational concurrency revision.
+Successor mutation/resume and occurrence history reads remain stages 3/4. The overall plan stays
+active through stage 8.
+
+Completed-diff review: route existing TaskItemService completion and Trash through the shared
+lifecycle (including catch-up before stopping); keep Trash available in archived lists. Cover
+this with archived/non-archived regression cases and foreign-tenant rejection.
+
+Validation: setup, matching focused projects, upgrade/concurrency/two-user worker tests, then
+`./scripts/verify.sh --all`; inspect generated SQL/snapshot, complete diff and documentation links.
+
 ## Progress and evidence
+
+### Stage 2 evidence
+
+- Intake: #90/#84 and merged stage-1 contracts reviewed; clean worktree, master fast-forwarded
+  to `6c65d90`; branch `feature/recurrence-persistence`.
+- Distinct plan review completed before implementation; completed-diff review covers existing
+  stored-task completion/Trash, archived-list behavior and recurrence revision protection.
+- CLI generated `20261112215654_AddRecurringTaskLifecycle` for AppDbContext; inspected migration
+  and snapshot. Upgrade test compares every pre-existing ordinary task column before/after.
+- Focused new cases: Domain 4; Application 3; Infrastructure 42; Web 3. Evidence includes independent
+  connection races, first-timestamp preservation, rollback/resume after committed batches, both
+  policies, DST expiry, calendar changes, closed/out-of-bounds history corrections, Trash/cascades,
+  unauthenticated/foreign-task rejection, disabled reminders, independent repeated tenant ticks
+  and isolation of a broken account database.
+- `./scripts/setup.sh`: passed. Final frontend lint/build and all 1,074 backend cases passed
+  (Domain 62, Application 437, Infrastructure 344, MCP 95, Web 136).
+- Final `./scripts/verify.sh --all`: passed frontend lint/build, all 1,074 backend cases and
+  all 32 browser E2E cases after review refinements. Existing frontend chunk-size and ASP.NET
+  test-host deprecation warnings remain. No live-model evaluation; existing scripted provider only.
+- Documentation relative links and final whitespace validation passed.
+- Updated schema/current recurrence references, export README and accepted ADR-0037; the overall
+  plan stays active through stage 8. No public activation, successor commands or history queries.
+
+### Stage 1 evidence
 
 - Intake: #84 and #89–#96 reviewed; worktree clean and local master matched origin/master.
 - Branch: `feature/recurrence-calendar-engine`.

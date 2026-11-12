@@ -213,6 +213,19 @@ namespace OwnPlanner.Infrastructure.Migrations
                     b.Property<bool>("IsImportant")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("Recurrence")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RecurrenceCalendarKey")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateOnly?>("RecurrenceCheckedBefore")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("RecurrenceRevision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("INTEGER");
+
                     b.Property<Guid>("TaskListId")
                         .HasColumnType("TEXT");
 
@@ -278,6 +291,30 @@ namespace OwnPlanner.Infrastructure.Migrations
                     b.HasIndex("ContextId");
 
                     b.ToTable("TaskLists");
+                });
+
+            modelBuilder.Entity("OwnPlanner.Infrastructure.Tasks.TaskOccurrenceFactRow", b =>
+                {
+                    b.Property<Guid>("TaskId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateOnly>("OccurrenceDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CompletedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("TaskId", "OccurrenceDate");
+
+                    b.HasIndex("CompletedAt");
+
+                    b.ToTable("TaskOccurrenceFacts", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_TaskOccurrenceFacts_Status_CompletedAt", "(Status = 0 AND CompletedAt IS NOT NULL) OR (Status IN (1, 2) AND CompletedAt IS NULL)");
+                        });
                 });
 
             modelBuilder.Entity("OwnPlanner.Infrastructure.WeeklyReviews.WeeklyReviewPreferencesRow", b =>
@@ -384,6 +421,15 @@ namespace OwnPlanner.Infrastructure.Migrations
                         .WithMany()
                         .HasForeignKey("ActiveTaskListId")
                         .OnDelete(DeleteBehavior.Cascade);
+                });
+
+            modelBuilder.Entity("OwnPlanner.Infrastructure.Tasks.TaskOccurrenceFactRow", b =>
+                {
+                    b.HasOne("OwnPlanner.Domain.Tasks.TaskItem", null)
+                        .WithMany()
+                        .HasForeignKey("TaskId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 #pragma warning restore 612, 618
         }

@@ -1,11 +1,12 @@
 # Recurring-task foundations and staged contracts
 
-Stage 1 ([#89](https://github.com/am-space/own-planner/issues/89)) provides internal recurrence
-types and a deterministic calendar engine. There is no persistence, recurring-task creation,
-registered lifecycle/history implementation, MCP operation, report integration or browser feature
-yet. The [active implementation plan](recurring-tasks-plan.md) tracks stages 2–8 of
-[#84](https://github.com/am-space/own-planner/issues/84). Contracts below constrain those later
-stages; examples of writes describe required behavior, not operations available today.
+Stages 1 and 2 ([#89](https://github.com/am-space/own-planner/issues/89),
+[#90](https://github.com/am-space/own-planner/issues/90)) provide internal recurrence types, a
+deterministic calendar engine, per-user persistence and shared lifecycle reconciliation. Public
+recurring-task creation, successor commands, history queries, MCP operations, report integration
+and browser features remain unavailable. The [active implementation plan](recurring-tasks-plan.md)
+tracks all eight stages of [#84](https://github.com/am-space/own-planner/issues/84).
+The later-stage sections below describe required future behavior.
 
 ## Implemented types and calculation
 
@@ -19,7 +20,9 @@ stages; examples of writes describe required behavior, not operations available 
 | `OccurrenceDateRange` | Explicit nonempty half-open `[StartDate, EndExclusiveDate)` range |
 | `IRecurrenceCalculator` / `RecurrenceCalculator` | Pure lazy, ordered, distinct date generation within both query and series bounds |
 | `RecurrenceCalendar` | Current-plus-next periods and full occurrence periods/expiry from a shared `PlanningPeriod` snapshot |
-| `IRecurringTaskLifecycle` | Future tenant-bound atomic fact/series actions and explicit reconciliation; no implementation yet |
+| `TaskItem.Recurrence` | Nullable immutable series schedule; ordinary tasks retain null and existing behavior |
+| `IRecurringTaskLifecycle` / `RecurringTaskLifecycle` | Tenant-bound atomic fact/series actions and explicit reconciliation, registered in web and stdio |
+| `IRecurringTaskStore` | Application write-transaction boundary, implemented by Infrastructure against a user-bound AppDbContext |
 | `ITaskOccurrenceHistory` | Future separate read queries by scheduled date or actual completion instant; no implementation yet |
 
 For weekly interval N, the week containing `StartDate` is week zero using the rule's captured
@@ -52,9 +55,9 @@ Changing reporting preferences does not edit the rule, restart its interval or m
 Today, reporting windows and expiry of unresolved occurrences use the current shared calendar.
 For example, a Sunday occurrence from a Monday-aligned biweekly rule stays on its original Sunday
 after changing the preference to Sunday-start weeks, while its current expiry period can change.
-Recorded skipped/completed/cancelled facts and reconciliation checkpoints are not retrospectively
-erased or reinterpreted. Stage 2 must scope expiry checkpoints to their calendar configuration and
-evaluate unresolved dates under a changed configuration without omitting historical gaps. An
+Recorded skipped/completed/cancelled facts are not retrospectively erased or reinterpreted.
+Checkpoints carry the resolved timezone/week-start key. A changed key restarts scanning at the
+original series start, preserving all recorded facts and evaluating unresolved dates without gaps. An
 alignment change to the recurrence itself uses an explicit successor, not a preferences side effect.
 
 An occurrence remains in its **full calendar week/month**, even if its scheduled date is past or
@@ -69,9 +72,10 @@ does not expire this week. Monthly current-plus-next windows work the same way w
 
 ## Facts and parent fields
 
-The later schema must uniquely constrain `(TaskId, OccurrenceDate)`. Store DateOnly values as
-`YYYY-MM-DD` and actual completion instants as UTC ISO timestamps. Only completed facts have
-non-null `CompletedAt`; skipped and cancelled facts have null. Pending dates have no stored row.
+`TaskOccurrenceFacts` has composite primary key `(TaskId, OccurrenceDate)`. DateOnly values use
+`YYYY-MM-DD` and actual completion instants use UTC round-trip ISO timestamps ending in `Z`.
+A database check constraint requires completed facts to have non-null `CompletedAt`, and skipped/
+cancelled facts to have null. Undefined statuses are rejected. Pending dates have no stored row.
 
 Friday November 13 completed Monday November 16 retains November 13 as `OccurrenceDate` and
 Monday's actual instant as `CompletedAt`. Scheduled-period outcomes select by the former;
@@ -79,24 +83,28 @@ completion activity selects by the latter, with explicit labels and no double co
 either view. A default completion uses the injected clock. An explicitly reported historical
 instant is accepted only after calendar ambiguity is resolved and cannot be later than the operation's
 clock snapshot. A future scheduled occurrence can be completed now, with the actual current instant.
-Retries preserve the first
-successful timestamp; a skipped-to-completed correction updates the existing fact atomically.
+Retries preserve the first successful timestamp; a skipped-to-completed correction updates the existing fact atomically.
 Historical corrections never reopen a parent or resume a series.
 
 Parent `FocusAt` remains a manual calendar focus on the stored series; it does not move or override
 occurrence dates. Parent `DueAt` remains a distinct deadline instant on the series, never inferred
 from an occurrence date and never multiplied into one deadline per occurrence. Later unified
 reads must distinguish series-level attention from occurrence work items and deduplicate their
-counts. Neither field is copied automatically to a successor. The stage-1 types do not alter
-ordinary task fields, completion, reopen, DTOs, repository contracts or mappings.
+counts. Neither field will be copied automatically to a successor. Ordinary task fields, completion,
+reopen and external DTOs remain compatible. A recurring parent's administrative close leaves its
+`CompletedAt` null. Ordinary completion still records an actual timestamp.
 
-## Later write and lifecycle contracts
+## Implemented writes and lifecycle
 
-`IRecurringTaskLifecycle` will be implemented against the authenticated tenant's `AppDbContext`.
-No operation accepts a user ID or database path. Eligibility, the fact transition, uniqueness and
-the resulting snapshot must be checked atomically. Existing completed/cancelled facts cannot be
-overwritten by expiry. Cancelling completed work or completing cancelled work must fail explicitly
-until a separate authorized correction contract exists; skipped-to-completed is the agreed correction.
+`RecurringTaskLifecycle` implements `IRecurringTaskLifecycle` against the authenticated tenant's
+`AppDbContext` through `RecurringTaskStore`. No operation accepts a user ID or database path.
+A non-deferred SQLite write transaction serializes current parent/list eligibility, the fact
+transition and the result against other connections/processes. User actions require a non-trashed
+series in an existing, unarchived list. A new fact also requires an open parent and a generated
+date; recorded skips may be corrected on closed series or outside current generation bounds.
+Existing completed/cancelled facts cannot be overwritten by expiry. Cancellation is retry-safe;
+cancelling completed/skipped work or completing cancelled work fails explicitly. Repeated completion
+returns its first timestamp, including on a closed parent, subject to the same access restrictions.
 
 Ending a series suppresses future occurrences and preserves history. It is distinct from completing
 one occurrence. Parent completion, whether explicit or automatic, is administrative closure and
@@ -106,18 +114,38 @@ its inclusive end has passed **and** every eligible date is resolved under its p
 - With retain-each-obligation, Friday November 13 unfinished after a November 15 series end keeps
   the old series open until that occurrence is completed or cancelled.
 - With skip-expired-periods, the same Friday remains open through its week. If the series ends
-  Friday November 13, Saturday is still too early to skip it or close the series.
+  Friday November 13, Saturday is still too early to skip it or close it with unresolved work.
+  If all dates are already completed/cancelled, closure need not wait for period expiry.
 - Once the full week ends, reconciliation may record the missing skipped fact and close that
   bounded series. This is not evidence the work was performed.
 - An unbounded series never auto-closes merely because all past occurrences are resolved.
 - A bound with zero eligible dates can close after its end; no completion fact is fabricated.
 
-Reconciliation must be a retry-safe explicit write operation. Stage 2 must wire periodic per-tenant
-catch-up and run it on lifecycle commands as necessary, independently of Telegram/reminder settings
-or once-per-process initialization. A bounded batch/checkpoint must commit atomically with its facts;
-after downtime the next run continues without missing dates or rewriting resolved facts. Operational
-calendar/checkpoint/revision data belongs outside the minimal fact payload. Retain policy does not
-persist pending rows.
+Reconciliation is a retry-safe explicit write operation, invoked before lifecycle actions and by
+dedicated periodic hosts. Each transaction scans up to 256 prefix dates, followed by at most a
+current-period check for closure, and commits its facts and exclusive-prefix checkpoint together.
+More batches continue until caught up; there is
+no historical lookback cap. Failure between batches resumes from the committed prefix next time.
+Skip policy processes dates before the current full calendar period. Retain policy stores no
+pending rows; once the end passes it checks the resolved prefix and stops at the first unresolved
+date. Operational cursor/calendar key/revision belong on TaskItem, outside the fact payload.
+
+The web worker ticks every minute over active central accounts, creates a trusted per-user session,
+ensures migrations/seeding, then calls reconciliation every time. It needs no Telegram link or
+reminder opt-in. A failed account does not prevent other accounts catching up; logs contain only
+the failure type. The stdio worker processes its fixed tenant immediately after startup migrations
+and every minute thereafter. Console uses that stdio host. Multiple hosts remain safe through the
+database transactions. These workers do not add a public creation path.
+
+Stored-task completion and Trash route recurring parents through shared termination/Trash and
+catch up expired history before stopping; Trash remains available in archived lists. Recurring
+reopen directs callers to explicit successor-based resume (stage 3); ordinary reopen is unchanged.
+Trashing a recurring task ends its series and retains facts; restore retains the closed parent,
+so an inactive interval never produces new obligations. Archived lists hide work and prevent user
+actions but do not suspend the calendar schedule: background expiry continues. Permanent task
+deletion cascades facts. List deletion cascades active tasks/facts while trashed tasks/facts remain
+recoverable under the existing original-list restore checks. A recurrence revision rejects stale
+detached updates that could overwrite closure or checkpoint state; callers must refresh and retry.
 
 Reads, including calendar lookup, reports, preview and history, remain read-only. They may compute
 effective expiry from one clock/calendar snapshot while a background writer is catching up, but
@@ -147,7 +175,7 @@ set in the same transaction as the cutoff/link/creation. A changed snapshot requ
 preview, not a stale mutation. A tenant-scoped request key must return the original successful
 result on retry and reject reuse with different inputs. Concurrent changes must not create sibling
 successors or partially shorten a parent. These preview/apply storage/service contracts are to be
-implemented in stage 3, not simulated with stage-1 in-memory state.
+implemented in stage 3.
 
 Resumption uses the same successor mechanism for explicitly or automatically completed series.
 For an old series ended November 15 and a successor beginning December 7, the intervening dates

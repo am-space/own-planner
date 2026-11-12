@@ -4,6 +4,7 @@ using OwnPlanner.Domain.Goals;
 using OwnPlanner.Domain.Tasks;
 using OwnPlanner.Domain.Notes;
 using OwnPlanner.Infrastructure.WeeklyReviews;
+using OwnPlanner.Infrastructure.Tasks;
 
 namespace OwnPlanner.Infrastructure.Persistence;
 
@@ -12,6 +13,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 	public DbSet<WeeklyReviewPreferencesRow> WeeklyReviewPreferences => Set<WeeklyReviewPreferencesRow>();
 	public DbSet<WeeklyReviewRow> WeeklyReviews => Set<WeeklyReviewRow>();
 	public DbSet<TaskItem> TaskItems => Set<TaskItem>();
+	public DbSet<TaskOccurrenceFactRow> TaskOccurrenceFacts => Set<TaskOccurrenceFactRow>();
 	public DbSet<TaskList> TaskLists => Set<TaskList>();
 	public DbSet<NoteList> NoteLists => Set<NoteList>();
 	public DbSet<NoteItem> NoteItems => Set<NoteItem>();
@@ -45,6 +47,21 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 		task.Property(t => t.TrashedAt);
 		task.Property(t => t.FocusAt); // My Day feature: nullable focus date
 		task.Property(t => t.GoalId); // Soft reference to a Goal
+		task.Property(t => t.Recurrence).HasConversion(
+			schedule => RecurrenceStorage.Serialize(schedule!), json => RecurrenceStorage.Deserialize(json));
+		task.Property(t => t.RecurrenceCheckedBefore);
+		task.Property(t => t.RecurrenceCalendarKey);
+		task.Property(t => t.RecurrenceRevision).IsConcurrencyToken();
+
+		var fact = modelBuilder.Entity<TaskOccurrenceFactRow>();
+		fact.ToTable("TaskOccurrenceFacts", table => table.HasCheckConstraint("CK_TaskOccurrenceFacts_Status_CompletedAt",
+			"(Status = 0 AND CompletedAt IS NOT NULL) OR (Status IN (1, 2) AND CompletedAt IS NULL)"));
+		fact.HasKey(f => new { f.TaskId, f.OccurrenceDate });
+		fact.Property(f => f.CompletedAt).HasConversion(
+			value => value.HasValue ? value.Value.ToString("O", System.Globalization.CultureInfo.InvariantCulture) : null,
+			value => value != null ? DateTime.Parse(value, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.RoundtripKind) : null);
+		fact.HasIndex(f => f.CompletedAt);
+		fact.HasOne<TaskItem>().WithMany().HasForeignKey(f => f.TaskId).OnDelete(DeleteBehavior.Cascade);
 		task.HasIndex(t => t.TaskListId);
 		task.HasIndex(t => t.ActiveTaskListId);
 		task.HasIndex(t => t.TrashedAt);
@@ -129,5 +146,23 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 		planningContext.Property(c => c.Color).HasMaxLength(50);
 		planningContext.Property(c => c.CreatedAt);
 		planningContext.Property(c => c.UpdatedAt);
+	}
+
+	public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+	{
+		AdvanceRecurrenceRevisions();
+		return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+	}
+
+	public override int SaveChanges(bool acceptAllChangesOnSuccess)
+	{
+		AdvanceRecurrenceRevisions();
+		return base.SaveChanges(acceptAllChangesOnSuccess);
+	}
+
+	private void AdvanceRecurrenceRevisions()
+	{
+		foreach (var entry in ChangeTracker.Entries<TaskItem>().Where(e => e.State == EntityState.Modified && e.Entity.Recurrence is not null))
+			entry.Property(t => t.RecurrenceRevision).CurrentValue = checked(entry.Property(t => t.RecurrenceRevision).OriginalValue + 1);
 	}
 }

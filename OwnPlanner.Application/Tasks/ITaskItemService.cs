@@ -14,9 +14,11 @@ public interface ITaskItemService
 	/// clearGoalId similarly takes precedence over goalId. clearDueAt follows ct to preserve positional callers.</remarks>
 	Task<TaskItemDto> UpdateAsync(Guid id, string? title = null, string? description = null, DateTime? dueAt = null, bool? isImportant = null, Guid? goalId = null, bool clearGoalId = false, CancellationToken ct = default, bool clearDueAt = false);
 	Task AssignToListAsync(Guid taskId, Guid taskListId, CancellationToken ct = default);
+	/// <summary>Completes an ordinary task; a recurring task ends its whole series administratively.</summary>
 	Task CompleteAsync(Guid id, CancellationToken ct = default);
+	/// <summary>Reopens an ordinary task. Recurring tasks require explicit successor-based resumption.</summary>
 	Task ReopenAsync(Guid id, CancellationToken ct = default);
-	/// <summary>Moves an active task to Trash. Repeated calls for the same task are idempotent.</summary>
+	/// <summary>Moves a task to Trash idempotently. A recurring series catches up and ends, preserving history.</summary>
 	Task DeleteAsync(Guid id, CancellationToken ct = default);
 	/// <summary>Lists tasks currently in Trash.</summary>
 	Task<PagedResult<TrashedTaskItemDto>> ListTrashedPagedAsync(int offset, int limit, CancellationToken ct = default);

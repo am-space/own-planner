@@ -20,6 +20,7 @@ public class TaskItemRepository(IPlannerDbContextFactory dbContextFactory)
 			&& db.TaskLists.Any(list => list.Id == task.TaskListId && !list.IsArchived)
 			&& db.Goals.Any(goal => goal.Id == goalId && goal.Status == GoalStatus.Active))
 			.ExecuteUpdateAsync(setters => setters.SetProperty(task => task.GoalId, goalId)
+				.SetProperty(task => task.RecurrenceRevision, task => task.Recurrence != null ? task.RecurrenceRevision + 1 : task.RecurrenceRevision)
 				.SetProperty(task => task.UpdatedAt, updatedAt), ct).ConfigureAwait(false);
 		var task = await db.TaskItems.AsNoTracking().SingleOrDefaultAsync(task => task.Id == taskId && task.TrashedAt == null, ct).ConfigureAwait(false);
 		TaskGoalLinkResult result;
@@ -168,6 +169,7 @@ public class TaskItemRepository(IPlannerDbContextFactory dbContextFactory)
 				&& task.TrashedAt != null
 				&& db.TaskLists.Any(list => list.Id == task.TaskListId))
 			.ExecuteUpdateAsync(setters => setters
+				.SetProperty(task => task.RecurrenceRevision, task => task.Recurrence != null ? task.RecurrenceRevision + 1 : task.RecurrenceRevision)
 				.SetProperty(task => task.TrashedAt, (DateTime?)null)
 				.SetProperty(task => task.ActiveTaskListId, task => (Guid?)task.TaskListId), ct)
 			.ConfigureAwait(false);
