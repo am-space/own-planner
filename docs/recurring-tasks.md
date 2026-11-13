@@ -1,10 +1,11 @@
 # Recurring-task foundations and staged contracts
 
-Stages 1–3 ([#89](https://github.com/am-space/own-planner/issues/89),
+Stages 1–4 ([#89](https://github.com/am-space/own-planner/issues/89),
 [#90](https://github.com/am-space/own-planner/issues/90),
-[#91](https://github.com/am-space/own-planner/issues/91)) provide internal recurrence types, a
+[#91](https://github.com/am-space/own-planner/issues/91),
+[#92](https://github.com/am-space/own-planner/issues/92)) provide internal recurrence types, a
 deterministic calendar engine, per-user persistence, lifecycle reconciliation and linked successor
-commands. Public recurring-task creation, history queries, MCP operations, report integration
+commands, unified planning reads and fact history. Public recurring-task creation, MCP operations, report integration
 and browser features remain unavailable. The [active implementation plan](recurring-tasks-plan.md)
 tracks all eight stages of [#84](https://github.com/am-space/own-planner/issues/84).
 The later-stage sections below describe required future behavior.
@@ -25,7 +26,9 @@ The later-stage sections below describe required future behavior.
 | `IRecurringTaskLifecycle` / `RecurringTaskLifecycle` | Tenant-bound atomic fact/series actions and explicit reconciliation, registered in web and stdio |
 | `IRecurringTaskStore` | Application write-transaction boundary, implemented by Infrastructure against a user-bound AppDbContext |
 | `IRecurringTaskSuccessors` / `RecurringTaskSuccessors` | Internal read-only preview and atomic replacement/resumption with explicit overlap choices and retry keys; registered in web and stdio |
-| `ITaskOccurrenceHistory` | Future separate read queries by scheduled date or actual completion instant; no implementation yet |
+| `IPlanningWorkReader` / `PlanningWorkReader` | Mixed ordinary/occurrence pages, exact work and source counts, optional complete retained prefix |
+| `ITaskOccurrenceHistory` / `TaskOccurrenceHistory` | Recorded facts by identity, scheduled date or actual completion instant, including preserved predecessor history |
+| `IPlanningWorkStore` / `PlanningWorkStore` | Read-only immutable source/fact snapshots under one tenant-local transaction; no SaveChanges or reconciliation |
 
 For weekly interval N, the week containing `StartDate` is week zero using the rule's captured
 week start. Generate selected weekdays in weeks 0, N, 2N, etc., excluding dates before `StartDate`.
@@ -90,9 +93,9 @@ Historical corrections never reopen a parent or resume a series.
 
 Parent `FocusAt` remains a manual calendar focus on the stored series; it does not move or override
 occurrence dates. Parent `DueAt` remains a distinct deadline instant on the series, never inferred
-from an occurrence date and never multiplied into one deadline per occurrence. Later unified
-reads must distinguish series-level attention from occurrence work items and deduplicate their
-counts. Neither field will be copied automatically to a successor. Ordinary task fields, completion,
+from an occurrence date and never multiplied into one deadline per occurrence. Unified reads distinguish
+series-level metadata from occurrence work items and deduplicate source counts. Neither field is
+copied automatically to a successor. Ordinary task fields, completion,
 reopen and external DTOs remain compatible. A recurring parent's administrative close leaves its
 `CompletedAt` null. Ordinary completion still records an actual timestamp.
 
@@ -216,29 +219,77 @@ reconciliation applies that parent's own shortened bounds and full original peri
 retained work keeps it open. A completed predecessor remains closed through resumption, so no
 break-period obligations or skips are generated. No new public MCP tool, route or UI is enabled.
 
-## Read contracts for stages 4–6
+## Implemented planning and history reads
 
-`ITaskOccurrenceHistory` separates facts selected by scheduled calendar date from facts selected
-by completion UTC instant. Both have deterministic ordering, exact totals and bounded pages over
-one snapshot; closed/predecessor facts remain queryable subject to existing data-access restrictions.
-Facts outside generation bounds are history, not pending obligations to regenerate.
+`IPlanningWorkReader.QueryAsync(PlanningWorkQuery)` is the shared internal input for later reports
+and tools. It requires a nonempty half-open `OccurrenceDateRange` of at most 3,660 calendar days,
+nonnegative offset and page limit 1–100. The default selects pending work, combining ordinary tasks
+focused or due in the range with generated occurrences. Ordinary selection can instead be focus
+only, deadline only, all open tasks (including undated), or none. Focus values are calendar dates;
+deadline instants use the resolved timezone for range selection and ordering. A task selected by
+both fields still appears once, ordered by its in-range focus date before its in-range deadline.
+Deadline-only selection orders by deadline date; all-open tasks without an in-range field use
+focus then deadline, with undated work last.
 
-The unified planning projection must combine ordinary tasks with computed occurrences before
-filtering, sorting, exact counting and paging. Rows address occurrences by the original composite
-identity and expose date, full period, effective status and series metadata; ordinary rows retain
-their existing task identity. Exact task/series counts and occurrence/work-item counts are separate.
-Existing `taskitem_list_*` tools retain their stored-task meaning.
+Rows have `TaskId`, kind, work date, optional original occurrence date/full period, effective status
+and actual completion instant. Ordinary identity is its task ID; occurrence identity is the original
+`(TaskId, OccurrenceDate)`. No occurrence task IDs or deadline instants are fabricated. Distinct
+`Sources` metadata accompanies the returned page, carrying title, description, list/context/goal,
+importance, parent state, schedule/policy, links, manual focus and parent UTC deadline once per source.
+SQLite's missing DateTime.Kind on legacy deadlines is restored as UTC in this read model.
+Those assignments are current metadata, not historical snapshots. A parent deadline does not become
+one deadline per occurrence, and a recurring parent is never an additional ordinary work row.
 
-Retained past obligations require an explicit `includeRetainedBeforeStart` selection alongside the
-bounded requested window. When selected, enumerate every eligible unresolved date from each series'
-start through the window start, subtract facts and merge with the in-window rows, deduplicating by
-identity. Sort by work date then task ID (ordinary rows use an explicit kind tie-breaker) and apply
-the page only after merging. Return `totalCount`, `offset`, `limit` and `hasMore`; any operational
-limit must be disclosed and cannot pretend to be an exact total. Never silently apply a lookback
-cap that makes older obligations unreachable. The persistence/query implementation belongs to
-stage 4 and may optimize enumeration/counting without materializing pending facts.
+The reader lazily merges source streams by work date, task ID and kind, with undated work last.
+Status, kind, task/list/context/goal, importance and case-insensitive title/description filters apply
+to the combined stream before exact counting and paging. Null status selects all effective statuses;
+the default is `Pending`. Facts take precedence over computed expiry. Unrecorded expired skip-policy
+dates project `Skipped`; they are not written. `Counts` separates ordinary tasks, distinct series
+and occurrences; `TaskCount` counts distinct sources, `WorkItemCount`/`TotalCount` counts work rows.
+Every page includes exact totals, offset, limit and `HasMore`, with no hidden result truncation.
 
-Active planning excludes completed parents, Trash and archived lists; history can still include
-authorized closed/predecessor series. Reports, preloads and Weekly Review must consume shared
-projection/lifecycle behavior before public series creation is enabled. No stage may count parent
-closure as extra work or infer duration/capacity from repeated occurrence counts.
+`IncludeRetainedBeforeStart` explicitly adds every unresolved retain-policy date before the window,
+from the original series start through the window start, including bounded predecessors. All recorded
+facts are subtracted from this prefix, regardless of the requested status filter. No lookback cap
+drops older obligations. Generation still honors each series' own bounds and never materializes
+pending rows. A priority queue holds one next generated row per source; exact counts scan every
+eligible date, so very long retained histories cost CPU without accumulating generated rows in memory.
+Skip-policy work before the requested window is not implicitly included.
+
+`ITaskOccurrenceHistory` reads recorded facts independently of rules and generation bounds:
+
+- `GetAsync` addresses the original composite identity, including dates outside retired bounds or
+  no longer matching a rule.
+- `QueryAsync` explicitly chooses `ScheduledDate` with a calendar range, or `CompletionTime` with
+  UTC instant boundaries. Supplying both bases, missing/backwards/non-UTC bounds, or a selection
+  exceeding 3,660 calendar days / 3,660 elapsed days respectively fails before database access.
+- Scheduled history includes completed/skipped/cancelled facts, ordered by occurrence date then
+  task ID. Completion activity includes only completed facts in `[StartUtc, EndExclusiveUtc)`,
+  ordered by CompletedAt, task ID, then original date. Resolve local boundaries through the shared
+  user calendar before supplying instants. Late/early completion never changes the original date.
+- Rich history pages expose the selection basis/bounds, exact total, page metadata, resolved calendar,
+  full scheduled periods and distinct current source metadata. The original `ListByScheduledDateAsync`
+  and `ListByCompletionAsync` methods remain available as fact-only tuple adapters.
+
+Active planning excludes completed parents, Trash and archived/missing lists. History includes
+closed and predecessor series under the same Trash/list restrictions. It returns facts only; it
+never reconstructs expected or skipped history and never counts administrative parent closure.
+Facts outside generation bounds remain history rather than obligations to regenerate. Complete
+weekly/monthly periods must be representable in DateOnly, as required by the existing period
+helper; an unrepresentable period fails explicitly instead of silently dropping a row. Direct
+fact lookup remains available at extreme dates, including DateOnly.MaxValue.
+
+Each page resolves one `PlanningPeriod` clock/timezone/week-start/fallback snapshot and reads sources
+and facts under one tenant-local transaction. There is no user/database selector. No query saves,
+reconciles, advances checkpoints or creates review/preferences state. A subsequent page is a new
+snapshot and can reflect concurrent writes; this is deterministic paging per call, not a frozen
+multi-request export. Missing timezone uses the disclosed shared UTC fallback. Infrastructure loads
+current source metadata and selected persisted facts in memory; only generated work streams are lazy.
+
+## Integration remaining in stages 5–8
+
+The readers are registered in web and stdio but have no public route/tool. Existing task-list queries,
+`taskitem_list_*`, report presentation and browser shapes retain their stored-task meaning. Reports,
+preloads and Weekly Review must consume the shared projection/history inputs before public series
+creation is enabled. No stage may count parent closure as extra work or infer duration/capacity
+from repeated occurrence counts. The overall #84 plan stays active through #96.

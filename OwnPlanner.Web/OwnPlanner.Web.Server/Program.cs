@@ -114,6 +114,9 @@ namespace OwnPlanner.Web.Server
 				builder.Services.AddScoped<OwnPlanner.Application.Tasks.Recurrence.IRecurrenceCalculator, OwnPlanner.Application.Tasks.Recurrence.RecurrenceCalculator>();
 				builder.Services.AddScoped<OwnPlanner.Application.Tasks.Recurrence.IRecurringTaskLifecycle, OwnPlanner.Application.Tasks.Recurrence.RecurringTaskLifecycle>();
 				builder.Services.AddScoped<OwnPlanner.Application.Tasks.Recurrence.IRecurringTaskSuccessors, OwnPlanner.Application.Tasks.Recurrence.RecurringTaskSuccessors>();
+				builder.Services.AddScoped<OwnPlanner.Application.Tasks.Recurrence.IPlanningWorkStore, OwnPlanner.Infrastructure.Tasks.PlanningWorkStore>();
+				builder.Services.AddScoped<OwnPlanner.Application.Tasks.Recurrence.IPlanningWorkReader, OwnPlanner.Application.Tasks.Recurrence.PlanningWorkReader>();
+				builder.Services.AddScoped<OwnPlanner.Application.Tasks.Recurrence.ITaskOccurrenceHistory, OwnPlanner.Application.Tasks.Recurrence.TaskOccurrenceHistory>();
 				builder.Services.AddHostedService<RecurrenceReconciliationWorker>();
 				builder.Services.AddScoped<IWeeklyReviewStore, WeeklyReviewStore>();
 				builder.Services.AddScoped<OwnPlanner.Application.Calendar.IPlanningCalendar, OwnPlanner.Application.Calendar.PlanningCalendar>();

@@ -124,6 +124,9 @@ namespace OwnPlanner.Mcp.StdioApp
 					services.AddScoped<OwnPlanner.Application.Tasks.Recurrence.IRecurrenceCalculator, OwnPlanner.Application.Tasks.Recurrence.RecurrenceCalculator>();
 					services.AddScoped<OwnPlanner.Application.Tasks.Recurrence.IRecurringTaskLifecycle, OwnPlanner.Application.Tasks.Recurrence.RecurringTaskLifecycle>();
 					services.AddScoped<OwnPlanner.Application.Tasks.Recurrence.IRecurringTaskSuccessors, OwnPlanner.Application.Tasks.Recurrence.RecurringTaskSuccessors>();
+					services.AddScoped<OwnPlanner.Application.Tasks.Recurrence.IPlanningWorkStore, OwnPlanner.Infrastructure.Tasks.PlanningWorkStore>();
+					services.AddScoped<OwnPlanner.Application.Tasks.Recurrence.IPlanningWorkReader, OwnPlanner.Application.Tasks.Recurrence.PlanningWorkReader>();
+					services.AddScoped<OwnPlanner.Application.Tasks.Recurrence.ITaskOccurrenceHistory, OwnPlanner.Application.Tasks.Recurrence.TaskOccurrenceHistory>();
 					services.AddHostedService<FixedTenantRecurrenceWorker>();
 					services.AddScoped<IWeeklyReviewStore, WeeklyReviewStore>();
 					services.AddScoped<OwnPlanner.Application.Calendar.IPlanningCalendar, OwnPlanner.Application.Calendar.PlanningCalendar>();
