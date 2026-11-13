@@ -9,6 +9,9 @@ public sealed record GeneralReport(
 	GeneralInbox Inbox, GeneralDirection Direction, IReadOnlyList<GeneralTaskSample> Tasks,
 	int TitleCharacterLimit)
 {
+	/// <summary>Mixed ordinary/occurrence work with exact units and separate scheduled/activity bases.</summary>
+	public ReportWork? Work { get; init; }
+
 	/// <summary>Separate user-calendar data; existing UTC dates, rolling commitments and samples keep their original semantics.</summary>
 	public GeneralCalendarSummary? Calendar { get; init; }
 }
@@ -16,6 +19,8 @@ public sealed record GeneralCalendarSummary(PlanningPeriod Period, PlanningPerio
 	int OverdueDeadlineCount, int DueTodayCount, int FocusedInsidePeriodCount, int DueInsidePeriodCount,
 	GeneralSampleIds PeriodTasks, IReadOnlyList<GeneralTaskSample> Tasks)
 {
+	public ReportWork? Work { get; init; }
+
 	/// <summary>Today-first deduplicated attention, present only for thisWeek; all existing summary fields retain their meanings.</summary>
 	public GeneralAttentionReport? Attention { get; init; }
 }
@@ -31,6 +36,7 @@ public sealed record GeneralTaskSample(Guid Id, string Title, bool TitleTruncate
 public sealed record GeneralTaskRow(Guid Id, string Title, bool IsCompleted, DateTime? FocusAt, DateTime? DueAt, Guid TaskListId, Guid? GoalId)
 {
 	public bool IsImportant { get; init; }
+	public bool IsRecurring { get; init; }
 }
 public sealed record GeneralGoalRow(Guid Id, string Title);
 
@@ -52,14 +58,14 @@ public static class GeneralReportBuilder
 		var periodIds = selected.Take(5).Select(t => t.Id).ToArray();
 		var ids = todayIds.Concat(periodIds).ToHashSet();
 		return new(period, todayPeriod,
-			new(focusToday.Count, focusToday.Count(t => t.IsCompleted), new(remaining.Count, 5, remaining.Count > 5, todayIds)),
+			new(focusToday.Count, focusToday.Count(t => t.IsCompleted && !t.IsRecurring), new(remaining.Count, 5, remaining.Count > 5, todayIds)),
 			incomplete.Count(t => t.DueAt < period.AsOfUtc),
 			incomplete.Count(t => InWindow(t.DueAt, todayPeriod.StartsAtUtc, todayPeriod.EndsAtUtc)), focused.Count, due.Count,
 			new(selected.Count, 5, selected.Count > 5, periodIds),
 			Order(tasks.Where(t => ids.Contains(t.Id))).Select(t => new GeneralTaskSample(t.Id, Clip(t.Title), t.Title.Length > TitleLimit, t.FocusAt, t.DueAt)).ToArray());
 	}
 	public static GeneralReport Build(DateTime asOfUtc, IReadOnlyList<GeneralTaskRow> tasks,
-		IReadOnlyList<GeneralGoalRow> activeGoals, int unreviewedCaptureCount)
+		IReadOnlyList<GeneralGoalRow> activeGoals, int unreviewedCaptureCount, ReportWork? work = null)
 	{
 		var today = DateOnly.FromDateTime(asOfUtc);
 		var start = today.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
@@ -77,13 +83,13 @@ public static class GeneralReportBuilder
 		var linkedGoals = activeGoals.Where(g => linkedIds.Contains(g.Id))
 			.OrderBy(g => g.Title, StringComparer.Ordinal).ThenBy(g => g.Id).ToList();
 		return new GeneralReport(asOfUtc, "UTC", today, today.AddDays(1), today.AddDays(8),
-			new(focus.Count, focus.Count(t => t.IsCompleted), new(remaining.Count, 5, remaining.Count > 5, focusIds)),
+			new(focus.Count, focus.Count(t => t.IsCompleted && !t.IsRecurring), new(remaining.Count, 5, remaining.Count > 5, focusIds)),
 			new(incomplete.Count(t => t.DueAt < start), incomplete.Count(t => InWindow(t.DueAt, start, tomorrow)),
 				incomplete.Count(t => InWindow(t.DueAt, tomorrow, end)), new(commitments.Count, 3, commitments.Count > 3, deadlineIds)),
 			new(unreviewedCaptureCount, incomplete.Count(t => t.TaskListId == OwnPlanner.Domain.WellKnownIds.InboxTaskList && t.FocusAt is null && t.DueAt is null)),
 			new(activeGoals.Count, linkedGoals.Count, 3, linkedGoals.Count > 3,
 				linkedGoals.Take(3).Select(g => new GeneralGoalSample(g.Id, Clip(g.Title), g.Title.Length > TitleLimit)).ToArray()),
-			Order(tasks.Where(t => sampleIds.Contains(t.Id))).Select(t => new GeneralTaskSample(t.Id, Clip(t.Title), t.Title.Length > TitleLimit, t.FocusAt, t.DueAt)).ToArray(), TitleLimit);
+			Order(tasks.Where(t => sampleIds.Contains(t.Id))).Select(t => new GeneralTaskSample(t.Id, Clip(t.Title), t.Title.Length > TitleLimit, t.FocusAt, t.DueAt)).ToArray(), TitleLimit) { Work = work };
 	}
 	internal static string Clip(string title)
 	{

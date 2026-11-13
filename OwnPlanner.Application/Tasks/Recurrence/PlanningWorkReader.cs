@@ -8,44 +8,67 @@ public sealed class PlanningWorkReader(IPlanningWorkStore store, IPlanningCalend
 {
 	public async Task<PlanningWorkPage> QueryAsync(PlanningWorkQuery query, CancellationToken ct = default)
 	{
+		Validate(query);
+		var snapshot = await calendar.ResolveAsync("today", ct);
+		return await store.ReadAsync(async (read, token) =>
+		{
+			var page = new List<PlanningWorkItem>();
+			var total = 0;
+			var sources = new Dictionary<Guid, PlanningWorkSource>();
+			var counts = await VisitAsync(query, snapshot, read, calculator, (row, source) =>
+			{
+				if (total++ >= query.Offset && page.Count < query.Limit) { page.Add(row); sources[source.TaskId] = source; }
+			}, token);
+			return new PlanningWorkPage(page, page.Select(r => sources[r.TaskId]).DistinctBy(s => s.TaskId).ToArray(),
+				counts, query.Offset, query.Limit, snapshot, query.Range, query.IncludeRetainedBeforeStart);
+		}, ct);
+	}
+
+	/// <summary>Visits every selected row in shared projection order within a caller-owned tenant
+	/// snapshot and resolved calendar. Consumers can aggregate exact counts with bounded samples
+	/// without materializing or repeatedly paging the complete retained prefix. Visits the full filtered
+	/// selection before Offset/Limit; validates their bounds but does not page. Never writes.</summary>
+	public static async Task<PlanningWorkCounts> VisitAsync(PlanningWorkQuery query, PlanningPeriod snapshot,
+		IPlanningWorkSnapshot read, IRecurrenceCalculator calculator,
+		Action<PlanningWorkItem, PlanningWorkSource> visit, CancellationToken token = default)
+	{
+		Validate(query);
+		var sources = (await read.GetSourcesAsync(false, token))
+			.Where(s => !query.TaskId.HasValue || s.TaskId == query.TaskId.Value).ToArray();
+		// Include the complete retained prefix, even when the requested window is far in the future.
+		var first = query.IncludeRetainedBeforeStart
+			? sources.Where(s => s.Schedule?.MissedPolicy == MissedOccurrencePolicy.RetainEachObligation)
+				.Select(s => s.Schedule!.StartDate).Append(query.Range.StartDate).Min()
+			: query.Range.StartDate;
+		var facts = (await read.GetScheduledFactsAsync(new(first, query.Range.EndExclusiveDate), query.TaskId, token))
+			.ToDictionary(f => f.Id);
+		var byId = sources.ToDictionary(s => s.TaskId);
+		var streams = sources.Select(s => Project(s, query, snapshot, facts, calculator, token));
+		var series = new HashSet<Guid>();
+		var ordinaryCount = 0; var occurrenceCount = 0;
+		foreach (var row in Merge(streams))
+		{
+			token.ThrowIfCancellationRequested();
+			var source = byId[row.TaskId];
+			if (!Matches(row, source, query)) continue;
+			visit(row, source);
+			if (row.Kind == PlanningWorkKind.OrdinaryTask) ordinaryCount = checked(ordinaryCount + 1);
+			else { occurrenceCount = checked(occurrenceCount + 1); series.Add(row.TaskId); }
+		}
+		return new(ordinaryCount, series.Count, occurrenceCount);
+	}
+
+	private static void Validate(PlanningWorkQuery query)
+	{
 		ArgumentNullException.ThrowIfNull(query);
 		RecurrenceReadLimits.ValidateRange(query.Range);
 		RecurrenceReadLimits.ValidatePage(query.Offset, query.Limit);
 		if (!Enum.IsDefined(query.OrdinaryTasks) || query.Status.HasValue && !Enum.IsDefined(query.Status.Value)
 			|| query.Kind.HasValue && !Enum.IsDefined(query.Kind.Value)) throw new ArgumentException("Unsupported work selection.", nameof(query));
-		var snapshot = await calendar.ResolveAsync("today", ct);
-		return await store.ReadAsync(async (read, token) =>
-		{
-			var sources = (await read.GetSourcesAsync(false, token))
-				.Where(s => !query.TaskId.HasValue || s.TaskId == query.TaskId.Value).ToArray();
-			// Include the complete retained prefix, even when the requested window is far in the future.
-			var first = query.IncludeRetainedBeforeStart
-				? sources.Where(s => s.Schedule?.MissedPolicy == MissedOccurrencePolicy.RetainEachObligation)
-					.Select(s => s.Schedule!.StartDate).Append(query.Range.StartDate).Min()
-				: query.Range.StartDate;
-			var facts = (await read.GetScheduledFactsAsync(new(first, query.Range.EndExclusiveDate), query.TaskId, token))
-				.ToDictionary(f => f.Id);
-			var byId = sources.ToDictionary(s => s.TaskId);
-			var streams = sources.Select(s => Project(s, query, snapshot, facts, token));
-			var page = new List<PlanningWorkItem>();
-			var series = new HashSet<Guid>();
-			var ordinaryCount = 0; var occurrenceCount = 0; var total = 0;
-			foreach (var row in Merge(streams))
-			{
-				token.ThrowIfCancellationRequested();
-				if (!Matches(row, byId[row.TaskId], query)) continue;
-				if (total >= query.Offset && page.Count < query.Limit) page.Add(row);
-				total = checked(total + 1);
-				if (row.Kind == PlanningWorkKind.OrdinaryTask) ordinaryCount++;
-				else { occurrenceCount = checked(occurrenceCount + 1); series.Add(row.TaskId); }
-			}
-			return new PlanningWorkPage(page, page.Select(r => byId[r.TaskId]).DistinctBy(s => s.TaskId).ToArray(),
-				new(ordinaryCount, series.Count, occurrenceCount), query.Offset, query.Limit, snapshot, query.Range, query.IncludeRetainedBeforeStart);
-		}, ct);
 	}
 
-	private IEnumerable<PlanningWorkItem> Project(PlanningWorkSource source, PlanningWorkQuery query,
-		PlanningPeriod snapshot, IReadOnlyDictionary<TaskOccurrenceId, TaskOccurrenceFact> facts, CancellationToken ct)
+	private static IEnumerable<PlanningWorkItem> Project(PlanningWorkSource source, PlanningWorkQuery query,
+		PlanningPeriod snapshot, IReadOnlyDictionary<TaskOccurrenceId, TaskOccurrenceFact> facts, IRecurrenceCalculator calculator, CancellationToken ct)
 	{
 		if (source.Schedule is not { } schedule)
 		{

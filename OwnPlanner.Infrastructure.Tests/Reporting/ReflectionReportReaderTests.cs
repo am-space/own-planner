@@ -48,7 +48,7 @@ public class ReflectionReportReaderTests
 
 		await reader.GetAsync(new ReflectionReportOptions(), TestContext.Current.CancellationToken);
 
-		var taskQuery = interceptor.Commands.Single(command => command.Contains("FROM \"TaskItems\"", StringComparison.Ordinal));
+		var taskQuery = interceptor.Commands.Single(command => command.Contains("FROM \"TaskItems\"", StringComparison.Ordinal) && command.Contains("CreatedAt", StringComparison.Ordinal));
 		taskQuery.Should().Contain("IsCompleted").And.Contain("CreatedAt").And.Contain("CompletedAt");
 		var noteQuery = interceptor.Commands.Single(command => command.Contains("FROM \"NoteItems\"", StringComparison.Ordinal));
 		noteQuery.Should().Contain("NoteListId").And.Contain("CreatedAt").And.Contain("UpdatedAt");

@@ -16,7 +16,11 @@ public sealed record DayReportOptions(string Section = "all", int Offset = 0, in
 
 /// <summary>Read-only daily execution metadata; samples are bounded, counts are exact and period is always local today.</summary>
 public sealed record DayReport(PlanningPeriod Period, string View, IReadOnlyList<DayReportSection> Sections,
-	IReadOnlyList<DayReportTask> Tasks, int TitleCharacterLimit);
+	IReadOnlyList<DayReportTask> Tasks, int TitleCharacterLimit)
+{
+	/// <summary>Mixed ordinary/occurrence evidence; legacy fields retain stored-task units.</summary>
+	public ReportWork? Work { get; init; }
+}
 
 /// <summary>MatchCount includes tasks displayed elsewhere; TotalCount is assigned count in all, every match in named views.
 /// Truncated signals any omitted matches, HasMore additional tasks after this page.</summary>
@@ -30,7 +34,7 @@ public sealed record DayReportTask(Guid Id, string Title, bool TitleTruncated, b
 /// <summary>Pure daily classification and deterministic sampling; ordering is not an automatic execution priority decision.</summary>
 public static class DayReportBuilder
 {
-	public static DayReport Build(PlanningPeriod today, IReadOnlyList<GeneralTaskRow> tasks, DayReportOptions? options = null)
+	public static DayReport Build(PlanningPeriod today, IReadOnlyList<GeneralTaskRow> tasks, DayReportOptions? options = null, ReportWork? work = null)
 	{
 		options ??= new();
 		options.Validate();
@@ -51,7 +55,7 @@ public static class DayReportBuilder
 				page.Count < selected.Count, options.Offset + page.Count < selected.Count, page.Select(t => t.Id).ToArray()));
 			samples.AddRange(page);
 		}
-		return new(today, options.Section, sections, samples, GeneralReportBuilder.TitleLimit);
+		return new(today, options.Section, sections, samples, GeneralReportBuilder.TitleLimit) { Work = work };
 	}
 
 	private static bool Matches(string section, DayReportTask task) => section == "today"

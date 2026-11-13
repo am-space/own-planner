@@ -46,6 +46,9 @@ public sealed record ReflectionReport(
 	ReflectionInboxSummary Inbox,
 	ReflectionSignals Signals)
 {
+	/// <summary>Mixed ordinary/occurrence work with exact units and separate scheduled/activity bases.</summary>
+	public ReportWork? Work { get; init; }
+
 	/// <summary>Present only for explicitly requested user-calendar periods; legacy UTC requests retain their meanings.</summary>
 	public PlanningPeriod? Calendar { get; init; }
 }

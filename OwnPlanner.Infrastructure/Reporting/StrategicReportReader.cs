@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using OwnPlanner.Application.Reporting;
+using OwnPlanner.Application.Calendar;
 using OwnPlanner.Domain.Contexts;
 using OwnPlanner.Domain.Goals;
 using OwnPlanner.Infrastructure.Persistence;
@@ -8,7 +9,7 @@ namespace OwnPlanner.Infrastructure.Reporting;
 
 public sealed class StrategicReportReader(
 	IPlannerDbContextFactory dbContextFactory,
-	TimeProvider timeProvider) : IStrategicReportReader
+	IPlanningCalendar calendar) : IStrategicReportReader
 {
 	private const int PreviewLength = 200;
 
@@ -17,7 +18,8 @@ public sealed class StrategicReportReader(
 		CancellationToken cancellationToken = default)
 	{
 		options.Validate();
-		var asOfUtc = timeProvider.GetUtcNow().UtcDateTime;
+		var period = await calendar.ResolveAsync("nextSevenDays", cancellationToken);
+		var asOfUtc = period.AsOfUtc;
 		await using var db = await dbContextFactory.CreateAsync(cancellationToken);
 		await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
 
@@ -79,6 +81,9 @@ public sealed class StrategicReportReader(
 			.Select(goal => BuildGoalSummary(goal, tasksByGoal, notesByGoal, taskListContexts, noteListContexts, taskPreviews, notePreviews, asOfUtc, options))
 			.ToList();
 
+		var work = await ReportWorkReader.ReadAsync(db, period, new(period.StartDate, period.EndExclusiveDate),
+			period.StartsAtUtc, period.EndsAtUtc, options.TaskSampleLimit, cancellationToken);
+
 		return new StrategicReport(
 			asOfUtc,
 			new StrategicOverallTotals(
@@ -97,7 +102,7 @@ public sealed class StrategicReportReader(
 				contexts.Where(context => !tasksByContext.ContainsKey(context.Id)).OrderBy(context => context.Name, StringComparer.OrdinalIgnoreCase).ThenBy(context => context.Id).Select(context => new StrategicEntityReference(context.Id, context.Name)).ToList(),
 				tasksWithoutGoal.Take(options.TaskSampleLimit).Select(task => ToSample(task, taskListContexts, taskPreviews)).ToList(),
 				tasksWithoutGoal.Count,
-				contexts.Where(context => !taskListCountsByContext.ContainsKey(context.Id) && !noteListCountsByContext.ContainsKey(context.Id)).OrderBy(context => context.Name, StringComparer.OrdinalIgnoreCase).ThenBy(context => context.Id).Select(context => new StrategicEntityReference(context.Id, context.Name)).ToList()));
+				contexts.Where(context => !taskListCountsByContext.ContainsKey(context.Id) && !noteListCountsByContext.ContainsKey(context.Id)).OrderBy(context => context.Name, StringComparer.OrdinalIgnoreCase).ThenBy(context => context.Id).Select(context => new StrategicEntityReference(context.Id, context.Name)).ToList())) { Work = work };
 	}
 
 	private static StrategicContextSummary BuildContextSummary(

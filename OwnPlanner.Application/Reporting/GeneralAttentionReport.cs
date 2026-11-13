@@ -17,7 +17,11 @@ public sealed record GeneralAttentionOptions(string Section = "all", int Offset 
 
 /// <summary>Bounded current-state attention. Period is always thisWeek; UTC deadline instants and stored focus dates remain distinct.</summary>
 public sealed record GeneralAttentionReport(PlanningPeriod Period, PlanningPeriod TodayPeriod, string View,
-	IReadOnlyList<GeneralAttentionSection> Sections, IReadOnlyList<GeneralAttentionTask> Tasks, int TitleCharacterLimit);
+	IReadOnlyList<GeneralAttentionSection> Sections, IReadOnlyList<GeneralAttentionTask> Tasks, int TitleCharacterLimit)
+{
+	/// <summary>Mixed ordinary/occurrence evidence; legacy fields retain stored-task units.</summary>
+	public ReportWork? Work { get; init; }
+}
 
 /// <summary>
 /// MatchCount counts all tasks matching this section's reasons, including tasks displayed elsewhere.
@@ -39,7 +43,7 @@ public static class GeneralAttentionBuilder
 	internal static readonly string[] SectionNames = ["today", "earlierThisWeek", "remainingWeek", "overdue", "olderFocus"];
 
 	public static GeneralAttentionReport Build(PlanningPeriod week, IReadOnlyList<GeneralTaskRow> tasks,
-		GeneralAttentionOptions? options = null)
+		GeneralAttentionOptions? options = null, ReportWork? work = null)
 	{
 		options ??= new();
 		options.Validate();
@@ -66,7 +70,7 @@ public static class GeneralAttentionBuilder
 					.GroupBy(t => t.DisplayDate!.Value).OrderBy(g => g.Key).Select(g => new GeneralAttentionDay(g.Key, g.Count())).ToArray()));
 			samples.AddRange(page);
 		}
-		return new(week, today, options.Section, sections, samples, GeneralReportBuilder.TitleLimit);
+		return new(week, today, options.Section, sections, samples, GeneralReportBuilder.TitleLimit) { Work = work };
 	}
 
 	private static GeneralAttentionTask Classify(GeneralTaskRow task, PlanningPeriod week, PlanningPeriod today, TimeZoneInfo zone)

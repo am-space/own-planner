@@ -1,6 +1,6 @@
 # Calendar-based recurring tasks implementation plan
 
-**Status:** Active — stages 1–3 (#89–#91) merged; stage 4 (#92) implemented in this change; stages 5–8 remain unimplemented.\
+**Status:** Active — stages 1–4 (#89–#92) merged; stage 5 (#93) implemented in this change; stages 6–8 remain unimplemented.\
 **Contract:** [#84](https://github.com/am-space/own-planner/issues/84), including the November 12 decisions.\
 **Outcome:** Represent each recurring series with one task, compute its calendar occurrences, and
 preserve occurrence facts and predecessor history across schedule changes.
@@ -324,3 +324,72 @@ The overall #84 plan remains active through stage 8 rather than being archived w
 - Documentation relative links and staged whitespace validation checked.
 - No live-model evaluation; browser/chat tests use the existing deterministic scripted provider.
 - The overall plan remains active through #96, which will archive it with the completed feature ADRs.
+
+## Stage 5 reviewed implementation plan
+
+Outcome: General, Day Work, attention, Week Planning, Reflection and strategic snapshots expose
+bounded mixed work with original occurrence identities and separate scheduled/activity evidence.
+
+| Acceptance | Implementation and verification |
+| --- | --- |
+| Ordinary task plus multiple occurrences | Add a shared `Work` report block with exact ordinary/series/occurrence units, effective status totals and bounded identity-bearing samples; exercise every reader and builder |
+| Friday scheduled / Monday completed | Separate scheduled-date selection from half-open UTC completion activity; include closed/out-of-bounds facts independently of generation; early/late and successor tests |
+| Corrections and parent closure | Read current facts, deduplicate by composite identity, never treat a recurring parent as a completion; correction/closure regressions |
+| Retention and calendar boundaries | Reuse the shared projection/calendar and complete retained prefix; DST/local boundary and old-obligation tests |
+| Compatibility and bounded payloads | Keep existing stored-task fields and meanings, add mixed work sections instead of replacing GUID identity; zero/small sample, exact totals and clipping tests |
+| Goal evidence and mode preloads | Supply per-goal work counts independent of samples; suppress false no-focused/no-completed-work signals using this evidence; test existing report tools and preload delivery |
+
+Impact: Domain unchanged; Application shared projection traversal and report aggregates/builders;
+Infrastructure readers reuse their tenant-bound database transaction; MCP additive serialization tests
+and descriptions; Web/stdio use the same registered readers (strategic calendar wiring if needed).
+No routes, tool arguments, public recurrence actions, migrations, dependency changes, frontend or
+Weekly Review workflow changes. Documentation: reference, index and accepted stage-5 ADR.
+
+Order: extract reusable projection traversal without changing query semantics; implement shared
+bounded aggregation; attach it to readers/builders; update evidence-based signals; add cross-report,
+serialization and preload tests; reference/ADR; full `./scripts/verify.sh --all`; final diff review.
+Reuse stage-4 source/fact queries and calendar helpers rather than recurrence arithmetic in reports.
+
+Distinct plan review completed before feature code: criteria mapped above, inward dependencies and
+trusted tenant factories preserved. Each report uses one resolved clock/calendar and one database
+snapshot, including its work block. Samples never drive counts or diagnoses. Existing task counters
+remain stored-record units; occurrence totals are additive and never interpreted as effort/capacity.
+Scheduled results union computed eligible rows with independent recorded facts, giving facts
+precedence without double counting. Completion activity selects actual instants only. Current
+metadata is disclosed as current state, not reconstructed history. Payload samples and text are
+bounded; exact counting may scan the full retained prefix. The overall plan stays active through #96.
+
+
+### Stage 5 implementation and review evidence
+
+- Intake: #93/#84, dependencies, #78/#79 and ADRs 0034/0035/0039 reviewed; #92 merged at
+  `55864b6`. Clean branch `feature/recurrence-reports` created from origin/master.
+- The plan received a distinct review before feature code. Shared visitor extraction preserves
+  stage-4 filter/count/page behavior, including the reviewed early TaskId source filter.
+- Added mixed work sections to every scoped report and shared report-tool serialization; original
+  stored-task fields remain separate. General manual-focus parent closure and Reflection completion
+  metrics exclude recurring-parent closure. Weekly and Reflection goal observations use exact work
+  evidence independently of samples. No capacity or historical-inactivity inference was added.
+- Stage-specific coverage: 27 Infrastructure cases, 4 MCP contract cases and 6 tenant-bound Web
+  preload cases. Covers ordinary + two occurrences across all readers, Friday/Monday selection,
+  actual ordinary activity, corrections after automatic closure, explicit closure, both missed
+  policies, 23/25-hour local DST days, future facts preserved through real successor replacement,
+  1990 retained work, far-future legacy windows, terminal-status precedence, unavailable sources,
+  bounded/zero samples, title clipping and exact source/work count units.
+- All six mode preloads use real shared report tools/readers under the authenticated adapter
+  session and exclude the other tenant's IDs/content. Existing permission ceilings are unchanged.
+- Final diff review found that compact reports could grow with goal/context cardinality. They now
+  omit group breakdowns; weekly/reflection/strategic retain groups for their existing report and
+  diagnostic use cases. A 50-context/goal/series regression verifies exact counts and fixed compact
+  sample/source bounds. Daily sections stay within the selected range even for decades of backlog.
+- Report source queries omit task descriptions and select only list/context IDs. Existing SQL
+  privacy/truncation regressions remain active. Reads share each report's existing database
+  transaction and resolved calendar; no migration, dependency or tenant-selection change.
+- Updated recurrence/AI references, documentation index and accepted ADR-0040. Overall plan remains
+  active through #96; stages #94–#96 and public recurrence creation remain deferred.
+- Final `./scripts/verify.sh --all` after the compact-payload refinement passed frontend lint/build,
+  all 1,195 backend cases (Domain 65, Application 459, Infrastructure 428, MCP 99, Web 144) and all
+  32 browser E2E cases. Existing frontend bundle-size and ASP.NET test-host deprecation warnings
+  only; no live-model evaluation. Dependencies were already prepared and did not change.
+- Documentation relative paths and final staged whitespace validation passed. No public recurrence
+  activation, issue/project edits, release or deployment is part of this stage.
