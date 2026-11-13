@@ -1,6 +1,6 @@
 # Calendar-based recurring tasks implementation plan
 
-**Status:** Active — stage 1 (#89) merged; stage 2 (#90) implemented in this change; stages 3–8 remain unimplemented.\
+**Status:** Active — stages 1–2 (#89/#90) merged; stage 3 (#91) implemented in this change; stages 4–8 remain unimplemented.\
 **Contract:** [#84](https://github.com/am-space/own-planner/issues/84), including the November 12 decisions.\
 **Outcome:** Represent each recurring series with one task, compute its calendar occurrences, and
 preserve occurrence facts and predecessor history across schedule changes.
@@ -138,6 +138,67 @@ Validation: setup, matching focused projects, upgrade/concurrency/two-user worke
 `./scripts/verify.sh --all`; inspect generated SQL/snapshot, complete diff and documentation links.
 
 ## Progress and evidence
+
+### Stage 3 reviewed implementation plan
+
+Outcome: change or resume a schedule through one linked successor without rewriting history,
+duplicating successors on retries, or fabricating obligations during a break.
+
+| Acceptance | Change and verification |
+| --- | --- |
+| Old Friday remains actionable after a Monday successor | Shorten only the predecessor end, retaining rule/start/policy and full-period expiry; both-policy lifecycle integration tests |
+| Explicit future-fact choices preserve identities/timestamps | Read-only preview returns affected terminal facts, requested schedule and a later-start alternative; apply hashes/rechecks the parent, request and facts under the write lock; both resolutions and stale-preview tests |
+| Atomic, retry-safe replacement/resumption | Tenant-local request ledger, unique link/request indexes, transactionally persisted cutoff/link/task/result; independent-connection retry/race and rollback tests |
+| Identifiable chains, no earlier-bound extension | Nullable soft predecessor/successor task IDs; one successor per parent; chain, earlier-end, detached-write and migration tests |
+| Resume completed series, no break work | Explicit replace/resume intent; resume keeps old completion, reanchors copied/new rule and omits an inherited end before the selected start; explicit/automatic close, trash/restore and history-correction tests |
+| Closure follows the predecessor's own conditions | Existing reconciliation against shortened generation bounds, with unchanged full week/month expiry; empty retired ranges and retained/skip closure tests |
+
+Impact: Domain (end-only shortening, explicit empty retired intervals, linked successor creation);
+Application (preview/apply contracts and orchestration, snapshot/transaction port extensions);
+Infrastructure (per-user links, request ledger/store and CLI migration); Web/stdio (DI only);
+Domain/Application/Infrastructure tests and tenant-bound Web tests; schema/reference/ADR/index.
+HTTP/MCP schemas, chat prompts/permissions, frontend, reports and public creation remain excluded.
+
+Order: Domain invariants, Application contracts/service, Infrastructure persistence and generated
+AppDbContext migration, host DI, focused tests, reference/ADR, full verification and final diff review.
+Reuse the stage-2 non-deferred SQLite transaction, immutable recurrence rules and lifecycle service.
+
+Reviewed before feature code: all criteria map above; no tenant selector or new external transport.
+Preview takes a consistent read snapshot and never reconciles or saves. Affected facts include all
+statuses on/after the requested start; any overlap requires an explicit resolution. Moving later
+means after all affected dates, reanchors the proposed schedule, and is unavailable if no valid
+date/end remains. Apply checks an opaque SHA-256 snapshot token inside the same transaction as
+the link/cutoff/task/ledger writes; changed facts or parent metadata require a fresh preview.
+Request-key reuse with changed inputs fails; a matching retry returns the original IDs even after
+later chain changes. Links are soft IDs so deletion cannot cascade into another series; request
+records are removed with either participating task. New schedule construction remains strict;
+only end-shortening can create an empty retired range. DateOnly.MinValue cannot be a successor
+start because its previous day is unrepresentable. No dependency or context-resolution changes.
+The overall #84 plan remains active through stage 8 rather than being archived with stage 3.
+
+### Stage 3 evidence
+
+- Intake: #91/#84 reviewed, #90 merged at `d1a3522`; clean branch `feature/recurrence-successors`
+  created from origin/master. No unresolved contract choices or dependency changes.
+- Domain end-only shortening and explicit empty retired intervals preserve creation validation.
+  Final review also guards ConfigureRecurrence against receiving a previously retired empty schedule.
+- Application preview includes original facts, both successor schedules and predecessor boundaries;
+  apply revalidates parent/facts and persists a request fingerprint/result atomically. Retry keys
+  are tenant-local, exact-input and stable through further chain changes.
+- CLI generated `20261113021538_AddRecurringSuccessors` for AppDbContext; inspected migration
+  and snapshot. An upgrade regression preserves an existing recurrence, revision and completed fact.
+- 36 added backend cases: Domain 3, Application 2, Infrastructure 30, Web 1. Evidence covers
+  both choices and policies, stale metadata/facts, independent-connection matching/different-key
+  races, failure after SQL writes before commit, preserved completion/cancellation identity,
+  chain changes, explicit/automatic/trash-restored resumption, empty breaks, mid-week/month expiry,
+  no earlier-end extension, repeated stale detached writes, read-only previews and two-user isolation.
+- Schema/reference/index and accepted ADR-0038 describe the implementation. Existing ADRs remain
+  historical records; the overall #84 plan stays active through stage 8.
+- Final `./scripts/verify.sh --all` after the creation-validation review refinement: frontend
+  lint/build, all 1,116 backend cases (Domain 65, Application 439, Infrastructure 380, MCP 95,
+  Web 137) and all 32 browser E2E cases passed. Existing frontend chunk-size and ASP.NET test-host
+  deprecation warnings only; no live-model evaluation. Workspace dependencies were already prepared
+  by stage 2 and did not change. Documentation links and staged whitespace validation passed.
 
 ### Stage 2 evidence
 

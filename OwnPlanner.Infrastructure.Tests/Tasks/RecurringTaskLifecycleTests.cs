@@ -588,6 +588,8 @@ public sealed class RecurringTaskLifecycleTests : IAsyncLifetime
 	{
 		private int _calls;
 		public Task<IReadOnlyList<Guid>> ListOpenSeriesIdsAsync(CancellationToken ct = default) => inner.ListOpenSeriesIdsAsync(ct);
+		public Task<T> ReadAsync<T>(Guid taskId, Func<IRecurringTaskSnapshot, CancellationToken, Task<T>> read, CancellationToken ct = default)
+			=> inner.ReadAsync(taskId, read, ct);
 		public Task<T> ExecuteAsync<T>(Guid taskId, Func<IRecurringTaskTransaction, CancellationToken, Task<T>> work, CancellationToken ct = default)
 		{
 			if (++_calls == 2) throw new InvalidOperationException("Simulated host failure between batches");

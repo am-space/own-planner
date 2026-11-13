@@ -123,6 +123,7 @@ namespace OwnPlanner.Mcp.StdioApp
 					services.AddScoped<OwnPlanner.Application.Tasks.Recurrence.IRecurringTaskStore, OwnPlanner.Infrastructure.Tasks.RecurringTaskStore>();
 					services.AddScoped<OwnPlanner.Application.Tasks.Recurrence.IRecurrenceCalculator, OwnPlanner.Application.Tasks.Recurrence.RecurrenceCalculator>();
 					services.AddScoped<OwnPlanner.Application.Tasks.Recurrence.IRecurringTaskLifecycle, OwnPlanner.Application.Tasks.Recurrence.RecurringTaskLifecycle>();
+					services.AddScoped<OwnPlanner.Application.Tasks.Recurrence.IRecurringTaskSuccessors, OwnPlanner.Application.Tasks.Recurrence.RecurringTaskSuccessors>();
 					services.AddHostedService<FixedTenantRecurrenceWorker>();
 					services.AddScoped<IWeeklyReviewStore, WeeklyReviewStore>();
 					services.AddScoped<OwnPlanner.Application.Calendar.IPlanningCalendar, OwnPlanner.Application.Calendar.PlanningCalendar>();

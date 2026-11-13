@@ -1,9 +1,10 @@
 # Recurring-task foundations and staged contracts
 
-Stages 1 and 2 ([#89](https://github.com/am-space/own-planner/issues/89),
-[#90](https://github.com/am-space/own-planner/issues/90)) provide internal recurrence types, a
-deterministic calendar engine, per-user persistence and shared lifecycle reconciliation. Public
-recurring-task creation, successor commands, history queries, MCP operations, report integration
+Stages 1–3 ([#89](https://github.com/am-space/own-planner/issues/89),
+[#90](https://github.com/am-space/own-planner/issues/90),
+[#91](https://github.com/am-space/own-planner/issues/91)) provide internal recurrence types, a
+deterministic calendar engine, per-user persistence, lifecycle reconciliation and linked successor
+commands. Public recurring-task creation, history queries, MCP operations, report integration
 and browser features remain unavailable. The [active implementation plan](recurring-tasks-plan.md)
 tracks all eight stages of [#84](https://github.com/am-space/own-planner/issues/84).
 The later-stage sections below describe required future behavior.
@@ -23,6 +24,7 @@ The later-stage sections below describe required future behavior.
 | `TaskItem.Recurrence` | Nullable immutable series schedule; ordinary tasks retain null and existing behavior |
 | `IRecurringTaskLifecycle` / `RecurringTaskLifecycle` | Tenant-bound atomic fact/series actions and explicit reconciliation, registered in web and stdio |
 | `IRecurringTaskStore` | Application write-transaction boundary, implemented by Infrastructure against a user-bound AppDbContext |
+| `IRecurringTaskSuccessors` / `RecurringTaskSuccessors` | Internal read-only preview and atomic replacement/resumption with explicit overlap choices and retry keys; registered in web and stdio |
 | `ITaskOccurrenceHistory` | Future separate read queries by scheduled date or actual completion instant; no implementation yet |
 
 For weekly interval N, the week containing `StartDate` is week zero using the rule's captured
@@ -139,7 +141,7 @@ database transactions. These workers do not add a public creation path.
 
 Stored-task completion and Trash route recurring parents through shared termination/Trash and
 catch up expired history before stopping; Trash remains available in archived lists. Recurring
-reopen directs callers to explicit successor-based resume (stage 3); ordinary reopen is unchanged.
+reopen directs callers to explicit successor-based resume; ordinary reopen is unchanged.
 Trashing a recurring task ends its series and retains facts; restore retains the closed parent,
 so an inactive interval never produces new obligations. Archived lists hide work and prevent user
 actions but do not suspend the calendar schedule: background expiry continues. Permanent task
@@ -153,38 +155,66 @@ Reads, including calendar lookup, reports, preview and history, remain read-only
 effective expiry from one clock/calendar snapshot while a background writer is catching up, but
 must not persist skips, advance checkpoints, close parents, mutate preferences or open review state.
 
-## Successor and resumption contracts for stage 3
+## Implemented successors and resumption
 
 Given requested start D, atomically shorten the old generation end to the earlier of its existing
 end and D minus one day; never extend it. Preserve its original rule. Create one linked successor
 starting on D, copying title, description, list, goal, importance and missed policy unless that
 policy is explicitly changed. Do not copy `DueAt` or manual `FocusAt`. A cutoff before the old
-start may leave an empty retired interval; stage 3 must represent that explicitly without weakening
-new-series validation. The old occurrence dates and facts always retain their old task ID.
+start leaves an explicitly empty retired interval (`RecurrenceSchedule.IsEmpty`), with the original
+start and an end before it. Only `ShortenBefore` can construct that retired range; new-series and
+successor creation still reject backwards bounds. Storage round-trips the original JSON shape.
+The old occurrence dates and facts always retain their old task ID.
 
 For example, replacing a Friday schedule with Mondays starting November 16 leaves unfinished
 November 13 work on the predecessor, independently of the successor's November 16 occurrence.
 The old occurrence expires at its full original week end, never at the replacement cutoff.
 
-Preview must show all affected future facts and the proposed successor schedule. For an advance
+Preview shows all affected terminal facts on/after the requested start, both proposed successor
+schedules and their corresponding predecessor cutoffs. For an advance
 completion on November 20 and requested start November 16, require an explicit choice: show a
 later start beyond the affected completion dates, or keep November 16 and authorize successor
 occurrences as separate work. Keep original identity, status and CompletedAt even if the fact
 falls outside the old shortened bounds. Cancellation facts are preserved too; nothing transfers.
 
-Apply must revalidate the previewed parent revision, schedule, selected resolution and affected fact
-set in the same transaction as the cutoff/link/creation. A changed snapshot requires a refreshed
-preview, not a stale mutation. A tenant-scoped request key must return the original successful
-result on retry and reject reuse with different inputs. Concurrent changes must not create sibling
-successors or partially shorten a parent. These preview/apply storage/service contracts are to be
-implemented in stage 3.
+`PreviewAsync` takes a consistent database snapshot without saving or invoking reconciliation.
+Its opaque SHA-256 token covers the parent revision, original schedule, copied metadata, request,
+proposed schedule and ordered affected facts. `ApplyAsync` recomputes that token under the same
+non-deferred SQLite transaction as cutoff/link/creation. Changed snapshots require a fresh preview.
+Any affected facts, including cancellation/skips, require a `SuccessorConflictResolution`:
+
+- `MoveStartAfterFacts` places the new anchor one day after the latest affected fact. The alternative
+  is unavailable if that date cannot be represented or exceeds the proposed end.
+- `KeepStartAsSeparateWork` retains the requested anchor and explicitly treats successor work
+  independently. No completed/cancelled/skipped fact is created or transferred to the successor.
+
+Apply requires a nonempty tenant-local GUID request key. `RecurringSuccessorOperations` stores the
+successful request fingerprint and original source/successor IDs in the same transaction. An identical
+retry returns those IDs, including after further chain changes; changing the request, preview token
+or choice with the same key fails. Concurrent different keys cannot create sibling successors.
+Nullable soft predecessor/successor task IDs identify the chain; change its tip for subsequent edits.
+Deleting a series does not cascade into its neighbors; deleting either task removes its associated
+request record. Retry guarantees apply while the participating tasks remain available.
 
 Resumption uses the same successor mechanism for explicitly or automatically completed series.
 For an old series ended November 15 and a successor beginning December 7, the intervening dates
 produce no obligations or skipped facts. Keep the old parent completed, use the selected new start
 as the interval anchor, and do not inherit an invalid past end. Recurring `taskitem_reopen` must
 direct callers to explicit resume; ordinary reopen remains compatible. Future-fact conflicts and
-retry handling follow the replacement contract.
+retry handling follow the replacement contract. History correction never creates a successor.
+
+`RecurringSuccessorRequest` distinguishes `Replace` (open parent) from `Resume` (completed parent).
+Null rule/policy inherit. Null end inherits unless `ClearEndDate` is true; resume additionally drops
+an inherited end before the new start. An explicitly supplied invalid end always fails. A replacement
+past an inherited end must explicitly clear or replace that end. The chosen start reanchors the new
+interval; the old rule/start/policy are unchanged. `DateOnly.MinValue` cannot be a successor start
+because its preceding cutoff date is unrepresentable. Requests require a non-trashed chain tip in an
+existing unarchived list, using the same tenant-bound factory as lifecycle actions.
+
+Replacement itself neither administratively closes nor reopens the old parent. Existing periodic
+reconciliation applies that parent's own shortened bounds and full original periods; unresolved
+retained work keeps it open. A completed predecessor remains closed through resumption, so no
+break-period obligations or skips are generated. No new public MCP tool, route or UI is enabled.
 
 ## Read contracts for stages 4–6
 

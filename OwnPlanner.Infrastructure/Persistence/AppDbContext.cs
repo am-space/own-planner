@@ -15,6 +15,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 	public DbSet<WeeklyReviewRow> WeeklyReviews => Set<WeeklyReviewRow>();
 	public DbSet<TaskItem> TaskItems => Set<TaskItem>();
 	public DbSet<TaskOccurrenceFactRow> TaskOccurrenceFacts => Set<TaskOccurrenceFactRow>();
+	public DbSet<RecurringSuccessorOperationRow> RecurringSuccessorOperations => Set<RecurringSuccessorOperationRow>();
 	public DbSet<TaskList> TaskLists => Set<TaskList>();
 	public DbSet<NoteList> NoteLists => Set<NoteList>();
 	public DbSet<NoteItem> NoteItems => Set<NoteItem>();
@@ -53,6 +54,17 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 		task.Property(t => t.RecurrenceCheckedBefore);
 		task.Property(t => t.RecurrenceCalendarKey);
 		task.Property(t => t.RecurrenceRevision).IsConcurrencyToken();
+		task.HasIndex(t => t.RecurrencePredecessorTaskId).IsUnique();
+		task.HasIndex(t => t.RecurrenceSuccessorTaskId).IsUnique();
+
+		var successorOperation = modelBuilder.Entity<RecurringSuccessorOperationRow>();
+		successorOperation.ToTable("RecurringSuccessorOperations");
+		successorOperation.HasKey(o => o.RequestId);
+		successorOperation.Property(o => o.RequestFingerprint).IsRequired().HasMaxLength(64);
+		successorOperation.HasIndex(o => o.SourceTaskId).IsUnique();
+		successorOperation.HasIndex(o => o.SuccessorTaskId).IsUnique();
+		successorOperation.HasOne<TaskItem>().WithMany().HasForeignKey(o => o.SourceTaskId).OnDelete(DeleteBehavior.Cascade);
+		successorOperation.HasOne<TaskItem>().WithMany().HasForeignKey(o => o.SuccessorTaskId).OnDelete(DeleteBehavior.Cascade);
 
 		var fact = modelBuilder.Entity<TaskOccurrenceFactRow>();
 		fact.ToTable("TaskOccurrenceFacts", table => table.HasCheckConstraint("CK_TaskOccurrenceFacts_Status_CompletedAt",
