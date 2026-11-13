@@ -47,6 +47,7 @@ public sealed class RecurrenceReconciliationWorkerTests : IAsyncLifetime
 		services.AddScoped<IRecurringTaskStore, RecurringTaskStore>();
 		services.AddScoped<IRecurrenceCalculator, RecurrenceCalculator>();
 		services.AddScoped<IRecurringTaskLifecycle, RecurringTaskLifecycle>();
+		services.AddScoped<IRecurringTaskSuccessors, RecurringTaskSuccessors>();
 		services.AddSingleton<RecurrenceReconciliationWorker>();
 		_services = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = true });
 		using var scope = _services.CreateScope();
@@ -140,6 +141,46 @@ public sealed class RecurrenceReconciliationWorkerTests : IAsyncLifetime
 			await tx.Should().ThrowAsync<KeyNotFoundException>();
 		}
 		(await Read(a)).Facts.Should().BeEmpty(); (await Read(b)).Facts.Should().BeEmpty();
+	}
+
+	[Fact]
+	public async Task SuccessorPreviewAndApplyUseOnlyTheAuthenticatedTenantAndIsolateRequestKeys()
+	{
+		var request = new RecurringSuccessorRequest(RecurringSuccessorKind.Replace, new(2026, 11, 16), ClearEndDate: true);
+		using (var scope = _services.CreateScope())
+		{
+			var service = scope.ServiceProvider.GetRequiredService<IRecurringTaskSuccessors>();
+			var preview = () => service.PreviewAsync(Guid.NewGuid(), request, Ct);
+			await preview.Should().ThrowAsync<UnauthorizedAccessException>();
+			var apply = () => service.ApplyAsync(Guid.NewGuid(), Guid.NewGuid(), request, "token", ct: Ct);
+			await apply.Should().ThrowAsync<UnauthorizedAccessException>();
+		}
+		var a = await Account("successor-owner"); var b = await Account("successor-other");
+		var taskA = await Seed(a, "UTC"); var taskB = await Seed(b, "UTC"); var key = Guid.NewGuid();
+		async Task<RecurringSuccessorResult> OwnSuccessor(User user, TaskItem task, Guid foreignId)
+		{
+			using var session = _services.GetRequiredService<IPlannerSessionContextAccessor>().BeginScope(new() { UserId = user.Id.ToString(), SessionId = "successor-test" });
+			using var scope = _services.CreateScope();
+			var service = scope.ServiceProvider.GetRequiredService<IRecurringTaskSuccessors>();
+			var foreignPreview = () => service.PreviewAsync(foreignId, request, Ct);
+			await foreignPreview.Should().ThrowAsync<KeyNotFoundException>();
+			var preview = await service.PreviewAsync(task.Id, request, Ct);
+			var foreignApply = () => service.ApplyAsync(foreignId, key, request, preview.PreviewToken, ct: Ct);
+			await foreignApply.Should().ThrowAsync<KeyNotFoundException>();
+			return await service.ApplyAsync(task.Id, key, request, preview.PreviewToken, ct: Ct);
+		}
+		var resultA = await OwnSuccessor(a, taskA, taskB.Id); var resultB = await OwnSuccessor(b, taskB, taskA.Id);
+		resultA.SuccessorTaskId.Should().NotBe(resultB.SuccessorTaskId);
+		foreach (var (user, result, foreign) in new[] { (a, resultA, resultB), (b, resultB, resultA) })
+		{
+			using var session = _services.GetRequiredService<IPlannerSessionContextAccessor>().BeginScope(new() { UserId = user.Id.ToString(), SessionId = "verify-successor" });
+			using var scope = _services.CreateScope();
+			await using var db = await scope.ServiceProvider.GetRequiredService<IPlannerDbContextFactory>().CreateAsync(Ct);
+			(await db.TaskItems.CountAsync(Ct)).Should().Be(2); (await db.TaskOccurrenceFacts.CountAsync(Ct)).Should().Be(0);
+			(await db.TaskItems.AnyAsync(t => t.Id == foreign.SuccessorTaskId, Ct)).Should().BeFalse();
+			var operation = await db.RecurringSuccessorOperations.SingleAsync(Ct);
+			operation.RequestId.Should().Be(key); operation.SuccessorTaskId.Should().Be(result.SuccessorTaskId);
+		}
 	}
 
 	[Fact]

@@ -222,9 +222,15 @@ namespace OwnPlanner.Infrastructure.Migrations
                     b.Property<DateOnly?>("RecurrenceCheckedBefore")
                         .HasColumnType("TEXT");
 
+                    b.Property<Guid?>("RecurrencePredecessorTaskId")
+                        .HasColumnType("TEXT");
+
                     b.Property<long>("RecurrenceRevision")
                         .IsConcurrencyToken()
                         .HasColumnType("INTEGER");
+
+                    b.Property<Guid?>("RecurrenceSuccessorTaskId")
+                        .HasColumnType("TEXT");
 
                     b.Property<Guid>("TaskListId")
                         .HasColumnType("TEXT");
@@ -245,6 +251,12 @@ namespace OwnPlanner.Infrastructure.Migrations
                     b.HasIndex("ActiveTaskListId");
 
                     b.HasIndex("GoalId");
+
+                    b.HasIndex("RecurrencePredecessorTaskId")
+                        .IsUnique();
+
+                    b.HasIndex("RecurrenceSuccessorTaskId")
+                        .IsUnique();
 
                     b.HasIndex("TaskListId");
 
@@ -291,6 +303,34 @@ namespace OwnPlanner.Infrastructure.Migrations
                     b.HasIndex("ContextId");
 
                     b.ToTable("TaskLists");
+                });
+
+            modelBuilder.Entity("OwnPlanner.Infrastructure.Tasks.RecurringSuccessorOperationRow", b =>
+                {
+                    b.Property<Guid>("RequestId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RequestFingerprint")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("SourceTaskId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("SuccessorTaskId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("RequestId");
+
+                    b.HasIndex("SourceTaskId")
+                        .IsUnique();
+
+                    b.HasIndex("SuccessorTaskId")
+                        .IsUnique();
+
+                    b.ToTable("RecurringSuccessorOperations", (string)null);
                 });
 
             modelBuilder.Entity("OwnPlanner.Infrastructure.Tasks.TaskOccurrenceFactRow", b =>
@@ -421,6 +461,21 @@ namespace OwnPlanner.Infrastructure.Migrations
                         .WithMany()
                         .HasForeignKey("ActiveTaskListId")
                         .OnDelete(DeleteBehavior.Cascade);
+                });
+
+            modelBuilder.Entity("OwnPlanner.Infrastructure.Tasks.RecurringSuccessorOperationRow", b =>
+                {
+                    b.HasOne("OwnPlanner.Domain.Tasks.TaskItem", null)
+                        .WithMany()
+                        .HasForeignKey("SourceTaskId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("OwnPlanner.Domain.Tasks.TaskItem", null)
+                        .WithMany()
+                        .HasForeignKey("SuccessorTaskId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("OwnPlanner.Infrastructure.Tasks.TaskOccurrenceFactRow", b =>

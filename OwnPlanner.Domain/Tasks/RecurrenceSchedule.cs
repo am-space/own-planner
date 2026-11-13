@@ -7,16 +7,31 @@ public sealed record RecurrenceSchedule
 	public DateOnly StartDate { get; }
 	public DateOnly? EndDate { get; }
 	public MissedOccurrencePolicy MissedPolicy { get; }
+	/// <summary>A retired interval can be empty after an end-only schedule replacement.</summary>
+	public bool IsEmpty => EndDate < StartDate;
 
 	public RecurrenceSchedule(RecurrenceRule rule, DateOnly startDate, DateOnly? endDate, MissedOccurrencePolicy missedPolicy)
+		: this(rule, startDate, endDate, missedPolicy, false) { }
+
+	private RecurrenceSchedule(RecurrenceRule rule, DateOnly startDate, DateOnly? endDate,
+		MissedOccurrencePolicy missedPolicy, bool retired)
 	{
 		ArgumentNullException.ThrowIfNull(rule);
-		if (endDate < startDate) throw new ArgumentException("End date cannot precede start date.", nameof(endDate));
+		if (!retired && endDate < startDate) throw new ArgumentException("End date cannot precede start date.", nameof(endDate));
 		if (!Enum.IsDefined(missedPolicy)) throw new ArgumentOutOfRangeException(nameof(missedPolicy));
 		Rule = rule;
 		StartDate = startDate;
 		EndDate = endDate;
 		MissedPolicy = missedPolicy;
+	}
+
+	/// <summary>Bounds generation before a successor without extending an earlier end or changing the rule/anchor.</summary>
+	/// <remarks>Unlike creation, retiring an existing series may leave an empty interval.</remarks>
+	public RecurrenceSchedule ShortenBefore(DateOnly successorStart)
+	{
+		if (successorStart == DateOnly.MinValue) throw new ArgumentOutOfRangeException(nameof(successorStart));
+		var end = successorStart.AddDays(-1);
+		return new(Rule, StartDate, EndDate is { } existing && existing < end ? existing : end, MissedPolicy, true);
 	}
 }
 

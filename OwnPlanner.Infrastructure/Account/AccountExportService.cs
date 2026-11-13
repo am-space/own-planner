@@ -119,6 +119,7 @@ public sealed class AccountExportService(IPlannerDbContextFactory dbContextFacto
 		  - TaskLists        : your task lists
 		  - TaskItems        : the tasks within those lists
 		  - TaskOccurrenceFacts : recorded recurring-task outcomes and actual completion instants
+		  - RecurringSuccessorOperations : successful schedule-change request identifiers and hashes
 		  - NoteLists        : your note lists
 		  - NoteItems        : the notes within those lists
 

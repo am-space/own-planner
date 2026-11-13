@@ -46,15 +46,23 @@ and `RecurrenceRevision` defaults to zero. No AuthDbContext migration or data ba
 | `TaskItems.RecurrenceCheckedBefore` | Nullable ISO DateOnly exclusive processed-prefix boundary; no user-visible UpdatedAt change for checkpoint-only progress |
 | `TaskItems.RecurrenceCalendarKey` | Resolved timezone/week-start configuration; a changed key rescans from the original start without deleting facts |
 | `TaskItems.RecurrenceRevision` | Integer concurrency token advanced on recurring task writes, including bulk restore/goal-link operations |
+| `TaskItems.RecurrencePredecessorTaskId` / `RecurrenceSuccessorTaskId` | Nullable soft GUID links with individual unique indexes; identify one linear continuation without cascading deletion across series |
 | `TaskOccurrenceFacts` | Composite primary key `(TaskId, OccurrenceDate)`; DateOnly `YYYY-MM-DD`, Status Completed=0/Skipped=1/Cancelled=2, nullable actual UTC ISO `CompletedAt` |
+| `RecurringSuccessorOperations` | Tenant-local GUID `RequestId` primary key, unique source/successor task IDs and a 64-character SHA-256 request fingerprint; no copied task text or facts |
 
 A check constraint rejects undefined fact statuses and requires a completion timestamp exactly for
 Completed. An index on CompletedAt supports later completion-activity queries. There are no pending
 rows. Facts cascade from their TaskItem on permanent deletion or active-list cascade deletion;
 Trash clears the existing active-list relationship and preserves facts. Restoring a recurring task
-does not reopen it. Recurring administrative closure leaves parent CompletedAt null. Schedule JSON
-is immutable in this stage; successor changes arrive in stage 3. Export's SQLite snapshot includes
-these tables and columns automatically; account erasure removes the user database as before.
+does not reopen it. Recurring administrative closure leaves parent CompletedAt null.
+`AddRecurringSuccessors` adds only the nullable links and request ledger to AppDbContext, preserving
+existing tasks, recurrence JSON and facts. Replacement changes only the old schedule's inclusive end
+to the earlier of its existing end and the successor start minus one day. Retired empty ranges may
+have end before start; ordinary/new schedule construction remains strict. The original rule/start/
+policy and all facts retain their identities, including facts outside shortened bounds.
+Successful request records commit with both linked tasks and cascade away when either task is
+permanently removed; the soft links do not cascade into a neighboring series. Export's SQLite
+snapshot includes these tables and columns automatically; account erasure removes the user database as before.
 See [recurring tasks](recurring-tasks.md) for transaction, reconciliation and activation rules.
 
 ## Weekly review data

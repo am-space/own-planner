@@ -31,6 +31,17 @@ internal sealed record RecurrenceStorage(RecurrenceFrequency Frequency, int Inte
 			RecurrenceFrequency.Monthly => RecurrenceRule.Monthly(row.Interval, row.MonthDays),
 			_ => throw new InvalidOperationException("Invalid stored recurrence frequency.")
 		};
-		return new(rule, row.StartDate, row.EndDate, row.MissedPolicy);
+		return row.EndDate < row.StartDate
+			? new RecurrenceSchedule(rule, row.StartDate, null, row.MissedPolicy).ShortenBefore(row.EndDate.Value.AddDays(1))
+			: new(rule, row.StartDate, row.EndDate, row.MissedPolicy);
 	}
+}
+
+/// <summary>Tenant-local successful successor request; contains identifiers and a hash, no copied task content.</summary>
+public sealed class RecurringSuccessorOperationRow
+{
+	public Guid RequestId { get; set; }
+	public Guid SourceTaskId { get; set; }
+	public Guid SuccessorTaskId { get; set; }
+	public string RequestFingerprint { get; set; } = string.Empty;
 }
