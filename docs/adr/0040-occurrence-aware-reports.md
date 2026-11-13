@@ -21,6 +21,9 @@ Add `ReportWork` to General (UTC and requested local calendar), Day Work, Genera
 Week Planning, Reflection and strategic reports. Preserve legacy stored-task fields and GUID
 samples. Reflection completed/missed-focus counts describe ordinary tasks; recurring-parent
 closure is excluded from all completed-work counts, including General's manual-focus summary.
+Ordinary selection and representative dates use the original report range even when occurrence
+generation expands earlier. The shared ordinary projection preserves focus-in-range precedence,
+then local-deadline selection, so older focus dates cannot hide in-window commitments.
 
 `Pending`, `Scheduled` and `CompletionActivity` are separate, overlapping selections with explicit
 calendar/UTC bounds. Pending includes unresolved retained work without a lookback cap and earlier

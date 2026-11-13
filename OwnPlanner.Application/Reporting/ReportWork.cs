@@ -65,9 +65,17 @@ public static class ReportWorkBuilder
 			.Select(f => RecurrenceCalendar.PeriodContaining(f, calendar.Today, calendar).Dates)
 			.Where(p => p.StartDate < range.EndExclusiveDate && p.EndExclusiveDate > range.StartDate)
 			.Select(p => p.StartDate).Append(range.StartDate).Min();
+		var ordinaryQuery = new PlanningWorkQuery(range);
 		await PlanningWorkReader.VisitAsync(new(new(currentStart, range.EndExclusiveDate),
 			IncludeRetainedBeforeStart: true, Status: null), calendar, snapshot, calculator, (item, source) =>
 		{
+			if (item.Kind == PlanningWorkKind.OrdinaryTask)
+			{
+				// Earlier occurrence dates must not make an out-of-window focus hide a selected deadline.
+				var ordinary = PlanningWorkReader.ProjectOrdinary(source, ordinaryQuery, calendar);
+				if (ordinary is null) return;
+				item = ordinary;
+			}
 			var inside = item.WorkDate >= range.StartDate && item.WorkDate < range.EndExclusiveDate;
 			if (item.Status == PlanningWorkStatus.Pending && (inside || item.Kind == PlanningWorkKind.Occurrence)) Add(0, item, source, item.WorkDate);
 			// Recorded facts are added independently, including closed and shortened predecessors.

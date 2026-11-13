@@ -67,6 +67,54 @@ public sealed class RecurringReportReaderTests : IAsyncLifetime
 	};
 
 	[Theory]
+	[InlineData("general", "UTC", 7)]
+	[InlineData("calendar", "UTC", 7)]
+	[InlineData("attention", "UTC", 7)]
+	[InlineData("day", "UTC", 7)]
+	[InlineData("week", "UTC", 7)]
+	[InlineData("reflection", "UTC", 7)]
+	[InlineData("strategic", "UTC", 7)]
+	[InlineData("general", "America/Los_Angeles", 7)]
+	[InlineData("calendar", "America/Los_Angeles", 7)]
+	[InlineData("attention", "America/Los_Angeles", 7)]
+	[InlineData("day", "America/Los_Angeles", 7)]
+	[InlineData("week", "America/Los_Angeles", 7)]
+	[InlineData("reflection", "America/Los_Angeles", 7)]
+	[InlineData("strategic", "America/Los_Angeles", 7)]
+	[InlineData("day", "UTC", 13)]
+	public async Task EarlierFocusCannotHideAnInWindowOrdinaryDeadlineWhenOccurrenceRangeExpands(string kind, string zone, int focusDay)
+	{
+		_db.WeeklyReviewPreferences.Add(new() { Enabled = false, TimeZoneId = zone, WeekStart = 1 });
+		await _db.SaveChangesAsync(Ct);
+		var series = await Series();
+		// General's root remains UTC; local reports must select November 15 even when UTC says November 16.
+		var due = zone == "UTC" || kind == "general" ? Utc(15, 20) : Utc(16, 2);
+		var ordinary = new TaskItem("Earlier focus, deadline in range", _list.Id, dueAt: due, goalId: _goal.Id);
+		ordinary.SetFocusAt(Utc(focusDay));
+		var outside = new TaskItem("Outside report", _list.Id, dueAt: Utc(7, 20)); outside.SetFocusAt(Utc(7));
+		_db.AddRange(ordinary, outside); await _db.SaveChangesAsync(Ct);
+		var work = await Read(kind);
+		work.Pending.Counts.Should().Be(new PlanningWorkCounts(1, 1, 2));
+		work.Scheduled.Counts.OrdinaryTaskCount.Should().Be(1);
+		foreach (var section in new[] { work.Pending, work.Scheduled })
+		{
+			section.Samples.Should().ContainSingle(s => s.TaskId == ordinary.Id && s.OccurrenceDate == null && s.SelectionDate == new DateOnly(2026, 11, 15));
+			section.Samples.Should().NotContain(s => s.TaskId == outside.Id);
+		}
+		work.Sources.Single(s => s.TaskId == ordinary.Id).FocusAt.Should().Be(Utc(focusDay));
+		work.Sources.Single(s => s.TaskId == ordinary.Id).DueAt.Should().Be(due);
+		work.Pending.Samples.Where(s => s.TaskId == series.Id).Select(s => s.OccurrenceDate)
+			.Should().Equal(new DateOnly(2026, 11, 13), new(2026, 11, 15));
+		work.Days.Single(d => d.Date == new DateOnly(2026, 11, 15)).Pending.Counts.OrdinaryTaskCount.Should().Be(1);
+		if (kind is "week" or "reflection" or "strategic")
+		{
+			work.Goals.Single().Pending.Counts.Should().Be(work.Pending.Counts);
+			work.Contexts.Single().Pending.Counts.Should().Be(work.Pending.Counts);
+		}
+		(await _db.TaskOccurrenceFacts.CountAsync(Ct)).Should().Be(0);
+	}
+
+	[Theory]
 	[InlineData("general")]
 	[InlineData("calendar")]
 	[InlineData("attention")]

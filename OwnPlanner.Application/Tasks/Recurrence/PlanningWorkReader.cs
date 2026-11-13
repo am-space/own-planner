@@ -72,24 +72,8 @@ public sealed class PlanningWorkReader(IPlanningWorkStore store, IPlanningCalend
 	{
 		if (source.Schedule is not { } schedule)
 		{
-			var focus = source.FocusAt is { } f ? DateOnly.FromDateTime(f) : (DateOnly?)null;
-			var due = source.DueAt is { } d ? DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(d,
-				TimeZoneInfo.FindSystemTimeZoneById(snapshot.TimeZone))) : (DateOnly?)null;
-			var focusMatches = InRange(focus, query.Range); var dueMatches = InRange(due, query.Range);
-			var selected = query.OrdinaryTasks switch
-			{
-				OrdinaryTaskSelection.AllOpen => true,
-				OrdinaryTaskSelection.FocusInRange => focusMatches,
-				OrdinaryTaskSelection.DeadlineInRange => dueMatches,
-				OrdinaryTaskSelection.FocusOrDeadlineInRange => focusMatches || dueMatches,
-				_ => false
-			};
-			if (selected)
-			{
-				var date = query.OrdinaryTasks == OrdinaryTaskSelection.DeadlineInRange ? due
-					: focusMatches ? focus : dueMatches ? due : focus ?? due;
-				yield return new(source.TaskId, PlanningWorkKind.OrdinaryTask, date, null, null, PlanningWorkStatus.Pending, null);
-			}
+			var ordinary = ProjectOrdinary(source, query, snapshot);
+			if (ordinary is not null) yield return ordinary;
 			yield break;
 		}
 		var start = query.IncludeRetainedBeforeStart && schedule.MissedPolicy == MissedOccurrencePolicy.RetainEachObligation
@@ -109,6 +93,31 @@ public sealed class PlanningWorkReader(IPlanningWorkStore store, IPlanningCalend
 				? PlanningWorkStatus.Skipped : PlanningWorkStatus.Pending;
 			yield return new(source.TaskId, PlanningWorkKind.Occurrence, date, date, period, status, fact?.CompletedAt);
 		}
+	}
+
+	/// <summary>Selects an ordinary row and its representative date against the supplied range.
+	/// Reports reuse this with their original range when occurrence generation expands earlier.</summary>
+	internal static PlanningWorkItem? ProjectOrdinary(PlanningWorkSource source, PlanningWorkQuery query, PlanningPeriod snapshot)
+	{
+		var focus = source.FocusAt is { } f ? DateOnly.FromDateTime(f) : (DateOnly?)null;
+		var due = source.DueAt is { } d ? DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(d,
+			TimeZoneInfo.FindSystemTimeZoneById(snapshot.TimeZone))) : (DateOnly?)null;
+		var focusMatches = InRange(focus, query.Range); var dueMatches = InRange(due, query.Range);
+		var selected = query.OrdinaryTasks switch
+		{
+			OrdinaryTaskSelection.AllOpen => true,
+			OrdinaryTaskSelection.FocusInRange => focusMatches,
+			OrdinaryTaskSelection.DeadlineInRange => dueMatches,
+			OrdinaryTaskSelection.FocusOrDeadlineInRange => focusMatches || dueMatches,
+			_ => false
+		};
+		if (selected)
+		{
+			var date = query.OrdinaryTasks == OrdinaryTaskSelection.DeadlineInRange ? due
+				: focusMatches ? focus : dueMatches ? due : focus ?? due;
+			return new(source.TaskId, PlanningWorkKind.OrdinaryTask, date, null, null, PlanningWorkStatus.Pending, null);
+		}
+		return null;
 	}
 
 	private static bool InRange(DateOnly? date, OccurrenceDateRange range) => date >= range.StartDate && date < range.EndExclusiveDate;

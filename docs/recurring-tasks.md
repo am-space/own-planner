@@ -314,6 +314,10 @@ the exact instant boundaries shown in the report.
 | `Scheduled` | Original occurrence dates inside `ScheduledRange`, plus ordinary focus/deadline selection; calculated effective outcomes union independent recorded facts, with each fact taking precedence once |
 | `CompletionActivity` | Ordinary completions plus occurrence facts whose actual `CompletedAt` lies in `[ActivityStartUtc, ActivityEndExclusiveUtc)` |
 
+Ordinary selection and its representative date always use the original report range: an in-range
+focus date takes precedence, otherwise an in-range local deadline date selects the task. Expanding
+the occurrence window must not allow an older focus date to hide a deadline inside the report.
+
 Sections overlap and must not be summed. `Counts` distinguishes ordinary tasks, distinct series,
 occurrences, stored sources (`TaskCount`) and work items (`WorkItemCount`). Status counters describe
 work items, including explicit `PendingOccurrenceCount`; `BeforeWindowCount` discloses backlog.

@@ -393,3 +393,29 @@ bounded; exact counting may scan the full retained prefix. The overall plan stay
   only; no live-model evaluation. Dependencies were already prepared and did not change.
 - Documentation relative paths and final staged whitespace validation passed. No public recurrence
   activation, issue/project edits, release or deployment is part of this stage.
+
+### PR #101 ordinary-date review fix plan
+
+Review comment `4563499406`: expanding the recurrence window can select an ordinary task's
+older focus date, hiding its in-window deadline from both Pending and Scheduled. Reuse the shared
+ordinary selection against the original report range, while preserving the expanded occurrence
+range, retained prefix, one snapshot and exact combined aggregation. Extract the existing ordinary
+projection into an internal helper; do not add transport fields, storage changes or new queries.
+Add cross-report regressions for earlier focus/in-window due dates, UTC/local deadline dates,
+excluded ordinary work and mixed occurrence counts; prove failure before the fix. Then run focused
+report/projection checks and `./scripts/verify.sh --all`, inspect the diff, push and reply inline.
+
+Distinct review before code: Application selection and its Infrastructure tests/docs are affected;
+Domain, persistence schema, HTTP/MCP/stdio shapes, host wiring, frontend and review workflow are
+unchanged. Shared ordinary precedence remains focus-in-original-range, otherwise local due date;
+completed ordinary selection already uses the original range. Recurrence generation and retention
+must remain unchanged. No product ambiguity or dependency change requires user input.
+
+Review-fix evidence: all 15 new cross-report cases failed before the change because ordinary
+counts were zero; all pass after reusing the original-range ordinary projection. The 42-case
+recurring-report class passes, including unchanged retained/current-period occurrence coverage.
+Final `./scripts/verify.sh --all` passes frontend lint/build, all 1,210 backend cases (Domain 65,
+Application 459, Infrastructure 443, MCP 99, Web 144) and all 32 browser E2E cases. Only existing
+bundle-size and ASP.NET test-host deprecation warnings remain. No live-model evaluation or
+additional database queries. Completed diff review, documentation path checks and whitespace
+validation passed; no schema, transport or stored-date changes.
