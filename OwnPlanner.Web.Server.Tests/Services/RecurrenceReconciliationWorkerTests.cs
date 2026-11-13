@@ -48,6 +48,9 @@ public sealed class RecurrenceReconciliationWorkerTests : IAsyncLifetime
 		services.AddScoped<IRecurrenceCalculator, RecurrenceCalculator>();
 		services.AddScoped<IRecurringTaskLifecycle, RecurringTaskLifecycle>();
 		services.AddScoped<IRecurringTaskSuccessors, RecurringTaskSuccessors>();
+		services.AddScoped<IPlanningWorkStore, PlanningWorkStore>();
+		services.AddScoped<IPlanningWorkReader, PlanningWorkReader>();
+		services.AddScoped<ITaskOccurrenceHistory, TaskOccurrenceHistory>();
 		services.AddSingleton<RecurrenceReconciliationWorker>();
 		_services = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = true });
 		using var scope = _services.CreateScope();
@@ -180,6 +183,54 @@ public sealed class RecurrenceReconciliationWorkerTests : IAsyncLifetime
 			(await db.TaskItems.AnyAsync(t => t.Id == foreign.SuccessorTaskId, Ct)).Should().BeFalse();
 			var operation = await db.RecurringSuccessorOperations.SingleAsync(Ct);
 			operation.RequestId.Should().Be(key); operation.SuccessorTaskId.Should().Be(result.SuccessorTaskId);
+		}
+	}
+
+	[Fact]
+	public async Task PlanningAndEveryHistoryReadRequireAuthenticationAndIsolateBothTenants()
+	{
+		var range = new OccurrenceDateRange(new(2026, 11, 9), new(2026, 11, 23));
+		var historyQuery = new OccurrenceHistoryQuery(OccurrenceHistoryBasis.ScheduledDate, range);
+		using (var scope = _services.CreateScope())
+		{
+			var reader = scope.ServiceProvider.GetRequiredService<IPlanningWorkReader>();
+			var history = scope.ServiceProvider.GetRequiredService<ITaskOccurrenceHistory>();
+			var planning = () => reader.QueryAsync(new(range), Ct);
+			await planning.Should().ThrowAsync<UnauthorizedAccessException>();
+			var facts = () => history.QueryAsync(historyQuery, Ct);
+			await facts.Should().ThrowAsync<UnauthorizedAccessException>();
+			var get = () => history.GetAsync(new(Guid.NewGuid(), new(2026, 11, 13)), Ct);
+			await get.Should().ThrowAsync<UnauthorizedAccessException>();
+		}
+		var a = await Account("read-owner"); var b = await Account("read-other");
+		var taskA = await Seed(a, "Asia/Tokyo"); var taskB = await Seed(b, "America/Los_Angeles");
+		foreach (var (user, task, foreignId, zone) in new[]
+		{
+			(a, taskA, taskB.Id, "Asia/Tokyo"), (b, taskB, taskA.Id, "America/Los_Angeles")
+		})
+		{
+			using var session = _services.GetRequiredService<IPlannerSessionContextAccessor>().BeginScope(new() { UserId = user.Id.ToString(), SessionId = "work-reads" });
+			using var scope = _services.CreateScope();
+			await using var db = await scope.ServiceProvider.GetRequiredService<IPlannerDbContextFactory>().CreateAsync(Ct);
+			db.TaskOccurrenceFacts.Add(new() { TaskId = task.Id, OccurrenceDate = new(2026, 11, 13),
+				Status = TaskOccurrenceStatus.Completed, CompletedAt = _clock.Now });
+			var ordinary = new TaskItem("Own ordinary task", task.TaskListId); ordinary.SetFocusAt(_clock.Now);
+			db.Add(ordinary); await db.SaveChangesAsync(Ct);
+			var reader = scope.ServiceProvider.GetRequiredService<IPlanningWorkReader>();
+			var history = scope.ServiceProvider.GetRequiredService<ITaskOccurrenceHistory>();
+			var page = await reader.QueryAsync(new(range, Status: null), Ct);
+			page.TotalCount.Should().Be(2); page.Sources.Select(s => s.TaskId).Should().BeEquivalentTo(new[] { task.Id, ordinary.Id });
+			page.Calendar.TimeZone.Should().Be(zone);
+			(await reader.QueryAsync(new(range, TaskId: foreignId, Status: null), Ct)).TotalCount.Should().Be(0);
+			var facts = await history.QueryAsync(historyQuery, Ct);
+			facts.Items.Should().ContainSingle().Which.Fact.Id.TaskId.Should().Be(task.Id);
+			facts.Calendar.TimeZone.Should().Be(zone);
+			(await history.GetAsync(new(foreignId, new(2026, 11, 13)), Ct)).Should().BeNull();
+			(await history.ListByScheduledDateAsync(range, foreignId, 0, 100, Ct)).TotalCount.Should().Be(0);
+			(await history.ListByCompletionAsync(_clock.Now.AddHours(-1), _clock.Now.AddHours(1), foreignId, 0, 100, Ct)).TotalCount.Should().Be(0);
+			(await history.ListByCompletionAsync(_clock.Now.AddHours(-1), _clock.Now.AddHours(1), null, 0, 100, Ct))
+				.Items.Should().ContainSingle().Which.Id.TaskId.Should().Be(task.Id);
+			(await db.TaskOccurrenceFacts.CountAsync(Ct)).Should().Be(1);
 		}
 	}
 

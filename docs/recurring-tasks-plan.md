@@ -1,6 +1,6 @@
 # Calendar-based recurring tasks implementation plan
 
-**Status:** Active — stages 1–2 (#89/#90) merged; stage 3 (#91) implemented in this change; stages 4–8 remain unimplemented.\
+**Status:** Active — stages 1–3 (#89–#91) merged; stage 4 (#92) implemented in this change; stages 5–8 remain unimplemented.\
 **Contract:** [#84](https://github.com/am-space/own-planner/issues/84), including the November 12 decisions.\
 **Outcome:** Represent each recurring series with one task, compute its calendar occurrences, and
 preserve occurrence facts and predecessor history across schedule changes.
@@ -138,6 +138,90 @@ Validation: setup, matching focused projects, upgrade/concurrency/two-user worke
 `./scripts/verify.sh --all`; inspect generated SQL/snapshot, complete diff and documentation links.
 
 ## Progress and evidence
+
+### Stage 4 reviewed implementation plan
+
+Outcome: provide tenant-bound, read-only mixed work-item pages and independent fact history,
+with exact counts and full access to retained obligations across pages.
+
+| Acceptance | Implementation and verification |
+| --- | --- |
+| Deterministic mixed pages and exact identities/counts | Application projection merges ordered ordinary/occurrence streams, filters before counting/paging, and counts distinct ordinary tasks/series separately; mixed, tie, filter and page-union tests |
+| Retained older work remains reachable without pending storage | Explicit IncludeRetainedBeforeStart scans each retain series from its original start, subtracting all facts, without a lookback cap; lazy merge bounds generated-row memory; multi-decade paged regression and storage checks |
+| Preserved facts outside generation bounds | Independent scheduled-date and CompletedAt history selections, never regenerated from rules; shortened/closed predecessor and early/late completion tests |
+| Active eligibility versus historical access | Active planning excludes closed parents, Trash and archived/missing lists; history includes closed/predecessor facts but keeps the same Trash/list restrictions; eligibility matrix |
+| Explicit bounds and disclosed paging | Required half-open ranges, maximum 3,660 date days / 3,660 elapsed days for instant history, page limit 100, nonnegative offset; exact total and HasMore, no hidden truncation; validation/empty/end-page tests |
+| Tenant and snapshot consistency | Immutable source/fact snapshots under one tenant-local transaction and one resolved calendar per call; no reconciliation/save; independent-connection, calendar/DST/fallback and authenticated two-user tests |
+
+Impact: Application (query contracts, projection/history services, read snapshot port); Infrastructure
+(tenant-bound snapshot adapter); Web/stdio (internal DI only); Application/Infrastructure/Web tests;
+reference/index and accepted ADR. Domain, migrations, TaskItemRepository legacy contracts, report
+presentation/input wiring, MCP schemas, Console behavior and frontend are unchanged. Reports consume
+these new inputs in #93; public creation/exposure remains gated through later stages.
+
+Order: immutable source/query/page models and validated Application readers; Infrastructure snapshot
+adapter; focused projection/history/storage tests; host wiring/isolation; reference/ADR; full gate.
+Reuse RecurrenceCalculator, RecurrenceCalendar, PlanningCalendar and existing transactional readers.
+
+Distinct plan review completed before feature implementation: all six acceptance items map above;
+business rules stay in Application and persistence remains tenant-factory-bound. Existing history
+methods remain supported; add a richer query page carrying selection/calendar/period/source metadata.
+Ordinary selection is explicit (all open, focus, deadline, or either); focus is a calendar date and
+deadlines are converted through the resolved timezone solely for selection/order. Ordinary tasks
+appear once. Occurrence rows use only their original date and composite identity; parent focus and
+deadline appear once in the page's distinct source metadata, not as occurrence deadlines. Active
+planning defaults to pending work; explicit status filters can expose effective terminal statuses
+within the window. Historical reads return recorded facts only, including advance facts outside
+retired bounds. Before-window retention adds unresolved retain-policy work only. Ordering is work
+date (undated last), task ID, then kind. Exact counts require scanning all matches; generated rows
+are merged lazily rather than accumulated. Pages are consistent per call, not frozen across later
+mutations; returning calendar metadata makes that scope explicit. No tenant selector, mutation,
+external schema change, dependency or unrelated cleanup. Complete calendar periods must remain
+representable under existing date-limit rules. The overall #84 plan stays active through #96.
+
+### Stage 4 evidence
+
+PR #100 task-filter review plan: narrow the loaded sources by optional TaskId before deriving the
+retained fact range or creating occurrence streams. Keep the combined row filters, exact counts,
+ordering and pagination unchanged. Add Application regressions with an unrelated decades-old daily
+series and selected recurring, ordinary and unknown IDs, across consecutive pages. Verify only the
+selected schedule is enumerated and the fact range starts at its own retained boundary (or the
+requested window for ordinary/unknown IDs); unfiltered queries still include all sources. Review:
+limited to Application and its tests plus read-contract documentation, with no schema, tenant,
+transport or host changes. Run regressions before/after the fix, then full verification before
+pushing and replying to the authorized review thread.
+
+- Intake: #92/#84, merged predecessors and ADRs reviewed; clean branch
+  `feature/recurrence-planning-queries` created from merged #99 (`efc1f75`). No issue/project state edits.
+- Application implements mixed work and rich/fact-only history reads over an immutable snapshot port.
+  Generated work is lazily merged before filtering/counting/paging; metadata contains one parent
+  deadline per distinct source. Retained prefixes have no lookback cap or pending storage.
+- Infrastructure uses the authenticated tenant factory and one transaction without tracking/saving.
+  No migration, legacy TaskItemRepository, report, public MCP/HTTP or frontend contract changes.
+- 42 added backend cases: Application 16 validation and 4 task-filter cases, Infrastructure 21 projection/history
+  cases, Web 1 authenticated two-user case. Evidence includes mixed/tied pages and page unions,
+  exact source/work counts, combined filters, 36 years of retained daily obligations, both policies,
+  Sunday current/next coexistence, monthly clamping, full periods, source deadline/focus separation,
+  early/late completion, scheduled versus activity selection, DST 167-hour weeks / 25-hour days,
+  half-open instant boundaries, terminal-fact precedence, out-of-rule/out-of-bounds/empty-retired
+  history, closure/Trash/archive access, extreme dates, read-only checkpoints/facts and a concurrent
+  writer blocked while source/fact reads share a snapshot. Each query resolves one calendar.
+- Distinct completed-diff review checked identities, ordering, filter/count/page order, source versus
+  work counts, null/invalid selections, cancellation, tenant-factory use, lifetime/disposal, no writes,
+  public activation gates and unchanged legacy contracts. Reference/index and accepted ADR-0039
+  describe actual behavior and limits; overall #84 plan remains active through #96.
+- Final contract review added a regression that failed because SQLite materializes legacy deadlines
+  with DateTimeKind.Unspecified. The new source adapter now restores the UTC marker, preserving the
+  instant without changing legacy persistence/DTO behavior; the regression passed after the fix.
+- PR #100 regressions: recurring, ordinary and unknown task-ID cases failed before the fix because
+  unrelated 1990 history widened their fact ranges; the unfiltered control passed. All four pass
+  after narrowing sources, checking both fact bounds and calculator calls across consecutive pages.
+- Focused checks passed: Application 20, Infrastructure 21 and Web recurrence host 5 cases.
+  Final `./scripts/verify.sh --all` after the UTC-marker and task-ID review refinements passed frontend lint/build,
+  all 1,158 backend cases (Domain 65, Application 459, Infrastructure 401, MCP 95, Web 138) and all
+  32 browser E2E cases. Existing frontend chunk-size and ASP.NET test-host deprecation warnings
+  remain. Dependencies were already prepared and unchanged. No live-model evaluation; browser
+  checks use the existing scripted provider. Documentation links and staged whitespace checks passed.
 
 ### Stage 3 reviewed implementation plan
 

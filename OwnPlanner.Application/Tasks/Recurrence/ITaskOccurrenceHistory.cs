@@ -2,12 +2,18 @@ using OwnPlanner.Domain.Tasks;
 
 namespace OwnPlanner.Application.Tasks.Recurrence;
 
-/// <summary>Future read-only, tenant-bound access to recorded facts independently of generation rules.</summary>
-/// <remarks>No implementation is registered in stage 1. Implementations retain facts outside shortened
+/// <summary>Read-only, tenant-bound access to recorded facts independently of generation rules.</summary>
+/// <remarks>Implementations retain facts outside shortened
 /// bounds and on completed/predecessor series, subject to existing Trash/list access restrictions.
 /// No query reconciles expiry, writes facts or closes a parent. Counts and pages use one read snapshot.</remarks>
 public interface ITaskOccurrenceHistory
 {
+	/// <summary>Returns recorded facts, scheduled periods, source metadata and the resolved calendar.
+	/// Exactly one bounded scheduled-date or completion-time selection is required. Order is scheduled
+	/// date then task ID, or CompletedAt then task ID then scheduled date, according to the basis.
+	/// Maximum page size is 100; maximum selection span is 3,660 days. No reconciliation occurs.</summary>
+	Task<OccurrenceHistoryPage> QueryAsync(OccurrenceHistoryQuery query, CancellationToken ct = default);
+
 	/// <summary>Gets a recorded fact by original identity, or null when unavailable; never regenerates it from a rule.</summary>
 	Task<TaskOccurrenceFact?> GetAsync(TaskOccurrenceId id, CancellationToken ct = default);
 
