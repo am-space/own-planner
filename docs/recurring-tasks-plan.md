@@ -181,6 +181,16 @@ representable under existing date-limit rules. The overall #84 plan stays active
 
 ### Stage 4 evidence
 
+PR #100 task-filter review plan: narrow the loaded sources by optional TaskId before deriving the
+retained fact range or creating occurrence streams. Keep the combined row filters, exact counts,
+ordering and pagination unchanged. Add Application regressions with an unrelated decades-old daily
+series and selected recurring, ordinary and unknown IDs, across consecutive pages. Verify only the
+selected schedule is enumerated and the fact range starts at its own retained boundary (or the
+requested window for ordinary/unknown IDs); unfiltered queries still include all sources. Review:
+limited to Application and its tests plus read-contract documentation, with no schema, tenant,
+transport or host changes. Run regressions before/after the fix, then full verification before
+pushing and replying to the authorized review thread.
+
 - Intake: #92/#84, merged predecessors and ADRs reviewed; clean branch
   `feature/recurrence-planning-queries` created from merged #99 (`efc1f75`). No issue/project state edits.
 - Application implements mixed work and rich/fact-only history reads over an immutable snapshot port.
@@ -188,7 +198,7 @@ representable under existing date-limit rules. The overall #84 plan stays active
   deadline per distinct source. Retained prefixes have no lookback cap or pending storage.
 - Infrastructure uses the authenticated tenant factory and one transaction without tracking/saving.
   No migration, legacy TaskItemRepository, report, public MCP/HTTP or frontend contract changes.
-- 38 added backend cases: Application 16 validation cases, Infrastructure 21 projection/history
+- 42 added backend cases: Application 16 validation and 4 task-filter cases, Infrastructure 21 projection/history
   cases, Web 1 authenticated two-user case. Evidence includes mixed/tied pages and page unions,
   exact source/work counts, combined filters, 36 years of retained daily obligations, both policies,
   Sunday current/next coexistence, monthly clamping, full periods, source deadline/focus separation,
@@ -203,9 +213,12 @@ representable under existing date-limit rules. The overall #84 plan stays active
 - Final contract review added a regression that failed because SQLite materializes legacy deadlines
   with DateTimeKind.Unspecified. The new source adapter now restores the UTC marker, preserving the
   instant without changing legacy persistence/DTO behavior; the regression passed after the fix.
-- Focused checks passed: Application 16, Infrastructure 21 and Web recurrence host 5 cases.
-  Final `./scripts/verify.sh --all` after the UTC-marker refinement passed frontend lint/build,
-  all 1,154 backend cases (Domain 65, Application 455, Infrastructure 401, MCP 95, Web 138) and all
+- PR #100 regressions: recurring, ordinary and unknown task-ID cases failed before the fix because
+  unrelated 1990 history widened their fact ranges; the unfiltered control passed. All four pass
+  after narrowing sources, checking both fact bounds and calculator calls across consecutive pages.
+- Focused checks passed: Application 20, Infrastructure 21 and Web recurrence host 5 cases.
+  Final `./scripts/verify.sh --all` after the UTC-marker and task-ID review refinements passed frontend lint/build,
+  all 1,158 backend cases (Domain 65, Application 459, Infrastructure 401, MCP 95, Web 138) and all
   32 browser E2E cases. Existing frontend chunk-size and ASP.NET test-host deprecation warnings
   remain. Dependencies were already prepared and unchanged. No live-model evaluation; browser
   checks use the existing scripted provider. Documentation links and staged whitespace checks passed.

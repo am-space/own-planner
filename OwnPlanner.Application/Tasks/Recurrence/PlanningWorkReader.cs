@@ -16,7 +16,8 @@ public sealed class PlanningWorkReader(IPlanningWorkStore store, IPlanningCalend
 		var snapshot = await calendar.ResolveAsync("today", ct);
 		return await store.ReadAsync(async (read, token) =>
 		{
-			var sources = await read.GetSourcesAsync(false, token);
+			var sources = (await read.GetSourcesAsync(false, token))
+				.Where(s => !query.TaskId.HasValue || s.TaskId == query.TaskId.Value).ToArray();
 			// Include the complete retained prefix, even when the requested window is far in the future.
 			var first = query.IncludeRetainedBeforeStart
 				? sources.Where(s => s.Schedule?.MissedPolicy == MissedOccurrencePolicy.RetainEachObligation)

@@ -241,6 +241,8 @@ Those assignments are current metadata, not historical snapshots. A parent deadl
 one deadline per occurrence, and a recurring parent is never an additional ordinary work row.
 
 The reader lazily merges source streams by work date, task ID and kind, with undated work last.
+Task-ID selections narrow sources before retained-prefix calculation and occurrence enumeration,
+so unrelated histories are not scanned for a targeted recurring, ordinary or unknown task.
 Status, kind, task/list/context/goal, importance and case-insensitive title/description filters apply
 to the combined stream before exact counting and paging. Null status selects all effective statuses;
 the default is `Pending`. Facts take precedence over computed expiry. Unrecorded expired skip-policy

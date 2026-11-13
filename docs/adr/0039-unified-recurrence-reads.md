@@ -31,8 +31,10 @@ focus and UTC deadline once per source in the page; the adapter restores the UTC
 SQLite's legacy DateTime mapping. Occurrences acquire no deadline or synthetic task ID.
 
 Application merges lazy ordered source streams, then filters, exactly counts and pages the combined
-work. Ordering is work date (undated last), task ID and kind. Exact totals distinguish ordinary tasks,
-distinct recurring sources and occurrence/work-item counts. Optional before-window retention scans
+work. Optional task-ID selection first narrows sources, so unrelated retained histories are neither
+used to derive the fact range nor enumerated. Ordering is work date (undated last), task ID and kind.
+Exact totals distinguish ordinary tasks, distinct recurring sources and occurrence/work-item counts.
+Optional before-window retention scans
 the complete original retain-policy prefix, subtracting every recorded fact and honoring original
 generation bounds. There is no lookback cap and no pending storage. A priority queue holds the next
 generated row per source rather than accumulating generated history to sort it.
