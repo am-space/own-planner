@@ -117,7 +117,11 @@ terminal facts, with effective skip-period expiry. Follow links for older ancest
 estimate workload or imply that successor work satisfies old obligations.
 
 Infrastructure enriches only the selected series and their immediate predecessors in the same
-read transaction as SQL source filtering/count/paging. No related descriptions are loaded. The
+deferred SQLite read transaction as SQL source filtering/count/paging. Both collection/detail
+methods enlist that transaction with EF Core. This avoids reserving the tenant database writer; WAL
+permits concurrent commits while the response retains its original snapshot. In rollback journal
+mode an active shared reader can still delay writer commits. Journal settings and write transaction
+semantics are unchanged. No related descriptions are loaded. The
 Application projection uses the shared calculator/calendar; reads do not reconcile or write facts.
 See [recurring-task reference](recurring-tasks.md) and
 [ADR-0043](adr/0043-recurring-series-planner-readiness.md).

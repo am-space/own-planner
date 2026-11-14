@@ -22,8 +22,12 @@ work flags. Ordinary task fields/routes/ordering remain compatible. No occurrenc
 calendar UI, schedule editor or additional lifecycle button is introduced.
 
 Infrastructure enriches only page-selected series and their immediate predecessors in the same
-read transaction as the source page/detail. Related metadata omits descriptions. It loads terminal
-fact dates only for available open shortened candidates. Application's
+read transaction as the source page/detail. Both task reads explicitly open a deferred SQLite
+transaction and enlist it with EF Core, disposing the enlistment and underlying transaction
+asynchronously. This retains one snapshot without reserving the single writer. With WAL enabled,
+an independent writer can commit during the read; rollback journal readers can still delay a
+writer commit. Production journal settings and immediate write transactions are unchanged.
+Related metadata omits descriptions. It loads terminal fact dates only for available open shortened candidates. Application's
 `PlannerRecurrenceProjection` reuses `IRecurrenceCalculator` and the resolved shared calendar:
 any unresolved generated date in a shortened predecessor's complete bounds is outstanding under
 retain policy; skip policy starts at the full current local period, so expired periods are not
@@ -46,6 +50,9 @@ Use existing migration/lifecycle/successor/report/transport suites alongside new
 scenarios as the overall acceptance evidence. Real cookie-authenticated export snapshots preserve
 links, schedules, out-of-bounds historical facts and the retry ledger, excluding the other tenant.
 Deletion removes the authenticated account/database while another user's series remains accessible.
+Four file-backed WAL regressions cover collection/detail reads of ordinary/recurring sources: a
+writer commits while the read is paused, the original response keeps its snapshot, and a subsequent
+request sees the committed title/count/configuration/fact changes.
 A monthly catch-up/correction/resume integration scenario checks automatic closure, independent
 actual timestamps, retry stability and no fabricated break-period facts across fresh SQLite contexts.
 [The evidence map](../recurring-tasks-verification.md) distinguishes deterministic routing/browser

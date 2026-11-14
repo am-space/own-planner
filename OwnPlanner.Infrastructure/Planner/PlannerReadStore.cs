@@ -1,3 +1,4 @@
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using OwnPlanner.Application.Common;
 using OwnPlanner.Application.Calendar;
@@ -15,7 +16,10 @@ public sealed class PlannerReadStore(IPlannerDbContextFactory dbContextFactory, 
 		CancellationToken cancellationToken = default)
 	{
 		await using var db = await dbContextFactory.CreateAsync(cancellationToken).ConfigureAwait(false);
-		await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+		await db.Database.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
+		// Keep one read snapshot without reserving SQLite's single writer.
+		await using var transaction = ((SqliteConnection)db.Database.GetDbConnection()).BeginTransaction(deferred: true);
+		await using var enlistment = await db.Database.UseTransactionAsync(transaction, cancellationToken).ConfigureAwait(false);
 		var filtered =
 			from task in db.TaskItems.AsNoTracking().Where(task => task.TrashedAt == null)
 			join taskList in db.TaskLists.AsNoTracking() on task.TaskListId equals taskList.Id
@@ -103,7 +107,10 @@ public sealed class PlannerReadStore(IPlannerDbContextFactory dbContextFactory, 
 		CancellationToken cancellationToken = default)
 	{
 		await using var db = await dbContextFactory.CreateAsync(cancellationToken).ConfigureAwait(false);
-		await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+		await db.Database.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
+		// Keep one read snapshot without reserving SQLite's single writer.
+		await using var transaction = ((SqliteConnection)db.Database.GetDbConnection()).BeginTransaction(deferred: true);
+		await using var enlistment = await db.Database.UseTransactionAsync(transaction, cancellationToken).ConfigureAwait(false);
 		var detail = await (
 			from task in db.TaskItems.AsNoTracking().Where(task => task.TrashedAt == null)
 			join taskList in db.TaskLists.AsNoTracking() on task.TaskListId equals taskList.Id

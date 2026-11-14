@@ -668,3 +668,41 @@ occurrence-expanded list, rule editor or live-model claim is authorized or neede
   Only existing frontend bundle-size and ASPDEPR004/008 test-host warnings remain. No live-model
   evaluation was run. Final scope/diff, relative documentation links (17 documents) and staged
   whitespace checks pass; no generated files, dependencies, migrations or unrelated changes.
+
+### PR #105 read-transaction review fix plan
+
+Comment `4575408518`: both Planner task reads currently begin SQLite's default immediate
+transaction, unnecessarily reserving the tenant database's single writer. Keep a consistent
+read snapshot by opening the existing tenant-bound connection, starting a deferred SQLite
+transaction and enlisting it with EF Core in QueryTasksAsync and GetTaskAsync. Dispose both the
+EF enlistment and underlying transaction asynchronously; preserve cancellation and query shapes.
+
+Add real file-backed WAL regressions for collection/detail and ordinary/recurring sources. Pause
+between the first and second read, commit a task/fact mutation on an independent connection while
+the Planner read is still open, and verify the original count/title/recurrence/outstanding-work
+snapshot followed by fresh state on the next request. Prove the new cases fail before the fix.
+Then run focused Planner tests and scripts/verify.sh --all, update ADR/reference evidence, inspect
+the diff, push the existing PR and reply inline with the commit and results.
+
+Distinct review before code: only Infrastructure read transaction setup, its tests and docs are
+affected. Domain/Application policies, write transactions, schema/migrations, tenant selection,
+HTTP/MCP shapes, frontend and Console/stdio are unchanged. Keep write paths immediate; do not
+remove read snapshot consistency or change journal settings in production. WAL is explicit in the
+regression fixture so independent commits can coexist with an established read snapshot; rollback
+journal mode may still delay a writer's commit behind a shared reader lock. No unrelated read
+stores are in scope. No product decision or additional approval is needed.
+
+
+Review-fix evidence: all four new concurrency cases failed before the change with SQLite error 5
+at the independent writer's transaction start. After deferred transaction setup and EF enlistment
+in both methods, all 20 Planner tests pass. The writer commits while the reader is still paused;
+source totals/title, ordinary-to-recurring configuration and predecessor terminal-fact flags retain
+the original snapshot, and the next request sees the committed changes. Updated ADR-0043, Planner
+reference and acceptance evidence document deferred reads and the rollback-journal qualification.
+
+Final review-fix `./scripts/verify.sh --all` passes frontend lint/build, all 1,327 backend cases
+(Domain 65, Application 484, Infrastructure 507, MCP 121, Web 150) and all 38 E2E cases.
+Only existing bundle-size and ASPDEPR004/008 test-host warnings remain. No live-model checks ran.
+Four updated documentation files have valid relative links; staged whitespace and final scope
+review pass. Production journal configuration, write locking, tenant selection and public contracts
+are unchanged.
