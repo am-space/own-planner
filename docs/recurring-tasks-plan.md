@@ -1,6 +1,6 @@
 # Calendar-based recurring tasks implementation plan
 
-**Status:** Active — stages 1–4 (#89–#92) merged; stage 5 (#93) implemented in this change; stages 6–8 remain unimplemented.\
+**Status:** Active — stages 1–5 (#89–#93) merged; stage 6 (#94) implemented in this change; stages 7–8 remain unimplemented.\
 **Contract:** [#84](https://github.com/am-space/own-planner/issues/84), including the November 12 decisions.\
 **Outcome:** Represent each recurring series with one task, compute its calendar occurrences, and
 preserve occurrence facts and predecessor history across schedule changes.
@@ -419,3 +419,86 @@ Application 459, Infrastructure 443, MCP 99, Web 144) and all 32 browser E2E cas
 bundle-size and ASP.NET test-host deprecation warnings remain. No live-model evaluation or
 additional database queries. Completed diff review, documentation path checks and whitespace
 validation passed; no schema, transport or stored-date changes.
+
+## Stage 6 reviewed implementation plan (#94)
+
+Outcome: Weekly Review includes recurring commitments, current-period/retained obligations and
+actual completion activity, with explicit occurrence actions that cannot terminate a series.
+
+| Acceptance | Change and evidence |
+| --- | --- |
+| Sunday current/next coexistence | Project pending occurrences from current full week/month through the frozen target week, including the full retained prefix; Sunday, month-boundary and expiry regressions |
+| Complete one occurrence, preserve series | Explicit composite identity plus fresh guard token; invoke the shared lifecycle transition inside the review transaction; later-occurrence/parent and cancellation tests |
+| Actual completion progress, no closure work | Shared report/history selection by CompletedAt, keeping rolling seven/fourteen-day activity basis; late/early, correction, closed predecessor and DST tests |
+| Exact pages/identities/count units | Keep existing task page one row per source; additive exact occurrence page with independent offset/limit and targeted series drill-down; explicit ordinary/series/occurrence counts and bounded samples |
+| Stale state/schedule decisions | Re-read review, parent/list, schedule/revision and occurrence fact under a single SQLite write lock; compare opaque snapshot token before mutation; stale fact, expiry, replacement, review completion and concurrent-action tests |
+| Compatibility/guidance/reminders/isolation | Preserve ordinary actions and revision checks; reject ordinary completion/focus actions on series; existing guidance/reminder suites plus two-user MCP/HTTP integration and schema coverage |
+
+Impact: Application (review contracts/selection/goal evidence and shared lifecycle transition),
+Infrastructure (review queries and atomic occurrence transaction), MCP (additive review drill-down
+and explicit occurrence apply arguments), Web API (read-only drill-down), shared weekly chat guidance,
+matching tests and reference/ADR. Domain schema, migrations, Console behavior, frontend occurrence
+lists, general recurrence tools and schedule-edit tools are not applicable. Existing browser rows
+remain one per persisted source. Public recurrence creation remains disabled through #95.
+
+Order: additive contracts and Application selection/guard/lifecycle helper; tenant-bound store reads
+and guarded write adapter; shared MCP/HTTP delivery; focused tests; reference and ADR-0041; full
+`./scripts/verify.sh --all`; complete diff review. Reuse PlanningWorkReader.VisitAsync,
+ReportWorkReader and RecurringTaskLifecycle rather than duplicate date or terminal-fact policies.
+
+Distinct plan review completed before feature implementation: all acceptance items map above.
+Frozen week start is recoverable from TargetWeek.DayOfWeek, without a migration or reading edited
+preferences. Completion evidence retains the documented rolling UTC seven/fourteen-day instant
+windows, inclusive of the report instant; recurrence dates use the review's frozen local calendar.
+Legacy stored-task counters remain separate from additive mixed-work counts. New occurrence pages
+are read-only and claim no presentation guidance. A token guards an occurrence action only; it never
+approves a successor conflict choice, which remains the explicit successor preview/apply protocol.
+Ordinary actions retain their existing service transaction boundaries. Guarded occurrence actions
+share one transaction for eligibility, stale checks and fact writes. No review action reschedules an
+occurrence or changes a recurrence rule. This overall plan remains active through stage 8.
+
+Stage-6 diff-review refinement: the existing browser review summary consumes legacy task-only
+completion counters. Update only its count/sample presentation to consume additive Work/WorkShare
+and PlannedWork, and annotate each existing series row with its pending occurrence count. This is
+necessary to avoid displaying zero progress for completed recurring work. No occurrence-expanded
+list, editing control, calendar or general Tasks UI is introduced. Frontend types/page are now in
+the impact map; verify lint/build and a deterministic browser review scenario along with the full
+suite. This refinement is reviewed before frontend edits; business selection stays on the server.
+
+Final contract review: expose optional actual `completedAt` on guarded review completion too, so an
+explicitly reported earlier instant is not lost when using the review workflow. Reuse lifecycle
+UTC/not-in-future validation; omission keeps the injected-clock default. Reject the argument for
+other actions, test actual timestamp preservation/invalid instants, and keep schema additions
+optional. This follows #84's existing completion-time contract without inventing a new time basis.
+
+### Stage 6 implementation and review evidence
+
+- Implemented on `feature/recurrence-weekly-review` from merged stage-5 master `9c1bf37`.
+  Issue #94/#84 scope, existing review/calendar/lifecycle contracts and closest guidance reviewed.
+- Shared projection selects current-period and target-week pending work plus the complete retained
+  prefix. Independent exact occurrence pages preserve composite identities and bound page/source
+  payloads; the original task page stays one row per series. Targeted actions project one date.
+- Goal evidence reuses shared report/history selection. WorkShare and PlannedWork disclose count
+  units; actual completion includes closed/predecessor facts and excludes parent closure. Ordinary
+  completion counters retain ordinary-task units. Frozen calendar and rolling activity bases are
+  explicit in the payload/reference. Existing guidance, preferences and reminders remain shared.
+- Review fact writes revalidate review, parent/list, schedule/revision and occurrence state under
+  one non-deferred tenant transaction, then invoke shared lifecycle policy. Recorded skipped facts
+  can be explicitly corrected on closed parents. Ordinary review actions reject recurring parents.
+  Optional actual completedAt follows the existing UTC/not-in-future contract; retries preserve the
+  first timestamp. Review guards do not authorize schedule-conflict resolutions.
+- Review fixes: normalize persisted boundary timestamps in guard hashes; preserve full current
+  periods at month boundaries; avoid a retained-prefix scan for targeted writes; consume mixed
+  evidence in existing browser/Telegram summaries. The browser fixture retains a prior-week
+  obligation so the existing goal-plan omission rule does not intentionally remove its series row.
+- Added 54 cases: 42 Infrastructure, 6 MCP, 5 Web/controller/tenant tests and 1 browser scenario.
+  Existing ordinary actions, pause/resume grace, one-time guidance, reminders and all mode
+  permission snapshots remain covered. Chat/tool checks are scripted, not live-model verification.
+- ADR-0041 records the shipped decision; references/index updated and relative links checked.
+  No schema/dependency changes. The overall #84 plan stays active through #96; public creation and
+  general recurrence tools remain #95. No issue/project edits, release or deployment are included.
+- Final verification: `./scripts/verify.sh --all` passed frontend lint/build, 1,257 backend tests and
+  all 33 browser E2E tests. After the completion-time review, `./scripts/verify.sh --backend` passed
+  all 1,263 backend tests (Domain 65, Application 459, Infrastructure 485, MCP 105, Web 149).
+  The four focused completion-time cases passed independently. Only existing frontend bundle-size
+  and ASPDEPR004/008 test-host warnings remain; no new warnings or verification limitations.

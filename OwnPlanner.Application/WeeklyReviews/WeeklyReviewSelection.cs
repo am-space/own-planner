@@ -22,6 +22,19 @@ public sealed class WeeklyReviewSelection(WeeklyReviewState review, DateTime now
 	public bool Contains(DateTime? focusAt, DateTime? dueAt) =>
 		focusAt < _focusBefore || dueAt < nowUtc || dueAt >= _start && dueAt < _end;
 
+	/// <summary>Source rows remain unique per series. Planning a later occurrence for a goal never
+	/// hides that series' earlier actionable obligations; a source deadline is counted only once.</summary>
+	public WeeklyReviewTask? SeriesTask(WeeklyReviewTaskRow row, int pending, int carryover, int planned, bool activeGoal)
+	{
+		if (activeGoal && planned > 0 && carryover == 0) return null;
+		var overdue = row.DueAt < nowUtc;
+		var dueInWeek = row.DueAt >= _start && row.DueAt < _end;
+		if (pending == 0 && !overdue && !dueInWeek) return null;
+		return new(row.Id, row.Title, row.TaskListId, row.FocusAt, row.DueAt, row.Revision,
+			carryover > 0, overdue, dueInWeek, row.GoalId)
+		{ IsRecurring = true, PendingOccurrenceCount = pending, PlannedOccurrenceCount = planned };
+	}
+
 	public WeeklyReviewReport BuildReport(int carryoverCount, int overdueCount, int targetWeekCount, int totalCount,
 		int offset, int limit, IReadOnlyList<WeeklyReviewTaskRow> rows) =>
 		new(nowUtc, carryoverCount, overdueCount, targetWeekCount, totalCount, offset, limit,

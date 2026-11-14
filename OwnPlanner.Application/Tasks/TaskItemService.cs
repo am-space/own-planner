@@ -225,7 +225,7 @@ public class TaskItemService(ITaskItemRepository repository, ITaskListRepository
 		item.TaskListId,
 		item.FocusAt, // My Day feature
 		item.GoalId
-	);
+	) { IsRecurring = item.Recurrence is not null };
 
 	private static TrashedTaskItemDto MapTrashed(TaskItem item) => new(
 		item.Id,

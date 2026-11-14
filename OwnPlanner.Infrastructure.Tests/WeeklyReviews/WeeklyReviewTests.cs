@@ -16,7 +16,7 @@ using OwnPlanner.Infrastructure.WeeklyReviews;
 
 namespace OwnPlanner.Infrastructure.Tests.WeeklyReviews;
 
-public sealed class WeeklyReviewTests : IAsyncLifetime
+public sealed partial class WeeklyReviewTests : IAsyncLifetime
 {
 	private readonly string _directory = Path.Combine(Path.GetTempPath(), "weekly-review-" + Guid.NewGuid().ToString("N"));
 	private readonly Clock _clock = new(new DateTime(2026, 9, 20, 18, 0, 0, DateTimeKind.Utc));

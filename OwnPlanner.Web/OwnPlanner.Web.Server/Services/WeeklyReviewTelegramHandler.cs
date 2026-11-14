@@ -37,8 +37,13 @@ public sealed class WeeklyReviewTelegramHandler(IServiceScopeFactory scopes, IPl
 				var state = await service.TransitionAsync(view.Review.Id, action, parts.ElementAtOrDefault(1), ct);
 				return $"Review for {state.TargetWeek:yyyy-MM-dd}: {state.Status}.";
 			}
+			var share = view.Report.Goals.WorkShare;
+			var completedGoal = share?.CompletedGoal.WorkItemCount ?? view.Report.Goals.CompletedGoalWorkCount;
+			var completedOther = share?.CompletedOther.WorkItemCount ?? view.Report.Goals.CompletedOtherWorkCount;
+			var plannedGoal = share?.PlannedGoal.WorkItemCount ?? view.Report.Goals.PlannedGoalWorkCount;
+			var plannedOther = share?.PlannedOther.WorkItemCount ?? view.Report.Goals.PlannedOtherWorkCount;
 			var goalLines = view.Report.Goals.Items.Select(goal =>
-				$"• {goal.Title}: {goal.CompletedLast7Count} completed, {goal.OpenTaskCount} open, {goal.PlannedTaskCount} planned" +
+				$"• {goal.Title}: {goal.Work?.CompletionActivity.CompletedCount ?? goal.CompletedLast7Count} completed work items, {goal.OpenTaskCount} open task/series records, {goal.PlannedWork?.WorkItemCount ?? goal.PlannedTaskCount} planned work items" +
 				(goal.NoNextStep ? "; no next step" : "") + (goal.Stalled ? "; stalled" : "") +
 				(goal.PlannedTaskCount == 0 ? "; no plan for week" : "") +
 				(goal.TargetPeriodFlag switch
@@ -53,7 +58,7 @@ public sealed class WeeklyReviewTelegramHandler(IServiceScopeFactory scopes, IPl
 				WeeklyReviewCalendar.Notification(view.Review.TargetWeek, view.Report) + "\n" +
 				(view.SuggestCreatingGoals ? "Would you like to formulate 1–3 goals?\n" : "") +
 				(view.Report.Goals.ActiveCount == 0 ? "" : "Active goals:\n" + string.Join("\n", goalLines) + "\n") +
-				$"Goal work: {view.Report.Goals.CompletedGoalWorkCount} of {view.Report.Goals.CompletedGoalWorkCount + view.Report.Goals.CompletedOtherWorkCount} completed; {view.Report.Goals.PlannedGoalWorkCount} of {view.Report.Goals.PlannedGoalWorkCount + view.Report.Goals.PlannedOtherWorkCount} planned.\n" +
+				$"Goal work: {completedGoal} of {completedGoal + completedOther} completed work items; {plannedGoal} of {plannedGoal + plannedOther} planned work items.\n" +
 				"Remaining tasks:\n" +
 				string.Join("\n", view.Report.Tasks.Select(t => $"• {t.Title}")) +
 				$"\nShowing {view.Report.Tasks.Count} of {view.Report.TotalCount}. Continue in General or Week Planning chat to discuss and apply changes.\n" + Help;

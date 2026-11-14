@@ -13,4 +13,7 @@ public record TaskItemDto(
 	Guid TaskListId,
 	DateTime? FocusAt, // My Day feature
 	Guid? GoalId
-);
+)
+{
+	public bool IsRecurring { get; init; }
+}

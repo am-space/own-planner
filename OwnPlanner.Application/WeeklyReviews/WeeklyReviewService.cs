@@ -75,6 +75,9 @@ public sealed class WeeklyReviewService(IWeeklyReviewStore store, TimeProvider c
 		};
 	}
 
+	public Task<WeeklyReviewOccurrencePage> OccurrencesAsync(Guid reviewId, Guid? taskId = null, int offset = 0, int limit = 20, DateOnly? occurrenceDate = null, CancellationToken ct = default) =>
+		store.OccurrencesAsync(reviewId, Now, taskId, offset, limit, occurrenceDate, ct);
+
 	public Task<WeeklyReviewState> TransitionAsync(Guid reviewId, string action, string? localTime = null, CancellationToken ct = default)
 	{
 		var now = Now;

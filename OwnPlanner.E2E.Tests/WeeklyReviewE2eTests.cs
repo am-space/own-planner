@@ -1,3 +1,7 @@
+using Microsoft.EntityFrameworkCore;
+using OwnPlanner.Domain.Goals;
+using OwnPlanner.Domain.Tasks;
+using OwnPlanner.Infrastructure.Persistence;
 using FluentAssertions;
 using Microsoft.Playwright;
 using OwnPlanner.E2E.Tests.Infrastructure;
@@ -64,6 +68,38 @@ public sealed class WeeklyReviewE2eTests(E2eWebApplicationFactory application) :
 		await Expect(Page.Locator("#weekly-review")).ToBeVisibleAsync();
 		await Expect(Page.GetByRole(AriaRole.Button, new() { Name = "Finish review", Exact = true })).ToHaveCountAsync(0);
 		await Expect(Page.GetByRole(AriaRole.Switch, new() { Name = "Enable weekly reminders" })).Not.ToBeCheckedAsync();
+	}
+
+	[Fact]
+	public async Task RecurringReviewShowsMixedProgressAndOneRowPerSeries()
+	{
+		var ct = TestContext.Current.CancellationToken; var user = CreateUser();
+		await RegisterAsync(Page, user);
+		(await Page.EvaluateAsync<int>("async () => (await fetch('/api/weekly-review/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ enabled: false, timeZoneId: 'UTC', weekStart: 1, reminderTime: '18:00', channel: 'telegram' }) })).status")).Should().Be(200);
+		await using var auth = new AuthDbContext(new DbContextOptionsBuilder<AuthDbContext>().UseSqlite($"Data Source={Application.AuthDatabasePath}").Options);
+		var userId = await auth.Users.Where(u => u.Email == user.Email).Select(u => u.Id).SingleAsync(ct);
+		var path = Path.Combine(Application.UserDatabaseDirectory, $"ownplanner-user-{userId}.db");
+		var now = DateTime.UtcNow; var today = DateOnly.FromDateTime(now);
+		await using (var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseSqlite($"Data Source={path}").Options))
+		{
+			var goal = new Goal("Recurring progress", GoalHorizon.Yearly, targetPeriod: today.Year.ToString());
+			var series = new TaskItem("Daily practice series", WellKnownIds.InboxTaskList, goalId: goal.Id);
+			series.ConfigureRecurrence(new(RecurrenceRule.Weekly(1, Enum.GetValues<DayOfWeek>(), DayOfWeek.Monday),
+				today.AddDays(-8), null, MissedOccurrencePolicy.RetainEachObligation));
+			db.AddRange(goal, series);
+			db.TaskOccurrenceFacts.Add(new() { TaskId = series.Id, OccurrenceDate = today, Status = TaskOccurrenceStatus.Completed, CompletedAt = now });
+			await db.SaveChangesAsync(ct);
+		}
+		await Page.GotoAsync("/planner/review");
+		await Expect(Page.GetByText("Recurring progress", new() { Exact = true })).ToBeVisibleAsync();
+		await Expect(Page.GetByText("Completed work items in the last 7 days: 1", new() { Exact = false })).ToBeVisibleAsync();
+		await Expect(Page.GetByText("Goal work: 1 of 1 work items completed", new() { Exact = false })).ToBeVisibleAsync();
+		await Expect(Page.Locator("main ul li")).ToHaveCountAsync(1);
+		await Expect(Page.Locator("main ul li")).ToContainTextAsync("Daily practice series");
+		await Expect(Page.Locator("main ul li")).ToContainTextAsync("pending occurrences");
+		await Expect(Page.GetByText("No plan for this week:", new() { Exact = false })).ToHaveCountAsync(0);
+		await Expect(Page.GetByText("Completed sources: Daily practice series", new() { Exact = true })).ToBeVisibleAsync();
+		await Page.ReloadAsync(); await Expect(Page.Locator("main ul li")).ToHaveCountAsync(1);
 	}
 
 	[Fact]

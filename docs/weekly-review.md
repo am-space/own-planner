@@ -72,11 +72,12 @@ count. There is no automatic pausing, scheduled resume, configurable limit or ne
 ## Calendar and selection
 
 The review opens with every active goal. Goals needing attention appear first. Each goal shows the
-exact number of linked tasks completed in the previous rolling seven days, a sample of up to ten
-completed titles, the exact number of open tasks and up to ten open task titles. Goal metric and
-current value appear when present. A goal has **no next step** when it has no open task, and is
-**stalled** when it was created or most recently resumed at least 14 days ago and no linked task was completed in the last
-14 days. The application calculates these flags. The target period is **ending soon** when its
+exact number of ordinary/occurrence work items completed in the previous rolling seven days,
+a sample of up to ten completed titles deduplicated by source, the exact number of open task/series
+records and up to ten open source titles. Goal metric and
+current value appear when present. A goal has **no next step** when it has no open task/series record, and is
+**stalled** when it was created or most recently resumed at least 14 days ago and no linked ordinary task or occurrence was completed in the last
+14 elapsed days. The application calculates these flags. The target period is **ending soon** when its
 end date is within seven local calendar days, or **passed** after that date. Only strict
 `yyyy-MM`, `yyyy-Qn`, `yyyy`, and fixed target dates are interpreted. Unrecognized periods have no
 period flag.
@@ -84,7 +85,8 @@ period flag.
 Chat asks for a target-week commitment for every active goal. A user can choose an existing linked
 task or create one, and schedule its focus date in the target week. A linked task can be planned
 from within the review even if it was absent from the carryover page. A user may leave a goal
-without a plan after one confirmation. Stalled or past-period goals prompt a keep, pause, achieve, drop,
+without a plan after one confirmation. Pending original occurrence dates in the target week already
+constitute a recurring plan; do not focus/reschedule them with ordinary task actions. Stalled or past-period goals prompt a keep, pause, achieve, drop,
 or target-period change decision. Metric progress can be updated during the review. Every goal
 edit requires an explicit user instruction. When there are no active goals, the first conversational
 opening of that review offers once to formulate one to three goals, even if the Weekly Review page or Telegram
@@ -94,15 +96,15 @@ After the goal step, the ordinary task review continues. A task already linked t
 and focused in the target week is omitted from the task page so it is not reviewed twice. The
 assistant may suggest an active goal for an unlinked task when one clearly matches; linking
 requires the user's confirmation. The summary reports exact completed work from the preceding
-seven days and planned target-week work, each split between tasks linked to active goals and other
-tasks. It lists active goals with no target-week plan. Trash and archived lists are excluded from
+seven days and planned target-week work, each split between work linked to active goals and other
+work. It lists active goals with no target-week plan. Trash and archived lists are excluded from
 goal evidence and work-share counts. Links to paused, achieved, dropped or missing goals count as other
 work. Samples are bounded; counts remain exact.
 
 Opening first resumes an unexpired due deferral, if one exists. Otherwise, on the last day of the configured local week, a new review targets next week. During the rest of
 the week it targets the current week. Sunday's scheduled reminder and Monday's fallback therefore
 refer to the same review. A review stores its target date, timezone and UTC boundaries permanently.
-The remaining task page includes active incomplete tasks with at least one reason:
+For ordinary tasks, the remaining task page includes active incomplete records with at least one reason:
 
 - Carryover: `FocusAt` before the target week's first calendar date. At the end of the week this
   includes current-week work, which is not labelled overdue just because it is unfinished.
@@ -115,9 +117,12 @@ a UTC-labelled focus date is not shifted into a different local day. Deadline ti
 DST gaps advance to the first valid local minute; repeated wall times use the earlier instant. Weeks
 can therefore contain fewer or more than 168 hours.
 
-Completed tasks, Trash and archived lists are excluded from the remaining task page. SQL produces exact counts and a deduplicated
-page with every reason retained. Pages default to 20 and allow 1–50 tasks, ordered overdue first and
-then by ID. Descriptions and note bodies are never queried. Notifications contain counts only.
+Completed parents/tasks, Trash and archived lists are excluded from the remaining task page. The
+shared read snapshot produces exact source counts and a deduplicated page with every reason retained. Pages default to 20 and allow 1–50 tasks, ordered overdue first and
+then by ID. Each recurring series remains one source row with pending/planned occurrence counts.
+A pending target-week goal plan omits the series only when no earlier actionable occurrence remains.
+An independent exact occurrence page includes full current periods and the entire retained prefix,
+so Sunday next-week review never closes the current week. Descriptions and note bodies are never queried. Notifications contain counts only.
 Opening and paging always retrieve fresh data. Paging is current-state paging; concurrent edits can
 change membership, so refresh before applying a batch.
 
@@ -195,11 +200,12 @@ Additive cookie-authenticated endpoints under `/api/weekly-review`:
 | `GET settings` | Read-only preferences lookup; unconfigured defaults create no rows |
 | `PUT settings` | Explicit enabled, timezone, week start (0=Sunday…6=Saturday), HH:mm, telegram channel |
 | `POST open?reviewId=&targetWeek=&offset=&limit=` | Open/resume and retrieve a fresh page |
+| `GET {id}/occurrences?taskId=&offset=&limit=&occurrenceDate=` | Read independent occurrence details without opening/claiming guidance |
 | `POST {id}/transition` | Body: action complete/skip/defer and optional localTime yyyy-MM-ddTHH:mm |
 
 Invalid input returns 400; another user's or missing review returns 404. The same Application service
 backs `weekly_review_settings_get`, `weekly_review_configure`, `weekly_review_open`,
-`weekly_review_transition`, `weekly_review_offer` and `weekly_review_apply` over direct, HTTP MCP and
+`weekly_review_transition`, `weekly_review_offer`, `weekly_review_occurrences` and `weekly_review_apply` over direct, HTTP MCP and
 stdio paths. Existing `weekly_report_get` retains its seven-day UTC contract when calendarPeriod is omitted; the
 additive named-period path is documented in [user calendar](user-calendar.md).
 
@@ -224,3 +230,39 @@ Review views add nullable `pausedGoalsMention` and `activeGoalWarning` presentat
 `weekly_review_open` adds optional `present` (default true); use false for internal transition lookups
 that do not present the review. These guidance fields never enter reminders. Like other claimed chat
 offers, a response failure after a claim can lose the guidance; the claim prevents repeated prompts.
+
+
+## Recurring work counts and guarded actions
+
+`Goals.Work` and per-goal `Work` separate pending work, target-week scheduled outcomes and actual
+completion activity. `WorkShare` and per-goal `PlannedWork` distinguish ordinary tasks, distinct
+series and occurrences; `WorkItemCount` is ordinary tasks plus occurrences. Browser and Telegram
+summaries use these mixed counts. Legacy completed counts/samples remain ordinary-task units;
+legacy open/planned counts describe stored sources. Closure of a recurring parent contributes no
+completed work. Progress/stalled calculations use actual `CompletedAt`, including historical
+skipped-to-completed corrections and preserved predecessor facts, with the existing rolling seven
+or fourteen elapsed days through the current report instant. Target-week scheduled outcomes use
+original calendar dates in the frozen review timezone; never sum scheduled results and activity.
+
+`Report.Occurrences` starts an independent pending page at offset 0, limit 20. Its `TotalCount`,
+`SeriesCount`, `CarryoverCount` and `PlannedCount` are exact before paging; each item contains `Work`
+with original `(TaskId, OccurrenceDate)`, status, full period and actual completion time, plus
+`Revision` and `GuardToken`. Source metadata/deadlines appear once per returned series. Use the
+read-only `weekly_review_occurrences` or HTTP endpoint for independent offset/limit (1–50), optional
+series filtering, or `taskId` plus `occurrenceDate` to inspect a recorded historical fact. A historical
+fact remains addressable after closure or schedule shortening. Reads never fabricate facts or
+claim one-time goal/paused guidance. Current pages can change between requests.
+
+The additive `weekly_review_apply` actions `completeOccurrence` / `cancelOccurrence` require the
+original date and fresh guard alongside the existing reviewId/taskId/revision. They check review,
+list, parent revision/schedule and current fact together under one SQLite write lock, then reuse
+shared lifecycle policy. Stale changes, expiry or completion return `applied=false`; refresh and
+resolve the new state before retrying. A successful completion preserves original identity and
+sets actual completion time without completing the series. Omitted `completedAt` uses the injected
+clock; an explicitly reported earlier actual instant may be supplied with Z/offset, no later than
+now. Resolve ambiguous times first and never infer them from the scheduled date. Other actions
+reject `completedAt`. A recorded skipped fact can be explicitly
+corrected even on a closed predecessor. Duplicate stale attempts never move its completion time.
+Ordinary review actions reject recurring parents; focus never reschedules an occurrence. Series
+termination/replacement remains a separate workflow, and review guards never approve successor
+conflict choices. No browser task editing or occurrence-expanded list is added.

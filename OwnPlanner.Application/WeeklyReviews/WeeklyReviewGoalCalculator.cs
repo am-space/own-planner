@@ -18,7 +18,7 @@ public static class WeeklyReviewGoalCalculator
 			return new WeeklyReviewGoal(row.Id, row.Title, row.Metric, row.MetricCurrent,
 				row.CompletedLast7Count, row.CompletedLast7, row.OpenTaskCount, row.OpenTasks,
 				row.PlannedTaskCount, row.OpenTaskCount == 0,
-				(row.LastResumedAt ?? row.CreatedAt) <= nowUtc.AddDays(-14) && row.CompletedLast14Count == 0, periodFlag);
+				(row.LastResumedAt ?? row.CreatedAt) <= nowUtc.AddDays(-14) && row.CompletedLast14Count + row.OccurrenceCompletedLast14Count == 0, periodFlag) { Work = row.Work, PlannedWork = row.PlannedWork };
 		}).OrderByDescending(goal => goal.NoNextStep || goal.Stalled || goal.TargetPeriodFlag is not null)
 			.ThenByDescending(goal => goal.TargetPeriodFlag == "targetPeriodPassed")
 			.ThenByDescending(goal => goal.NoNextStep)
@@ -26,7 +26,7 @@ public static class WeeklyReviewGoalCalculator
 			.ThenBy(goal => goal.Title, StringComparer.OrdinalIgnoreCase).ToArray();
 		return new(goals.Length, goals.Count(goal => goal.NoNextStep), goals.Count(goal => goal.Stalled),
 			data.CompletedGoalWorkCount, data.CompletedOtherWorkCount, data.PlannedGoalWorkCount,
-			data.PlannedOtherWorkCount, goals.Where(goal => goal.PlannedTaskCount == 0).Select(goal => goal.Id).ToArray(), goals);
+			data.PlannedOtherWorkCount, goals.Where(goal => goal.PlannedTaskCount == 0).Select(goal => goal.Id).ToArray(), goals) { Work = data.Work, WorkShare = data.WorkShare };
 	}
 
 	private static DateOnly? PeriodEnd(WeeklyReviewGoalRow goal)

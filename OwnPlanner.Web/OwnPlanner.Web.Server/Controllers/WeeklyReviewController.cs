@@ -25,6 +25,11 @@ public sealed class WeeklyReviewController(IWeeklyReviewService service, IPerUse
 	public Task<IActionResult> Open(Guid? reviewId = null, int offset = 0, int limit = 20, CancellationToken ct = default, DateOnly? targetWeek = null) =>
 		Execute(async () => await service.OpenAsync(reviewId, offset, limit, ct, targetWeek), ct);
 
+	[HttpGet("{id:guid}/occurrences")]
+	public Task<IActionResult> Occurrences(Guid id, Guid? taskId = null, int offset = 0, int limit = 20,
+		DateOnly? occurrenceDate = null, CancellationToken ct = default) =>
+		Execute(async () => await service.OccurrencesAsync(id, taskId, offset, limit, occurrenceDate, ct), ct);
+
 	[HttpPost("{id:guid}/transition")]
 	public Task<IActionResult> Transition(Guid id, TransitionRequest request, CancellationToken ct) =>
 		Execute(async () => await service.TransitionAsync(id, request.Action, request.LocalTime, ct), ct);
