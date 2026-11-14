@@ -1,16 +1,17 @@
-# Recurring-task foundations and staged contracts
+# Recurring tasks and shared MCP operations
 
-Stages 1–6 ([#89](https://github.com/am-space/own-planner/issues/89),
+Stages 1–7 ([#89](https://github.com/am-space/own-planner/issues/89),
 [#90](https://github.com/am-space/own-planner/issues/90),
 [#91](https://github.com/am-space/own-planner/issues/91),
 [#92](https://github.com/am-space/own-planner/issues/92),
 [#93](https://github.com/am-space/own-planner/issues/93),
-[#94](https://github.com/am-space/own-planner/issues/94)) provide internal recurrence types, a
+[#94](https://github.com/am-space/own-planner/issues/94),
+[#95](https://github.com/am-space/own-planner/issues/95)) provide recurrence types, a
 deterministic calendar engine, per-user persistence, lifecycle reconciliation and linked successor
-commands, unified planning reads, fact history, occurrence-aware reports and Weekly Review. Public recurring-task
-creation and general occurrence MCP operations remain unavailable; the review has explicit guarded occurrence actions. The [active implementation plan](recurring-tasks-plan.md)
+commands, unified planning reads, fact history, occurrence-aware reports and Weekly Review, and shared
+public MCP operations with chat safety policies. The [active implementation plan](recurring-tasks-plan.md)
 tracks all eight stages of [#84](https://github.com/am-space/own-planner/issues/84).
-The later-stage sections below describe required future behavior.
+Final series UI and cross-layer readiness remain stage 8.
 
 ## Implemented types and calculation
 
@@ -219,7 +220,7 @@ existing unarchived list, using the same tenant-bound factory as lifecycle actio
 Replacement itself neither administratively closes nor reopens the old parent. Existing periodic
 reconciliation applies that parent's own shortened bounds and full original periods; unresolved
 retained work keeps it open. A completed predecessor remains closed through resumption, so no
-break-period obligations or skips are generated. No new public MCP tool, route or UI is enabled.
+break-period obligations or skips are generated. Stage 7 exposes this behavior through shared successor preview/apply tools; final series UI remains stage 8.
 
 ## Implemented planning and history reads
 
@@ -290,13 +291,12 @@ snapshot and can reflect concurrent writes; this is deterministic paging per cal
 multi-request export. Missing timezone uses the disclosed shared UTC fallback. Infrastructure loads
 current source metadata and selected persisted facts in memory; only generated work streams are lazy.
 
-## Integration remaining in stages 7–8
+## Integration boundary
 
-The readers are registered in web and stdio but have no public route/tool. Existing task-list queries,
-`taskitem_list_*` and browser shapes retain their stored-task meaning. Reports and preloads include
-additive mixed-work evidence. Weekly Review consumes the same projection/history inputs. Public
-series creation remains disabled until the stage-7 shared commands and chat safety contracts land. No stage may count parent closure as extra work or infer duration/capacity
-from repeated occurrence counts. The overall #84 plan stays active through #96.
+Shared MCP creation/actions and occurrence drill-down are enabled in stage 7 after occurrence-aware
+reports and Weekly Review. Existing `taskitem_list_*` and browser shapes retain their stored-task
+meaning. Final series UI remains #96; the overall #84 plan stays active until that stage finishes.
+Parent closure adds no work, and occurrence counts never imply effort or available capacity.
 
 ## Occurrence-aware reports (stage 5)
 
@@ -354,7 +354,7 @@ not reconstructed historical assignments. Existing report tools and all six mode
 the same additive block through in-process/HTTP/stdio serialization, with shared interpretation
 guidance. No tool arguments or recurrence mutation permissions were added. Existing section/offset
 paging still applies to the original stored-task sections; `Work` is a separate bounded overview,
-with its own dates, sample limit and truncation. General public occurrence drill-down is stage 7; the existing-review drill-down is described below.
+with its own dates, sample limit and truncation. General public occurrence drill-down uses stage-7 `planning_work_query`; the existing-review drill-down is described below.
 
 
 ## Occurrence-aware Weekly Review (stage 6)
@@ -404,3 +404,67 @@ Browser/Telegram summaries use mixed work counts; browser lists remain one row p
 pending-occurrence annotations and deduplicated completed-source titles. Chat provides detailed
 occurrence paging/actions. Reminder preferences and delivery/guidance claims are unchanged. See
 [Weekly Review](weekly-review.md) and [ADR-0041](adr/0041-occurrence-aware-weekly-review.md).
+
+
+## Shared MCP operations and chat (stage 7)
+
+All tools below are implemented once in `RecurringTaskTools` and registered in the authenticated
+in-process adapter, bearer-only HTTP MCP endpoint and stdio host. Console chat uses the stdio host.
+No argument selects a tenant or database. New argument schemas come from the same SDK generator,
+including nullable arrays/defaults, and results are normalized once with the shared MCP serializer.
+Enums in these new results are named strings (`Weekly`, `Completed`, etc.), dates are `YYYY-MM-DD`,
+and actual completion instants are UTC ISO timestamps ending in `Z`. Existing tool shapes retain
+their prior serialization. Missing nullable fields remain omitted under SDK defaults.
+
+| Tool | Contract |
+| --- | --- |
+| `recurring_task_create` | Required title/list/start/frequency/missedPolicy; insert one configured parent. Optional description, importance, goal and inclusive end. No generated child tasks or inferred deadlines |
+| `recurring_task_configure` | Atomically configure an existing active ordinary task; reject existing series, closed/Trash/unavailable-list targets |
+| `recurring_task_get` | Parent fields, schedule and predecessor/successor links, including closed history; no reconciliation |
+| `planning_work_query` | Required bounded startDate/endExclusiveDate; shared mixed projection, filters, exact counts and offset/limit (1–100), optional full retained prefix |
+| `task_occurrence_get` | Recorded fact by original taskId/occurrenceDate; a missing fact is not inferred completed or eligible |
+| `task_occurrence_history` | Explicit ScheduledDate or CompletionTime basis, matching bounded date or instant boundaries, exact pages and metadata |
+| `task_occurrence_complete` | Composite identity; optional explicitly supplied actual completedAt with offset, not future; retry preserves first timestamp, explicit skipped correction allowed on closed/predecessor series |
+| `task_occurrence_cancel` | Composite identity; only eligible unresolved work, no completion timestamp or series termination |
+| `recurring_task_successor_preview` | Read-only Replace/Resume proposal, original affected facts, both possible schedules and snapshot token |
+| `recurring_task_successor_apply` | Same preview inputs/token, requestId and any explicitly chosen resolution; atomic stale checks, retry-safe linked successor |
+| `recurring_task_end` | Explicit whole-series administrative termination, no additional completed work |
+
+Creation/configuration requires `missedPolicy=SkipExpiredPeriods` or `RetainEachObligation`. Chat
+asks when that choice is missing, never inferring policy from the title. `frequency=Weekly` needs
+weekday names; `Monthly` needs monthDays. Interval defaults to 1. New parents capture week start
+from shared calendar preferences. A changed Weekly successor rule additionally requires explicit
+`weekStart` (0–6) from `calendar_period_get`, reused identically on apply/retry. This prevents a
+preference edit from changing the request after preview or a successful retry. An omitted successor
+rule inherits the predecessor's immutable alignment. Partial rule edits without frequency are rejected.
+
+Strict date parsing rejects timestamps for occurrence dates. Supplied actual/history instants require
+an ISO date/time with seconds and explicit Z or offset. Ambiguous local/DST times are clarified before
+calling tools; a scheduled date never supplies an actual completion timestamp. Expected validation,
+unavailable-target and stale-choice errors return an `error` result; cancellation propagates.
+
+Successor previews show all future affected facts, including cancellation and preserved out-of-bounds
+history. No conflict means an otherwise authorized replacement can apply directly. Any affected fact
+requires the user's explicit `MoveStartAfterFacts` or `KeepStartAsSeparateWork` choice after inspecting
+facts and schedules; token possession alone cannot select one. Stale decisions require a fresh preview
+and renewed decision. Facts are never transferred or used to automatically satisfy new work. Apply
+retries reuse requestId and identical inputs. Creation/configuration are not automatic retry operations;
+after an uncertain result inspect current state before attempting another creation.
+
+General loads these operations through task_management. Week Planning has the same management
+capabilities. Day Work has occurrence completion/cancellation and explicit ending, plus recurrence
+reads and successor preview; schedule application/creation remains a planning operation. Global
+Planning reads directly and can use authorized delegated execution. Reflection and System Analysis
+gain occurrence reads without recurrence writes; Reflection's existing capture/goal/note writes stay
+limited. Delegated proposals expose reads/preview only. Delegated execution checks each target's task
+list/context, forces range-query scope filters, requires an identified in-scope task for history, and
+checks destination lists for creation. Tenant isolation remains enforced by host-bound persistence.
+These scope checks retain the existing check-before-forward transaction boundary; concurrent source
+assignment changes are not a frozen delegation snapshot.
+
+`taskitem_complete` retains ordinary behavior and ends a recurring parent as a whole; chat must use
+`task_occurrence_complete` for one performance. `taskitem_reopen` returns a safe error for recurrence,
+pointing to explicit successor-based Resume. Parent focus edits never move an occurrence. Guidance
+is shared by every mode and the delegated agent; reports remain dated snapshots and chat refreshes
+targeted projection/history or relevant reports after actions. Scripted provider tests verify routing,
+permissions and freshness; they are not a live-model evaluation. See [ADR-0042](adr/0042-shared-recurrence-mcp-chat.md).

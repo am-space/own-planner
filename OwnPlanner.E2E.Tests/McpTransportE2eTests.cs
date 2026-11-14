@@ -14,7 +14,7 @@ namespace OwnPlanner.E2E.Tests;
 
 [Collection(E2eCollection.Name)]
 [Trait("Category", "E2E")]
-public sealed class McpTransportE2eTests(E2eWebApplicationFactory application)
+public sealed partial class McpTransportE2eTests(E2eWebApplicationFactory application)
 {
 	[Fact]
 	public async Task Http_DiscoveryAndCalls_PreserveContractsAndBearerTenantIsolation()

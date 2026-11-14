@@ -16,9 +16,9 @@ internal static class ChatCapabilities
 	internal static IReadOnlyList<string> NoteRead { get; } = Array.AsReadOnly(new[] { "noteitem_list_items", "noteitem_get" });
 	internal static IReadOnlyList<string> NoteWrite { get; } = Array.AsReadOnly(new[] { "noteitem_create", "noteitem_update" });
 	internal static IReadOnlyList<string> NoteOrganize { get; } = Array.AsReadOnly(new[] { "noteitem_assign", "noteitem_pin", "noteitem_unpin" });
-	internal static IReadOnlyList<string> TaskRead { get; } = Array.AsReadOnly(new[] { "taskitem_list_items", "taskitem_get" });
-	internal static IReadOnlyList<string> TaskProgress { get; } = Array.AsReadOnly(new[] { "taskitem_complete", "taskitem_reopen", "taskitem_set_focus_date", "taskitem_set_important" });
-	internal static IReadOnlyList<string> TaskEdit { get; } = Array.AsReadOnly(new[] { "taskitem_create", "taskitem_update", "taskitem_assign" });
+	internal static IReadOnlyList<string> TaskRead { get; } = Array.AsReadOnly(new[] { "taskitem_list_items", "taskitem_get", "recurring_task_get", "planning_work_query", "task_occurrence_history", "task_occurrence_get" });
+	internal static IReadOnlyList<string> TaskProgress { get; } = Array.AsReadOnly(new[] { "taskitem_complete", "taskitem_reopen", "taskitem_set_focus_date", "taskitem_set_important", "task_occurrence_complete", "task_occurrence_cancel", "recurring_task_end" });
+	internal static IReadOnlyList<string> TaskEdit { get; } = Array.AsReadOnly(new[] { "taskitem_create", "taskitem_update", "taskitem_assign", "recurring_task_create", "recurring_task_configure", "recurring_task_successor_preview", "recurring_task_successor_apply" });
 	internal static IReadOnlyList<string> TaskRecovery { get; } = Array.AsReadOnly(new[] { "taskitem_list_trash", "taskitem_restore" });
 
 	internal static IReadOnlyList<string> Combine(params IReadOnlyList<string>[] groups) =>

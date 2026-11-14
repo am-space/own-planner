@@ -30,13 +30,14 @@ public sealed class TaskPlanningMcpAdapter : IMcpAdapter
 	{
 		"goal_list", "goal_get", "context_list", "context_get", "tasklist_all", "tasklist_get",
 		"taskitem_list_items", "taskitem_list_by_goal", "taskitem_list_by_focus_date", "taskitem_get",
-		"datetime_get_current"
+		"datetime_get_current", "calendar_period_get", "recurring_task_get", "planning_work_query", "task_occurrence_history", "task_occurrence_get", "recurring_task_successor_preview"
 	};
 
 	public static readonly IReadOnlySet<string> WriteTools = new HashSet<string>(StringComparer.Ordinal)
 	{
 		"tasklist_create", "tasklist_update", "taskitem_create", "taskitem_update", "taskitem_assign",
-		"taskitem_set_focus_date", "taskitem_set_important", "taskitem_complete", "taskitem_delete"
+		"taskitem_set_focus_date", "taskitem_set_important", "taskitem_complete", "taskitem_delete",
+		"recurring_task_create", "recurring_task_configure", "task_occurrence_complete", "task_occurrence_cancel", "recurring_task_end", "recurring_task_successor_apply"
 	};
 
 	private readonly IMcpAdapter _inner;
@@ -127,6 +128,34 @@ public sealed class TaskPlanningMcpAdapter : IMcpAdapter
 
 	private async Task EnforceScopeAsync(string toolName, Dictionary<string, object?> arguments, CancellationToken cancellationToken)
 	{
+		if (toolName is "recurring_task_get" or "recurring_task_configure" or "task_occurrence_get"
+			or "task_occurrence_complete" or "task_occurrence_cancel" or "recurring_task_end"
+			or "recurring_task_successor_preview" or "recurring_task_successor_apply")
+		{
+			await EnsureTaskInScopeAsync(RequiredGuid(arguments, "taskId"), cancellationToken).ConfigureAwait(false);
+			return;
+		}
+		if (toolName == "recurring_task_create")
+		{
+			await EnsureTaskListInScopeAsync(RequiredGuid(arguments, "taskListId"), cancellationToken).ConfigureAwait(false);
+			return;
+		}
+		if (toolName == "task_occurrence_history" && (_contextId.HasValue || _taskListId.HasValue))
+		{
+			await EnsureTaskInScopeAsync(RequiredGuid(arguments, "taskId"), cancellationToken).ConfigureAwait(false);
+			return;
+		}
+		if (toolName == "planning_work_query" && (_contextId.HasValue || _taskListId.HasValue))
+		{
+			if (_taskListId.HasValue) arguments["taskListId"] = _taskListId;
+			if (_contextId.HasValue) arguments["contextId"] = _contextId;
+			if (arguments.TryGetValue("taskId", out var target) && target is not null)
+				await EnsureTaskInScopeAsync(ToGuid(target, "taskId"), cancellationToken).ConfigureAwait(false);
+			if (arguments.TryGetValue("taskListId", out var list) && list is not null)
+				await EnsureTaskListInScopeAsync(ToGuid(list, "taskListId"), cancellationToken).ConfigureAwait(false);
+			return;
+		}
+
 		if (toolName is "taskitem_complete" or "taskitem_delete")
 		{
 			await EnsureTaskInScopeAsync(RequiredGuid(arguments, "id"), cancellationToken).ConfigureAwait(false);

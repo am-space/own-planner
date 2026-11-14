@@ -226,6 +226,7 @@ public sealed class DirectToolMcpAdapter(
 		var toolTypes = new[]
 		{
 			typeof(TaskItemTools),
+			typeof(RecurringTaskTools),
 			typeof(TaskGoalLinkTools),
 			typeof(TaskListTools),
 			typeof(NoteListTools),
@@ -253,7 +254,12 @@ public sealed class DirectToolMcpAdapter(
 				}
 
 				var methodDescription = method.GetCustomAttribute<DescriptionAttribute>()?.Description ?? string.Empty;
-				var schema = BuildJsonSchema(method);
+				// New recurrence contracts use the SDK schema on every transport, including nullable
+				// arrays, defaults and UUID formats. The factory is never invoked during discovery.
+				var schema = toolType == typeof(RecurringTaskTools)
+					? McpServerTool.Create(method, _ => throw new NotSupportedException("Schema discovery only."),
+						new McpServerToolCreateOptions { SerializerOptions = TaskToolSerialization.Options }).ProtocolTool.InputSchema
+					: BuildJsonSchema(method);
 				var definition = new McpToolDefinition(toolAttribute.Name, methodDescription, schema);
 				registrations.Add(toolAttribute.Name, new ToolRegistration(toolType, method, definition));
 			}

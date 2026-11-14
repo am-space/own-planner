@@ -2,7 +2,7 @@ namespace OwnPlanner.Application.Chat;
 
 internal static class CalendarGuidance
 {
-	internal const string Instructions = """
+	internal const string Instructions = RecurrenceGuidance.Instructions + "\n\n" + """
 		Calendar questions use the user's explicit timezone and week start. The fresh request calendar context
 		is the current clock/date, not a task snapshot. State the actual period dates and timezone when reporting.
 		If fallbackExplanation is present, briefly disclose UTC fallback and invite timezone selection in

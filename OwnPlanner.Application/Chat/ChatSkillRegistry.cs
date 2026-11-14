@@ -12,8 +12,8 @@ public static class ChatSkillRegistry
 
 	public static IReadOnlyDictionary<string, ChatSkill> All { get; } = new ChatSkill[]
 	{
-		new("task_management", "Retrieve and edit tasks; complete, reopen, move to Trash and restore.",
-			"Use targeted task and list lookups to identify the user's target. For simple clearly authorized edits, call task tools directly. Ask when the target or intended change is ambiguous; exploratory ideas do not authorize writes. taskitem_delete moves to recoverable Trash; inspect Trash with taskitem_list_trash and restore with taskitem_restore. Reopen completed tasks with taskitem_reopen. To remove a deadline, use taskitem_update with clearDueAt=true; null dueAt leaves it unchanged. Clearing a deadline preserves the focus date. Confirm deadline removal only when the tool result shows dueAt=null. Never permanently delete tasks. Report only confirmed changes and refresh targeted data when needed. Where the mode exposes Task Planning delegation, reserve it for multi-step decomposition and planning; use proposal behavior for exploration and execution for authorized changes without an extra confirmation step. Follow the shared task creation goal-link rules, using goal_list and taskitem_link_goal for relevant suggestions and confirmed links.",
+		new("task_management", "Retrieve and edit tasks and recurring series; record occurrences, change schedules, complete, reopen, move to Trash and restore.",
+			RecurrenceGuidance.Instructions + "\n\n" + "Use targeted task and list lookups to identify the user's target. For simple clearly authorized edits, call task tools directly. Ask when the target or intended change is ambiguous; exploratory ideas do not authorize writes. taskitem_delete moves to recoverable Trash; inspect Trash with taskitem_list_trash and restore with taskitem_restore. Reopen completed ordinary tasks with taskitem_reopen; recurring series require explicit successor resumption. To remove a deadline, use taskitem_update with clearDueAt=true; null dueAt leaves it unchanged. Clearing a deadline preserves the focus date. Confirm deadline removal only when the tool result shows dueAt=null. Never permanently delete tasks. Report only confirmed changes and refresh targeted data when needed. Where the mode exposes Task Planning delegation, reserve it for multi-step decomposition and planning; use proposal behavior for exploration and execution for authorized changes without an extra confirmation step. Follow the shared task creation goal-link rules, using goal_list and taskitem_link_goal for relevant suggestions and confirmed links.",
 			ChatCapabilities.Combine(ChatCapabilities.TaskListRead, ChatCapabilities.TaskRead, ChatCapabilities.TaskEdit, ChatCapabilities.TaskProgress, ChatCapabilities.TaskRecovery, ChatCapabilities.GoalRead,
 				[TaskGoalLinkConversationState.ToolName, "taskitem_link_goal", "taskitem_list_by_goal", "taskitem_list_by_focus_date", "taskitem_delete"])),
 		new("notes", "Capture, retrieve and organize notes.",
@@ -37,7 +37,7 @@ public static class ChatSkillRegistry
 			State when duration or available time is unknown; never invent estimates, free time or precise capacity conclusions from task counts or bounded samples.
 			When useful, propose a small core set of tasks and optional reserve work, explaining choices through actual deadlines, importance, goals and user constraints.
 			A capacity discussion or proposed plan does not authorize writes. Execute concrete requested changes without redundant confirmation; clarify ambiguous targets or intent.
-			Use FocusAt through taskitem_set_focus_date (or weekly_review_apply focus/goalFocus during review) to distribute flexible planned work across days.
+			Use FocusAt through taskitem_set_focus_date (or weekly_review_apply focus/goalFocus during review) to distribute flexible ordinary-task work across days; recurrence dates are independent.
 			Create or change DueAt only for genuine deadlines supported by user intent; never manufacture deadlines to fill a schedule.
 			Scheduling work without a real deadline changes only its focus date and preserves any existing deadline.
 			""" + "\n\n" +
@@ -81,6 +81,7 @@ public static class ChatSkillRegistry
 		"goal_list", "goal_get", "context_list", "context_get", "tasklist_all", "tasklist_get",
 		"notelist_all", "notelist_get", "noteitem_list_items", "noteitem_list_by_goal", "noteitem_get",
 		"taskitem_list_items", "taskitem_list_by_goal", "taskitem_list_by_focus_date", "taskitem_get",
+		"recurring_task_get", "planning_work_query", "task_occurrence_history", "task_occurrence_get", "recurring_task_successor_preview",
 		"taskitem_list_trash", "strategic_report_get", "weekly_report_get", "reflection_report_get",
 		"calendar_period_get", "general_report_get", "general_attention_get", "day_report_get", "weekly_review_settings_get", "datetime_get_current", "search_agent_call", LoadToolName
 	}.ToFrozenSet(StringComparer.Ordinal);
