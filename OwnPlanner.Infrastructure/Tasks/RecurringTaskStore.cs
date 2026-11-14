@@ -36,7 +36,7 @@ public sealed class RecurringTaskStore(IPlannerDbContextFactory factory) : IRecu
 		return result;
 	}
 
-	private sealed class SeriesTransaction(AppDbContext db, TaskItem task, bool listAvailable) : IRecurringTaskTransaction
+	internal sealed class SeriesTransaction(AppDbContext db, TaskItem task, bool listAvailable) : IRecurringTaskTransaction
 	{
 		public TaskItem Task => task;
 		public bool ListAvailable => listAvailable;

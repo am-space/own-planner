@@ -288,6 +288,14 @@ export interface WeeklyReviewState {
   timeZoneId: string;
   status: string;
 }
+export interface ReviewWorkCounts {
+  ordinaryTaskCount: number;
+  seriesCount: number;
+  occurrenceCount: number;
+  taskCount: number;
+  workItemCount: number;
+}
+
 export interface WeeklyReviewView {
   review: WeeklyReviewState;
   suggestCreatingGoals: boolean;
@@ -300,7 +308,7 @@ export interface WeeklyReviewView {
     totalCount: number;
     offset: number;
     limit: number;
-    tasks: { id: string; title: string; goalId: string | null; carryover: boolean; overdue: boolean; dueInTargetWeek: boolean }[];
+    tasks: { id: string; title: string; goalId: string | null; carryover: boolean; overdue: boolean; dueInTargetWeek: boolean; isRecurring?: boolean; pendingOccurrenceCount?: number }[];
     goals: {
       activeCount: number;
       noNextStepCount: number;
@@ -309,9 +317,15 @@ export interface WeeklyReviewView {
       completedOtherWorkCount: number;
       plannedGoalWorkCount: number;
       plannedOtherWorkCount: number;
+      workShare?: {
+        completedGoal: ReviewWorkCounts; completedOther: ReviewWorkCounts;
+        plannedGoal: ReviewWorkCounts; plannedOther: ReviewWorkCounts;
+      } | null;
       unplannedGoalIds: string[];
       items: {
         id: string; title: string; metric: string | null; metricCurrent: string | null;
+        work?: { completionActivity: { completedCount: number; truncated: boolean; samples: { taskId: string; title: string }[] } } | null;
+        plannedWork?: ReviewWorkCounts | null;
         completedLast7Count: number; completedLast7: { id: string; title: string }[];
         openTaskCount: number; openTasks: { id: string; title: string }[];
         plannedTaskCount: number; noNextStep: boolean; stalled: boolean; targetPeriodFlag: string | null;

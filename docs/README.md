@@ -22,7 +22,7 @@ describe.
 | [`day-work.md`](day-work.md) | Daily execution, deadlines, overdue warnings and bounded drill-down |
 | [`general-attention.md`](general-attention.md) | Today-first General attention, exact counts and section drill-down |
 | [`user-calendar.md`](user-calendar.md) | Shared local dates, named periods, UTC fallback and compatible report options |
-| [`recurring-tasks.md`](recurring-tasks.md) | Internal recurrence engine, lifecycle, linked successors, unified reads and occurrence-aware reports; no public creation yet |
+| [`recurring-tasks.md`](recurring-tasks.md) | Internal recurrence engine, lifecycle, linked successors, unified reads, occurrence-aware reports and Weekly Review; no public creation yet |
 | [`weekly-review.md`](weekly-review.md) | Goal-focused local-calendar reviews, reminders, settings and delivery policy |
 | [`chat-presentation.md`](chat-presentation.md) | Scoped Markdown and responsive chat styles |
 
@@ -31,7 +31,7 @@ describe.
 Active implementation plans live directly in `docs/` as `*-plan.md`:
 
 - [`recurring-tasks-plan.md`](recurring-tasks-plan.md) — staged #84 recurrence implementation;
-  stages 1–5 foundations/persistence/lifecycle/successors/unified reads/reports, with Weekly Review and public integration still to follow.
+  stages 1–6 foundations/persistence/lifecycle/successors/unified reads/reports/Weekly Review, with public integration still to follow.
 
 Potential work without an implementation commitment lives in `backlog/`:
 
@@ -100,6 +100,8 @@ ADRs describe decisions as actually shipped. Start new records from [`adr/templa
 - [`ADR-0039`](adr/0039-unified-recurrence-reads.md) — exact mixed planning pages and independent occurrence-fact history
 
 - [`ADR-0040`](adr/0040-occurrence-aware-reports.md) — mixed work evidence and separate scheduled/activity report selections
+
+- [`ADR-0041`](adr/0041-occurrence-aware-weekly-review.md) — frozen occurrence-aware review, mixed evidence and atomic guarded actions
 
 ## Historical plans
 

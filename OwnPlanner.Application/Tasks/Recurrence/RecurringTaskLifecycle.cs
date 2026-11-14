@@ -16,19 +16,8 @@ public sealed class RecurringTaskLifecycle(IRecurringTaskStore store, IPlanningC
 		if (completedAtUtc.HasValue && (completedAtUtc.Value.Kind != DateTimeKind.Utc || completedAtUtc > snapshot.AsOfUtc))
 			throw new ArgumentException("Completion time must be UTC and no later than the current clock.", nameof(completedAtUtc));
 		await ReconcileSeriesAsync(id.TaskId, snapshot, ct);
-		return await store.ExecuteAsync(id.TaskId, async (tx, token) =>
-		{
-			RequireAccessibleSeries(tx);
-			var fact = await tx.GetFactAsync(id.OccurrenceDate, token);
-			if (fact?.Status == TaskOccurrenceStatus.Completed) return fact;
-			if (fact?.Status == TaskOccurrenceStatus.Cancelled)
-				throw new InvalidOperationException("A cancelled occurrence cannot be completed.");
-			// A recorded skip is an explicit history correction, even on a closed predecessor.
-			if (fact is null) RequireEligibleOccurrence(tx.Task, id.OccurrenceDate);
-			var completed = new TaskOccurrenceFact(id, TaskOccurrenceStatus.Completed, completedAtUtc ?? snapshot.AsOfUtc);
-			await tx.PutFactAsync(completed, token);
-			return completed;
-		}, ct);
+		return await store.ExecuteAsync(id.TaskId, (tx, token) =>
+			ApplyOccurrenceAsync(tx, id, snapshot, calculator, true, completedAtUtc, token), ct);
 	}
 
 	public async Task<TaskOccurrenceFact> CancelOccurrenceAsync(TaskOccurrenceId id, CancellationToken ct = default)
@@ -36,17 +25,34 @@ public sealed class RecurringTaskLifecycle(IRecurringTaskStore store, IPlanningC
 		ArgumentNullException.ThrowIfNull(id);
 		var snapshot = await calendar.ResolveAsync("today", ct);
 		await ReconcileSeriesAsync(id.TaskId, snapshot, ct);
-		return await store.ExecuteAsync(id.TaskId, async (tx, token) =>
-		{
-			RequireAccessibleSeries(tx);
-			var fact = await tx.GetFactAsync(id.OccurrenceDate, token);
-			if (fact?.Status == TaskOccurrenceStatus.Cancelled) return fact;
-			if (fact is not null) throw new InvalidOperationException("Only an unresolved occurrence can be cancelled.");
-			RequireEligibleOccurrence(tx.Task, id.OccurrenceDate);
-			var cancelled = new TaskOccurrenceFact(id, TaskOccurrenceStatus.Cancelled);
-			await tx.PutFactAsync(cancelled, token);
-			return cancelled;
-		}, ct);
+		return await store.ExecuteAsync(id.TaskId, (tx, token) =>
+			ApplyOccurrenceAsync(tx, id, snapshot, calculator, false, null, token), ct);
+	}
+
+	/// <summary>Applies the shared terminal-fact policy inside a caller-owned tenant write transaction.
+	/// Review callers perform their stale/review checks under the same lock before invoking this method.
+	/// It never reconciles other dates, closes the parent, or commits the caller's transaction.</summary>
+	public static async Task<TaskOccurrenceFact> ApplyOccurrenceAsync(IRecurringTaskTransaction tx, TaskOccurrenceId id,
+		PlanningPeriod snapshot, IRecurrenceCalculator calculator, bool complete, DateTime? completedAtUtc = null, CancellationToken ct = default)
+	{
+		if (id.TaskId != tx.Task.Id) throw new ArgumentException("Occurrence does not belong to this transaction.", nameof(id));
+		if (completedAtUtc.HasValue && (completedAtUtc.Value.Kind != DateTimeKind.Utc || completedAtUtc > snapshot.AsOfUtc))
+			throw new ArgumentException("Completion time must be UTC and no later than the current clock.", nameof(completedAtUtc));
+		RequireAccessibleSeries(tx);
+		var fact = await tx.GetFactAsync(id.OccurrenceDate, ct);
+		if (complete && fact?.Status == TaskOccurrenceStatus.Completed || !complete && fact?.Status == TaskOccurrenceStatus.Cancelled)
+			return fact!;
+		if (fact?.Status == TaskOccurrenceStatus.Cancelled || !complete && fact is not null)
+			throw new InvalidOperationException("The recorded occurrence cannot make this transition.");
+		// A recorded skip is a history correction, even on a closed predecessor.
+		if (fact is null) RequireEligibleOccurrence(tx.Task, id.OccurrenceDate, calculator);
+		if (!complete && tx.Task.Recurrence!.MissedPolicy == MissedOccurrencePolicy.SkipExpiredPeriods &&
+			RecurrenceCalendar.PeriodContaining(tx.Task.Recurrence.Rule.Frequency, id.OccurrenceDate, snapshot).IsExpired(snapshot.AsOfUtc))
+			throw new InvalidOperationException("The occurrence has expired; refresh before retrying.");
+		var result = new TaskOccurrenceFact(id, complete ? TaskOccurrenceStatus.Completed : TaskOccurrenceStatus.Cancelled,
+			complete ? completedAtUtc ?? snapshot.AsOfUtc : null);
+		await tx.PutFactAsync(result, ct);
+		return result;
 	}
 
 	public async Task EndSeriesAsync(Guid taskId, CancellationToken ct = default)
@@ -158,7 +164,7 @@ public sealed class RecurringTaskLifecycle(IRecurringTaskStore store, IPlanningC
 		if (!tx.ListAvailable) throw new InvalidOperationException("The task list is unavailable.");
 	}
 
-	private void RequireEligibleOccurrence(TaskItem task, DateOnly date)
+	private static void RequireEligibleOccurrence(TaskItem task, DateOnly date, IRecurrenceCalculator calculator)
 	{
 		if (task.IsCompleted) throw new InvalidOperationException("The series has ended; only recorded skipped history can be corrected.");
 		if (date == DateOnly.MaxValue || !calculator.Enumerate(task.Recurrence!, new(date, date.AddDays(1))).Any())

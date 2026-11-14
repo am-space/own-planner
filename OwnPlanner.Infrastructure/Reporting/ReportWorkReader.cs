@@ -13,7 +13,7 @@ internal static class ReportWorkReader
 {
 	public static async Task<ReportWork> ReadAsync(AppDbContext db, PlanningPeriod calendar,
 		OccurrenceDateRange range, DateTime activityStartUtc, DateTime activityEndUtc, int sampleLimit,
-		CancellationToken ct, bool includeGroups = true)
+		CancellationToken ct, bool includeGroups = true, DateOnly? pendingOccurrenceStart = null)
 	{
 		var zone = TimeZoneInfo.FindSystemTimeZoneById(calendar.TimeZone);
 		var focusStart = range.StartDate.ToDateTime(TimeOnly.MinValue);
@@ -33,7 +33,7 @@ internal static class ReportWorkReader
 			t.DueAt is { } due ? DateTime.SpecifyKind(due, DateTimeKind.Utc) : null, null, null, null),
 			DateTime.SpecifyKind(t.CompletedAt!.Value, DateTimeKind.Utc))).ToArray();
 		return await ReportWorkBuilder.BuildAsync(new PlanningWorkStore.Snapshot(db, readDescriptions: false), calendar, range,
-			activityStartUtc, activityEndUtc, ordinary, sampleLimit, new RecurrenceCalculator(), ct, includeGroups);
+			activityStartUtc, activityEndUtc, ordinary, sampleLimit, new RecurrenceCalculator(), ct, includeGroups, pendingOccurrenceStart);
 	}
 
 	public static PlanningPeriod UtcCalendar(DateTime asOfUtc) => PlanningCalendarResolver.Resolve("today", asOfUtc, "UTC");

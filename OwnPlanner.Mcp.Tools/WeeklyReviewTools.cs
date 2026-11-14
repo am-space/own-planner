@@ -18,7 +18,7 @@ public sealed class WeeklyReviewTools(IWeeklyReviewService service, WeeklyReview
 			reminderTime ?? current.ReminderTime, channel ?? current.Channel, ct);
 	}
 
-	[McpServerTool(Name = "weekly_review_open"), Description("Open/resume the shared weekly review. No planning-data mutation. Returns active goals first with calculated flags, completed/open task samples, target-week plan counts and goal-work share; then a bounded page of remaining carryover/overdue tasks. Page tasks with offset/limit (maximum 50). A goal task already planned for the target week is omitted from the task page. suggestCreatingGoals is true only on the first conversational opening of a review with no active goals, even if Settings or /review was opened earlier. Optional reviewId resumes that review; targetWeek yyyy-MM-dd selects the period in a reminder. pausedGoalsMention is returned only for the first actual opening in a local calendar month with paused goals; repeat that one sentence and offer to resume, never invent it on refresh. activeGoalWarning is returned once per review and belongs at the beginning. Refresh before changes. Set present=false when looking up a review solely to skip, defer or finish it; this does not consume monthly or one-time guidance. Opening does not authorize any task or goal mutation.")]
+	[McpServerTool(Name = "weekly_review_open"), Description("Open/resume the shared weekly review. No planning-data mutation. Returns active goals first with calculated flags, completed/open task samples, target-week plan counts and goal-work share; then a bounded page of remaining carryover/overdue tasks. Page tasks with offset/limit (maximum 50). A goal task already planned for the target week is omitted from the task page. suggestCreatingGoals is true only on the first conversational opening of a review with no active goals, even if Settings or /review was opened earlier. Optional reviewId resumes that review; targetWeek yyyy-MM-dd selects the period in a reminder. pausedGoalsMention is returned only for the first actual opening in a local calendar month with paused goals; repeat that one sentence and offer to resume, never invent it on refresh. activeGoalWarning is returned once per review and belongs at the beginning. Refresh before changes. Set present=false when looking up a review solely to skip, defer or finish it; this does not consume monthly or one-time guidance. The task page counts stored ordinary tasks/series once. Occurrences is an independently paged exact pending selection; weekly_review_occurrences provides more pages or a targeted historical fact. Goals.Work and WorkShare distinguish ordinary/series/occurrence counts and actual CompletedAt activity from target-week dates; legacy completion counters count ordinary tasks only and parent closure is never work. A goal plan for next week never hides its unfinished current-week occurrences. Opening does not authorize any task or goal mutation.")]
 	public async Task<object> Open(string? reviewId = null, int offset = 0, int limit = 20, CancellationToken ct = default, string? targetWeek = null, bool present = true)
 	{
 		DateOnly? target = null;
@@ -31,6 +31,12 @@ public sealed class WeeklyReviewTools(IWeeklyReviewService service, WeeklyReview
 		return await service.OpenAsync(ParseId(reviewId, nameof(reviewId)), offset, limit, ct, target, conversational: true, present: present);
 	}
 
+	[McpServerTool(Name = "weekly_review_occurrences", ReadOnly = true, Idempotent = true), Description("Read exact pending occurrence details for an existing review without opening it or consuming guidance. Uses its frozen calendar, current-period obligations and full retained prefix. Page independently with offset/limit (1-50); optionally filter taskId. To inspect a recorded historical fact, supply taskId and occurrenceDate yyyy-MM-dd, even on a closed predecessor. Each item has original Work.TaskId plus Work.OccurrenceDate, period, status, revision and guardToken. Source metadata appears once per series. Refresh before explicitly authorized completeOccurrence/cancelOccurrence actions. A date is never a deadline or an authorization to end its series.")]
+	public async Task<object> Occurrences(string reviewId, string? taskId = null, int offset = 0, int limit = 20,
+		string? occurrenceDate = null, CancellationToken ct = default) =>
+		await service.OccurrencesAsync(ParseRequiredId(reviewId, nameof(reviewId)), ParseId(taskId, nameof(taskId)),
+			offset, limit, ParseDate(occurrenceDate, nameof(occurrenceDate)), ct);
+
 	[McpServerTool(Name = "weekly_review_transition"), Description("On explicit user request, complete, skip, or defer a review by reviewId. Completing one task does not finish a review. For defer resolve a definite future localTime yyyy-MM-ddTHH:mm in the review's timezone, before its target week ends. Ask when ambiguous. 'Tomorrow' means the next local calendar day; retain the original target week. For disable reminders use weekly_review_configure with enabled=false and preserve existing preferences.")]
 	public async Task<object> Transition(string reviewId, string action, string? localTime = null, CancellationToken ct = default) =>
 		await service.TransitionAsync(ParseRequiredId(reviewId, nameof(reviewId)), action, localTime, ct);
@@ -38,8 +44,8 @@ public sealed class WeeklyReviewTools(IWeeklyReviewService service, WeeklyReview
 	[McpServerTool(Name = "weekly_review_offer"), Description("After answering a suitable planning request, check once for an eligible missed weekly reminder or due deferral. Do not call during urgent/unrelated work or switch modes. Returns a counts-only invitation or no invitation; repeat only the returned invitation. This claims the offer across web/Telegram but never changes tasks. Delivered, finished, skipped, disabled and previously offered reviews are suppressed.")]
 	public async Task<object> Offer(CancellationToken ct = default) => new { invitation = await service.OfferAsync(ct) };
 
-	[McpServerTool(Name = "weekly_review_apply"), Description("Apply one explicitly authorized review task action with reviewId, taskId and revision from a fresh review result or targeted task lookup. Existing actions: focus, clearFocus, complete, trash, deadline, clearDeadline. goalFocus plans an existing task already linked to the selected active goal for focusDate in the target week, even when it is outside the ordinary task page; specify goalId. linkGoal links an unlinked task in the task review to an active goal only after user confirmation; specify goalId. Rechecks task, list, revision, goal and review; applied=false means refresh. Opening alone never authorizes mutations. Report partial failures; focus preserves deadlines.")]
-	public async Task<object> Apply(string reviewId, string taskId, string revision, string action, string? focusDate = null, string? dueAt = null, CancellationToken ct = default, string? goalId = null)
+	[McpServerTool(Name = "weekly_review_apply"), Description("Apply one explicitly authorized review task action with reviewId, taskId and revision from a fresh review result or targeted task lookup. Existing actions: focus, clearFocus, complete, trash, deadline, clearDeadline. goalFocus plans an existing task already linked to the selected active goal for focusDate in the target week, even when it is outside the ordinary task page; specify goalId. linkGoal links an unlinked task in the task review to an active goal only after user confirmation; specify goalId. Rechecks task, list, revision, goal and review; applied=false means refresh. Opening alone never authorizes mutations. For series, use only completeOccurrence or cancelOccurrence with occurrenceDate yyyy-MM-dd and guardToken from fresh weekly_review_occurrences or Report.Occurrences. revision remains required. Completion defaults to the current clock; optional completedAt must be the explicitly reported actual instant with Z/offset, no later than now. Never invent a completion time from the scheduled date; resolve ambiguity first. Only completeOccurrence accepts completedAt. Complete one occurrence never completes its parent; skipped historical facts can be explicitly corrected with completeOccurrence. A stale guard returns applied=false: refresh and resolve changes before retrying. Ordinary focus/complete/trash and deadline actions are rejected on recurring parents; occurrence rescheduling and schedule-conflict choices require separate workflows. Report partial failures; focus preserves deadlines.")]
+	public async Task<object> Apply(string reviewId, string taskId, string revision, string action, string? focusDate = null, string? dueAt = null, CancellationToken ct = default, string? goalId = null, string? occurrenceDate = null, string? guardToken = null, string? completedAt = null)
 	{
 		if (!DateTimeOffset.TryParse(revision, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.AssumeUniversal, out var version))
 			throw new ArgumentException("revision must be the timestamp returned by the review.");
@@ -58,9 +64,21 @@ public sealed class WeeklyReviewTools(IWeeklyReviewService service, WeeklyReview
 				throw new ArgumentException("dueAt must include an explicit UTC offset or Z.");
 			deadline = parsed.UtcDateTime;
 		}
+		DateTime? completion = null;
+		if (completedAt is not null)
+		{
+			if (!(completedAt.EndsWith('Z') || System.Text.RegularExpressions.Regex.IsMatch(completedAt, @"[+-]\d{2}:\d{2}$")) ||
+				!DateTimeOffset.TryParse(completedAt, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var parsed))
+				throw new ArgumentException("completedAt must include an explicit UTC offset or Z.", nameof(completedAt));
+			completion = parsed.UtcDateTime;
+		}
 		return await actions.ApplyAsync(ParseRequiredId(reviewId, nameof(reviewId)), ParseRequiredId(taskId, nameof(taskId)), version.UtcDateTime, action, focus, deadline, ct,
-			ParseId(goalId, nameof(goalId)));
+			ParseId(goalId, nameof(goalId)), ParseDate(occurrenceDate, nameof(occurrenceDate)), guardToken, completion);
 	}
+
+	private static DateOnly? ParseDate(string? value, string parameterName) => value is null ? null :
+		DateOnly.TryParseExact(value, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var date)
+			? date : throw new ArgumentException($"{parameterName} must be yyyy-MM-dd.", parameterName);
 
 	private static Guid? ParseId(string? value, string parameterName) => value is null ? null :
 		Guid.TryParse(value, out var id) ? id : throw new ArgumentException($"{parameterName} must be a UUID.", parameterName);

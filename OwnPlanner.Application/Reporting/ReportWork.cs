@@ -44,7 +44,7 @@ public static class ReportWorkBuilder
 	public static async Task<ReportWork> BuildAsync(IPlanningWorkSnapshot snapshot, PlanningPeriod calendar,
 		OccurrenceDateRange range, DateTime activityStartUtc, DateTime activityEndUtc,
 		IReadOnlyList<ReportOrdinaryCompletion> ordinaryCompletions, int sampleLimit,
-		IRecurrenceCalculator calculator, CancellationToken ct = default, bool includeGroups = true)
+		IRecurrenceCalculator calculator, CancellationToken ct = default, bool includeGroups = true, DateOnly? pendingOccurrenceStart = null)
 	{
 		RecurrenceReadLimits.ValidateRange(range);
 		if (sampleLimit is < 0 or > 20) throw new ArgumentOutOfRangeException(nameof(sampleLimit));
@@ -65,6 +65,7 @@ public static class ReportWorkBuilder
 			.Select(f => RecurrenceCalendar.PeriodContaining(f, calendar.Today, calendar).Dates)
 			.Where(p => p.StartDate < range.EndExclusiveDate && p.EndExclusiveDate > range.StartDate)
 			.Select(p => p.StartDate).Append(range.StartDate).Min();
+		if (pendingOccurrenceStart is { } earlier && earlier < currentStart) currentStart = earlier;
 		var ordinaryQuery = new PlanningWorkQuery(range);
 		await PlanningWorkReader.VisitAsync(new(new(currentStart, range.EndExclusiveDate),
 			IncludeRetainedBeforeStart: true, Status: null), calendar, snapshot, calculator, (item, source) =>

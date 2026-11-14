@@ -1,13 +1,14 @@
 # Recurring-task foundations and staged contracts
 
-Stages 1–5 ([#89](https://github.com/am-space/own-planner/issues/89),
+Stages 1–6 ([#89](https://github.com/am-space/own-planner/issues/89),
 [#90](https://github.com/am-space/own-planner/issues/90),
 [#91](https://github.com/am-space/own-planner/issues/91),
 [#92](https://github.com/am-space/own-planner/issues/92),
-[#93](https://github.com/am-space/own-planner/issues/93)) provide internal recurrence types, a
+[#93](https://github.com/am-space/own-planner/issues/93),
+[#94](https://github.com/am-space/own-planner/issues/94)) provide internal recurrence types, a
 deterministic calendar engine, per-user persistence, lifecycle reconciliation and linked successor
-commands, unified planning reads, fact history and occurrence-aware reports. Public recurring-task
-creation, occurrence MCP operations and browser features remain unavailable. The [active implementation plan](recurring-tasks-plan.md)
+commands, unified planning reads, fact history, occurrence-aware reports and Weekly Review. Public recurring-task
+creation and general occurrence MCP operations remain unavailable; the review has explicit guarded occurrence actions. The [active implementation plan](recurring-tasks-plan.md)
 tracks all eight stages of [#84](https://github.com/am-space/own-planner/issues/84).
 The later-stage sections below describe required future behavior.
 
@@ -289,12 +290,12 @@ snapshot and can reflect concurrent writes; this is deterministic paging per cal
 multi-request export. Missing timezone uses the disclosed shared UTC fallback. Infrastructure loads
 current source metadata and selected persisted facts in memory; only generated work streams are lazy.
 
-## Integration remaining in stages 6–8
+## Integration remaining in stages 7–8
 
 The readers are registered in web and stdio but have no public route/tool. Existing task-list queries,
 `taskitem_list_*` and browser shapes retain their stored-task meaning. Reports and preloads include
-additive mixed-work evidence. Weekly Review must consume the shared projection/history inputs before
-public series creation is enabled. No stage may count parent closure as extra work or infer duration/capacity
+additive mixed-work evidence. Weekly Review consumes the same projection/history inputs. Public
+series creation remains disabled until the stage-7 shared commands and chat safety contracts land. No stage may count parent closure as extra work or infer duration/capacity
 from repeated occurrence counts. The overall #84 plan stays active through #96.
 
 ## Occurrence-aware reports (stage 5)
@@ -353,4 +354,53 @@ not reconstructed historical assignments. Existing report tools and all six mode
 the same additive block through in-process/HTTP/stdio serialization, with shared interpretation
 guidance. No tool arguments or recurrence mutation permissions were added. Existing section/offset
 paging still applies to the original stored-task sections; `Work` is a separate bounded overview,
-with its own dates, sample limit and truncation. Public occurrence drill-down is stage 7.
+with its own dates, sample limit and truncation. General public occurrence drill-down is stage 7; the existing-review drill-down is described below.
+
+
+## Occurrence-aware Weekly Review (stage 6)
+
+Weekly Review uses its frozen timezone, target weekday and week boundaries for occurrence dates
+and expiry. Its pending selection spans full current weeks/months through the target week and the
+complete unresolved retained prefix. Sunday can therefore review next Friday while the current
+Friday remains independently actionable, including across month and DST boundaries.
+
+The existing task page counts stored ordinary tasks/series once. Recurring source rows add
+`IsRecurring`, `PendingOccurrenceCount` and `PlannedOccurrenceCount`. Pending target-week work for an
+active goal does not hide earlier unresolved occurrences of the same parent. Real deadlines are
+source-level commitments. Recurrence dates never imply an overdue deadline or capacity estimate.
+
+`Report.Occurrences` has an independent first page (20 items), exact totals, distinct series and
+carryover/planned counts, original `(TaskId, OccurrenceDate)` identities, full periods, revisions,
+guard tokens and deduplicated source metadata. Use `weekly_review_occurrences` or authenticated
+`GET /api/weekly-review/{id}/occurrences` with independent `offset`, `limit` (1–50) and optional
+`taskId`. Supplying `taskId` plus `occurrenceDate=yyyy-MM-dd` reads one eligible pending occurrence or
+recorded historical fact, including closed predecessors and dates outside shortened bounds. These
+reads claim no guidance, change no preferences and never reconcile or write pending facts.
+
+`Goals.Work` / each goal's `Work` reuse the report sections. `WorkShare` splits completed and planned
+work between active goals and other work with explicit ordinary/series/occurrence counts; per-goal
+`PlannedWork` does the same. Completion activity retains the existing rolling seven elapsed days,
+including the report instant (`[now-7d, now+1tick)`); the stalled check uses fourteen days and existing
+creation/resume grace. Original scheduled outcomes use the frozen target-week date range. A Friday
+occurrence completed Monday counts in Monday activity and keeps Friday's scheduled identity.
+Administrative parent closure never adds completion activity. Legacy completion counters/samples
+refer to ordinary tasks; legacy open/planned counters describe stored sources. No-plan signals use
+exact pending target-week occurrences independently of samples, while no-next-step still means no
+eligible open task/series record. Current assignments are not reconstructed historical membership.
+
+`weekly_review_apply` adds `completeOccurrence` and `cancelOccurrence`, requiring original
+`occurrenceDate`, the existing `revision`, and a fresh `guardToken`. Completion defaults to the
+injected clock; optional `completedAt` accepts an explicitly reported actual instant with Z/offset,
+no later than now. Never derive it from the scheduled date. Other actions reject this argument. Eligibility, review state,
+parent/list, schedule/revision and fact are revalidated together under one tenant write lock before
+using the shared lifecycle transition. Stale data returns `applied=false`: refresh and resolve the
+changed target before retrying. Recorded skipped history can be explicitly completed even on a
+closed predecessor. This never reopens the parent or changes successor work. Ordinary review
+completion/focus/Trash/deadline actions reject recurring parents. A guard never authorizes a
+successor conflict choice; schedule changes keep their separate preview/apply contract. No
+occurrence rescheduling or rule editing is introduced.
+
+Browser/Telegram summaries use mixed work counts; browser lists remain one row per series, with
+pending-occurrence annotations and deduplicated completed-source titles. Chat provides detailed
+occurrence paging/actions. Reminder preferences and delivery/guidance claims are unchanged. See
+[Weekly Review](weekly-review.md) and [ADR-0041](adr/0041-occurrence-aware-weekly-review.md).

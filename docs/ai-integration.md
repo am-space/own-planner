@@ -532,7 +532,17 @@ calculated flags and goal-work shares before remaining tasks. The `weekly_planni
 and update goals during the review; it asks for a next-week commitment per goal and offers a one-time
 goal formulation prompt when there are no active goals. Loading/opening a review never changes
 planning data. `weekly_review_apply` uses a fresh report or task revision to recheck each explicitly authorized target,
-then reuses ordinary task services; report applied=false and partial failures accurately. Clear
+then reuses ordinary task services; report applied=false and partial failures accurately. Recurring
+parents reject those ordinary actions. The additive `weekly_review_occurrences` reads independent
+exact occurrence pages or a targeted historical fact without claiming guidance. Explicit
+`completeOccurrence` / `cancelOccurrence` require the original occurrence date, revision and fresh
+guardToken, plus optional explicitly reported actual `completedAt` with Z/offset (otherwise the
+injected clock is used). Never infer a completion instant from its scheduled date. State, schedule,
+review and facts are rechecked atomically before the shared lifecycle
+transition. Stale actions require refresh; an occurrence action never ends its parent or reschedules
+an occurrence. Use Goals.Work/WorkShare and per-goal PlannedWork for mixed evidence and count units;
+legacy completion counters remain ordinary-task counts. Sunday next-week planning preserves
+current-period obligations. General recurrence tools/creation remain stage 7. Clear
 focus and clear deadline are separate operations, with deadline removal using #61's clearDueAt.
 Its `goalFocus` action schedules a linked goal task absent from the carryover page; `linkGoal`
 links an unlinked task to an active goal after confirmation.

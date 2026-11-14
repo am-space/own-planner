@@ -44,6 +44,13 @@ export default function WeeklyReviewPage() {
     finally { setBusy(false); }
   };
 
+  const goals = review?.report.goals;
+  const share = goals?.workShare;
+  const completedGoal = share?.completedGoal.workItemCount ?? goals?.completedGoalWorkCount ?? 0;
+  const completedOther = share?.completedOther.workItemCount ?? goals?.completedOtherWorkCount ?? 0;
+  const plannedGoal = share?.plannedGoal.workItemCount ?? goals?.plannedGoalWorkCount ?? 0;
+  const plannedOther = share?.plannedOther.workItemCount ?? goals?.plannedOtherWorkCount ?? 0;
+
   return <Box sx={{ width: '100%', minHeight: 0, overflowY: 'auto' }}>
     <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 960, mx: 'auto' }}>
       <Stack spacing={2}>
@@ -65,21 +72,22 @@ export default function WeeklyReviewPage() {
             {review.suggestCreatingGoals && <Typography color="text.secondary">No active goals yet. In chat, you can formulate 1–3 goals for this season.</Typography>}
             {review.report.goals.items.map(goal => <Box key={goal.id}>
               <Typography sx={{ fontWeight: 'bold' }}>{goal.title}</Typography>
-              <Typography>{goal.completedLast7Count} completed in the last 7 days · {goal.openTaskCount} open · {goal.plannedTaskCount} planned for this week</Typography>
+              <Typography>Completed work items in the last 7 days: {goal.work?.completionActivity.completedCount ?? goal.completedLast7Count} · {goal.openTaskCount} open tasks/series · Planned work items for this week: {goal.plannedWork?.workItemCount ?? goal.plannedTaskCount}</Typography>
               {goal.metric && <Typography color="text.secondary">{goal.metric}: {goal.metricCurrent || 'No progress value yet'}</Typography>}
               {(goal.noNextStep || goal.stalled || goal.targetPeriodFlag) && <Typography color="warning.main">
                 {[goal.noNextStep && 'No next step', goal.stalled && 'Stalled', goal.targetPeriodFlag === 'targetPeriodPassed' && 'Target period passed', goal.targetPeriodFlag === 'targetPeriodEndingSoon' && 'Target period ending soon'].filter(Boolean).join(' · ')}
               </Typography>}
-              {goal.completedLast7.length > 0 && <Typography color="text.secondary">Completed: {goal.completedLast7.map(task => task.title).join(', ')}{goal.completedLast7Count > goal.completedLast7.length ? '…' : ''}</Typography>}
+              {goal.work && goal.work.completionActivity.samples.length > 0 && <Typography color="text.secondary">Completed sources: {[...new Map(goal.work.completionActivity.samples.map(task => [task.taskId, task.title])).values()].join(', ')}{goal.work.completionActivity.truncated ? '…' : ''}</Typography>}
+              {!goal.work && goal.completedLast7.length > 0 && <Typography color="text.secondary">Completed: {goal.completedLast7.map(task => task.title).join(', ')}{goal.completedLast7Count > goal.completedLast7.length ? '…' : ''}</Typography>}
               {goal.openTasks.length > 0 && <Typography color="text.secondary">Open: {goal.openTasks.map(task => task.title).join(', ')}{goal.openTaskCount > goal.openTasks.length ? '…' : ''}</Typography>}
             </Box>)}
-            <Typography>Goal work: {review.report.goals.completedGoalWorkCount} of {review.report.goals.completedGoalWorkCount + review.report.goals.completedOtherWorkCount} tasks completed in the last 7 days; {review.report.goals.plannedGoalWorkCount} of {review.report.goals.plannedGoalWorkCount + review.report.goals.plannedOtherWorkCount} planned for this week.</Typography>
+            <Typography>Goal work: {completedGoal} of {completedGoal + completedOther} work items completed in the last 7 days; {plannedGoal} of {plannedGoal + plannedOther} planned for this week.</Typography>
             {review.report.goals.unplannedGoalIds.length > 0 && <Typography color="warning.main">No plan for this week: {review.report.goals.items.filter(goal => review.report.goals.unplannedGoalIds.includes(goal.id)).map(goal => goal.title).join(', ')}.</Typography>}
             <Typography variant="h6">Remaining tasks</Typography>
             <Typography>{review.report.carryoverCount} carryover · {review.report.overdueCount} overdue deadlines · {review.report.dueInTargetWeekCount} due in target week</Typography>
             <Typography color="text.secondary">Continue in chat: “Open my weekly review.” Receiving or opening a review never changes tasks.</Typography>
             {review.report.totalCount === 0 ? <Typography>No tasks need review.</Typography> : <Box component="ul" sx={{ pl: 3 }}>
-              {review.report.tasks.map(task => <li key={task.id}>{task.title} — {[task.carryover && 'carryover', task.overdue && 'overdue deadline', task.dueInTargetWeek && 'due in target week'].filter(Boolean).join(', ')}</li>)}
+              {review.report.tasks.map(task => <li key={task.id}>{task.title} — {[task.isRecurring && `${task.pendingOccurrenceCount ?? 0} pending occurrences`, task.carryover && 'carryover', task.overdue && 'overdue deadline', task.dueInTargetWeek && 'due in target week'].filter(Boolean).join(', ')}</li>)}
             </Box>}
             <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
               <Typography variant="body2" color="text.secondary">

@@ -114,4 +114,54 @@ public sealed class WeeklyReviewToolsTests
 		var result = JsonSerializer.SerializeToElement(await Tools.Offer(TestContext.Current.CancellationToken));
 		result.GetProperty("invitation").ValueKind.Should().Be(JsonValueKind.Null);
 	}
+	[Fact]
+	public void OccurrenceInputsAreAdditiveAndDrillDownIsReadOnly()
+	{
+		var apply = McpServerTool.Create(typeof(WeeklyReviewTools).GetMethod(nameof(WeeklyReviewTools.Apply))!, Tools).ProtocolTool;
+		apply.InputSchema.GetProperty("required").EnumerateArray().Select(x => x.GetString())
+			.Should().Equal("reviewId", "taskId", "revision", "action");
+		var properties = apply.InputSchema.GetProperty("properties");
+		properties.TryGetProperty("occurrenceDate", out _).Should().BeTrue();
+		properties.TryGetProperty("guardToken", out _).Should().BeTrue();
+		properties.TryGetProperty("completedAt", out _).Should().BeTrue();
+		apply.Description.Should().Contain("never completes its parent").And.Contain("refresh");
+		var read = McpServerTool.Create(typeof(WeeklyReviewTools).GetMethod(nameof(WeeklyReviewTools.Occurrences))!, Tools).ProtocolTool;
+		read.Name.Should().Be("weekly_review_occurrences");
+		read.Annotations!.ReadOnlyHint.Should().BeTrue(); read.Annotations.IdempotentHint.Should().BeTrue();
+		read.InputSchema.GetProperty("required").EnumerateArray().Select(x => x.GetString()).Should().Equal("reviewId");
+	}
+
+	[Fact]
+	public async Task OccurrenceReadForwardsOriginalDateAndIndependentPaging()
+	{
+		var ct = TestContext.Current.CancellationToken; var review = Guid.NewGuid(); var task = Guid.NewGuid();
+		await Tools.Occurrences(review.ToString(), task.ToString(), 10, 2, "2026-11-13", ct);
+		await _service.Received(1).OccurrencesAsync(review, task, 10, 2, new DateOnly(2026, 11, 13), ct);
+		await _service.DidNotReceiveWithAnyArgs().OpenAsync(ct: ct);
+	}
+
+	[Theory]
+	[InlineData("2026-2-30")]
+	[InlineData("2026-11-13T00:00:00Z")]
+	public async Task OccurrenceDatesRejectTimestampsAndMalformedDatesBeforeDispatch(string date)
+	{
+		var id = Guid.NewGuid().ToString();
+		var read = () => Tools.Occurrences(id, id, occurrenceDate: date, ct: TestContext.Current.CancellationToken);
+		await read.Should().ThrowAsync<ArgumentException>().WithParameterName("occurrenceDate");
+		var apply = () => Tools.Apply(id, id, "2026-11-15T18:00:00Z", "completeOccurrence", occurrenceDate: date, guardToken: "guard", ct: TestContext.Current.CancellationToken);
+		await apply.Should().ThrowAsync<ArgumentException>().WithParameterName("occurrenceDate");
+		_service.ReceivedCalls().Should().BeEmpty();
+	}
+
+	[Theory]
+	[InlineData("2026-11-13T12:00:00")]
+	[InlineData("not-a-time")]
+	public async Task ReviewCompletionRequiresAnExplicitInstantOffset(string instant)
+	{
+		var id = Guid.NewGuid().ToString();
+		var apply = () => Tools.Apply(id, id, "2026-11-15T18:00:00Z", "completeOccurrence",
+			occurrenceDate: "2026-11-13", guardToken: "guard", completedAt: instant, ct: TestContext.Current.CancellationToken);
+		await apply.Should().ThrowAsync<ArgumentException>().WithParameterName("completedAt");
+	}
+
 }

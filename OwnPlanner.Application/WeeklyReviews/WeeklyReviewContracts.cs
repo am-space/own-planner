@@ -1,11 +1,20 @@
+using OwnPlanner.Application.Reporting;
+using OwnPlanner.Application.Tasks.Recurrence;
+
 namespace OwnPlanner.Application.WeeklyReviews;
 
 public sealed record WeeklyReviewTask(Guid Id, string Title, Guid TaskListId, DateTime? FocusAt, DateTime? DueAt,
-	DateTime Revision, bool Carryover, bool Overdue, bool DueInTargetWeek, Guid? GoalId = null);
+	DateTime Revision, bool Carryover, bool Overdue, bool DueInTargetWeek, Guid? GoalId = null)
+{
+	public bool IsRecurring { get; init; }
+	public int PendingOccurrenceCount { get; init; }
+	public int PlannedOccurrenceCount { get; init; }
+}
 public sealed record WeeklyReviewReport(DateTime AsOfUtc, int CarryoverCount, int OverdueCount, int DueInTargetWeekCount,
 	int TotalCount, int Offset, int Limit, IReadOnlyList<WeeklyReviewTask> Tasks)
 {
 	public WeeklyReviewGoals Goals { get; init; } = WeeklyReviewGoals.Empty;
+	public WeeklyReviewOccurrencePage? Occurrences { get; init; }
 }
 public sealed record WeeklyReviewView(WeeklyReviewState Review, WeeklyReviewReport Report)
 {
@@ -15,15 +24,24 @@ public sealed record WeeklyReviewView(WeeklyReviewState Review, WeeklyReviewRepo
 }
 public sealed record WeeklyReminderClaim(Guid ReviewId, int Occurrence, string Text);
 
-public sealed record WeeklyReviewGoalTask(Guid Id, string Title, DateTime Revision, DateTime? FocusAt);
+public sealed record WeeklyReviewGoalTask(Guid Id, string Title, DateTime Revision, DateTime? FocusAt)
+{
+	public bool IsRecurring { get; init; }
+}
 public sealed record WeeklyReviewGoal(Guid Id, string Title, string? Metric, string? MetricCurrent,
 	int CompletedLast7Count, IReadOnlyList<WeeklyReviewGoalTask> CompletedLast7,
 	int OpenTaskCount, IReadOnlyList<WeeklyReviewGoalTask> OpenTasks,
-	int PlannedTaskCount, bool NoNextStep, bool Stalled, string? TargetPeriodFlag);
+	int PlannedTaskCount, bool NoNextStep, bool Stalled, string? TargetPeriodFlag)
+{
+	public ReportWorkGroup? Work { get; init; }
+	public PlanningWorkCounts? PlannedWork { get; init; }
+}
 public sealed record WeeklyReviewGoals(int ActiveCount, int NoNextStepCount, int StalledCount,
 	int CompletedGoalWorkCount, int CompletedOtherWorkCount, int PlannedGoalWorkCount, int PlannedOtherWorkCount,
 	IReadOnlyList<Guid> UnplannedGoalIds, IReadOnlyList<WeeklyReviewGoal> Items)
 {
+	public ReportWork? Work { get; init; }
+	public WeeklyReviewWorkShare? WorkShare { get; init; }
 	public static WeeklyReviewGoals Empty { get; } = new(0, 0, 0, 0, 0, 0, 0, [], []);
 }
 
@@ -31,9 +49,20 @@ public sealed record WeeklyReviewGoalRow(Guid Id, string Title, DateTime Created
 	OwnPlanner.Domain.Goals.GoalHorizon Horizon, string? TargetPeriod, DateTime? TargetDate,
 	string? Metric, string? MetricCurrent, int CompletedLast7Count,
 	IReadOnlyList<WeeklyReviewGoalTask> CompletedLast7, int CompletedLast14Count,
-	int OpenTaskCount, IReadOnlyList<WeeklyReviewGoalTask> OpenTasks, int PlannedTaskCount, DateTime? LastResumedAt = null);
+	int OpenTaskCount, IReadOnlyList<WeeklyReviewGoalTask> OpenTasks, int PlannedTaskCount, DateTime? LastResumedAt = null)
+{
+	public ReportWorkGroup? Work { get; init; }
+	public PlanningWorkCounts? PlannedWork { get; init; }
+	public int OccurrenceCompletedLast14Count { get; init; }
+}
+public sealed record WeeklyReviewWorkShare(PlanningWorkCounts CompletedGoal, PlanningWorkCounts CompletedOther,
+	PlanningWorkCounts PlannedGoal, PlanningWorkCounts PlannedOther);
 public sealed record WeeklyReviewGoalData(IReadOnlyList<WeeklyReviewGoalRow> Goals,
-	int CompletedGoalWorkCount, int CompletedOtherWorkCount, int PlannedGoalWorkCount, int PlannedOtherWorkCount);
+	int CompletedGoalWorkCount, int CompletedOtherWorkCount, int PlannedGoalWorkCount, int PlannedOtherWorkCount)
+{
+	public ReportWork? Work { get; init; }
+	public WeeklyReviewWorkShare? WorkShare { get; init; }
+}
 
 public sealed record WeeklyReviewPausedGoal(Guid Id, string Title, DateTime PausedAt);
 
@@ -46,6 +75,13 @@ public interface IWeeklyReviewStore
 	Task<T> UpdateAsync<T>(Func<WeeklyReviewPreferences, IList<WeeklyReviewState>, T> transition, CancellationToken ct = default);
 	/// <summary>Returns exact counts and a bounded, stable page of active incomplete tasks with selection reasons.</summary>
 	Task<WeeklyReviewReport> ReportAsync(WeeklyReviewState review, DateTime nowUtc, int offset, int limit, CancellationToken ct = default);
+	/// <summary>Returns an exact independently paged pending occurrence selection in the frozen review calendar.
+	/// A targeted date also permits reading recorded historical facts, including closed predecessors.</summary>
+	Task<WeeklyReviewOccurrencePage> OccurrencesAsync(Guid reviewId, DateTime nowUtc, Guid? taskId = null, int offset = 0, int limit = 20, DateOnly? occurrenceDate = null, CancellationToken ct = default);
+	/// <summary>Runs reviewed occurrence checks and the shared lifecycle transition under one tenant write lock.
+	/// Callback failure rolls back all writes; callbacks must not perform network I/O.</summary>
+	Task<T> ExecuteOccurrenceAsync<T>(Guid reviewId, Guid taskId,
+		Func<WeeklyReviewState, IRecurringTaskTransaction, IPlanningWorkSnapshot, CancellationToken, Task<T>> transition, CancellationToken ct = default);
 	/// <summary>Reads paused goals and their pause instants from the current user database, only for explicit review openings.</summary>
 	Task<IReadOnlyList<WeeklyReviewPausedGoal>> PausedGoalsAsync(CancellationToken ct = default);
 	/// <summary>Reads active goals, task evidence and exact work-share counts from the current user's planner database.</summary>
@@ -61,6 +97,8 @@ public interface IWeeklyReviewService
 	Task<WeeklyReviewPreferences> ConfigureAsync(bool enabled, string? timeZoneId, int weekStart, string reminderTime, string channel = "telegram", CancellationToken ct = default);
 	/// <summary>Reads fresh bounded review data. Opening changes only review state, never tasks. An explicit targetWeek selects an existing review by its frozen calendar date. A conversational opening claims the one-time goal-creation offer when there are no active goals. Presenting a live first page also claims monthly paused-goal guidance and a once-per-review active-goal warning; present=false is only for internal skip/defer lookups and claims no presentation guidance.</summary>
 	Task<WeeklyReviewView> OpenAsync(Guid? reviewId = null, int offset = 0, int limit = 20, CancellationToken ct = default, DateOnly? targetWeek = null, bool conversational = false, bool present = true);
+	/// <summary>Reads fresh occurrence details without opening a review or claiming presentation guidance.</summary>
+	Task<WeeklyReviewOccurrencePage> OccurrencesAsync(Guid reviewId, Guid? taskId = null, int offset = 0, int limit = 20, DateOnly? occurrenceDate = null, CancellationToken ct = default);
 	/// <summary>Completes, skips or defers the specified review; deferral is a local time in its frozen timezone.</summary>
 	Task<WeeklyReviewState> TransitionAsync(Guid reviewId, string action, string? localTime = null, CancellationToken ct = default);
 	/// <summary>Claims a single contextual offer for an eligible missed review after a suitable planning interaction.</summary>
