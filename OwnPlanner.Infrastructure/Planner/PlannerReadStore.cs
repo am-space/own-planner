@@ -1,18 +1,21 @@
 using Microsoft.EntityFrameworkCore;
 using OwnPlanner.Application.Common;
+using OwnPlanner.Application.Calendar;
+using OwnPlanner.Application.Tasks.Recurrence;
 using OwnPlanner.Application.Planner;
 using OwnPlanner.Domain.Goals;
 using OwnPlanner.Infrastructure.Persistence;
 
 namespace OwnPlanner.Infrastructure.Planner;
 
-public sealed class PlannerReadStore(IPlannerDbContextFactory dbContextFactory) : IPlannerReadStore
+public sealed class PlannerReadStore(IPlannerDbContextFactory dbContextFactory, IPlanningCalendar calendar, IRecurrenceCalculator calculator) : IPlannerReadStore
 {
 	public async Task<PagedResult<PlannerTaskSummaryDto>> QueryTasksAsync(
 		PlannerTaskQuery query,
 		CancellationToken cancellationToken = default)
 	{
 		await using var db = await dbContextFactory.CreateAsync(cancellationToken).ConfigureAwait(false);
+		await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
 		var filtered =
 			from task in db.TaskItems.AsNoTracking().Where(task => task.TrashedAt == null)
 			join taskList in db.TaskLists.AsNoTracking() on task.TaskListId equals taskList.Id
@@ -89,6 +92,9 @@ public sealed class PlannerReadStore(IPlannerDbContextFactory dbContextFactory) 
 			.ToListAsync(cancellationToken)
 			.ConfigureAwait(false);
 
+		var recurrence = await ReadRecurrenceAsync(db, items.Select(item => item.Id).ToArray(), cancellationToken);
+		items = items.Select(item => item with { Recurrence = recurrence.GetValueOrDefault(item.Id) }).ToList();
+		await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
 		return new PagedResult<PlannerTaskSummaryDto>(items, totalCount, query.Offset, query.Limit);
 	}
 
@@ -97,7 +103,8 @@ public sealed class PlannerReadStore(IPlannerDbContextFactory dbContextFactory) 
 		CancellationToken cancellationToken = default)
 	{
 		await using var db = await dbContextFactory.CreateAsync(cancellationToken).ConfigureAwait(false);
-		return await (
+		await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+		var detail = await (
 			from task in db.TaskItems.AsNoTracking().Where(task => task.TrashedAt == null)
 			join taskList in db.TaskLists.AsNoTracking() on task.TaskListId equals taskList.Id
 			join planningContext in db.PlanningContexts.AsNoTracking()
@@ -126,6 +133,9 @@ public sealed class PlannerReadStore(IPlannerDbContextFactory dbContextFactory) 
 				goal == null ? null : goal.Title))
 			.SingleOrDefaultAsync(cancellationToken)
 			.ConfigureAwait(false);
+		var recurrence = detail is null ? null : (await ReadRecurrenceAsync(db, [id], cancellationToken)).GetValueOrDefault(id);
+		await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+		return detail is null ? null : detail with { Recurrence = recurrence };
 	}
 
 	public async Task<PagedResult<PlannerGoalSummaryDto>> QueryGoalsAsync(
@@ -348,4 +358,28 @@ public sealed class PlannerReadStore(IPlannerDbContextFactory dbContextFactory) 
 
 		return new PlannerFilterOptionsDto(taskLists, noteLists, contexts, goals);
 	}
+
+	private async Task<Dictionary<Guid, PlannerRecurrenceDto>> ReadRecurrenceAsync(AppDbContext db,
+		Guid[] taskIds, CancellationToken ct)
+	{
+		var selected = db.TaskItems.AsNoTracking().Where(t => taskIds.Contains(t.Id) && t.Recurrence != null);
+		var previousIds = selected.Select(t => t.RecurrencePredecessorTaskId);
+		var rows = await db.TaskItems.AsNoTracking()
+			.Where(t => t.TrashedAt == null && t.Recurrence != null && (taskIds.Contains(t.Id) || previousIds.Contains(t.Id)))
+			.Select(t => new { t.Id, t.Recurrence, t.IsCompleted, t.RecurrencePredecessorTaskId, t.RecurrenceSuccessorTaskId,
+				Available = db.TaskLists.Any(l => l.Id == t.TaskListId && !l.IsArchived) }).ToArrayAsync(ct);
+		if (rows.Length == 0) return [];
+		var snapshot = await calendar.ResolveAsync("today", ct);
+		var candidates = rows.Where(t => t.Available && !t.IsCompleted && t.RecurrenceSuccessorTaskId.HasValue).Select(t => t.Id).ToArray();
+		var facts = await db.TaskOccurrenceFacts.AsNoTracking().Where(f => candidates.Contains(f.TaskId))
+			.Select(f => new { f.TaskId, f.OccurrenceDate }).ToArrayAsync(ct);
+		var resolved = facts.ToLookup(f => f.TaskId, f => f.OccurrenceDate);
+		var outstanding = rows.ToDictionary(t => t.Id, t => t.Available && PlannerRecurrenceProjection.HasOutstandingWork(
+			t.Recurrence!, t.IsCompleted, t.RecurrenceSuccessorTaskId, resolved[t.Id].ToHashSet(), snapshot, calculator, ct));
+		return rows.Where(t => taskIds.Contains(t.Id)).ToDictionary(t => t.Id, t => new PlannerRecurrenceDto(
+			PlannerRecurrenceProjection.Describe(t.Recurrence!.Rule), t.Recurrence.StartDate, t.Recurrence.EndDate,
+			t.Recurrence.MissedPolicy.ToString(), t.RecurrencePredecessorTaskId, t.RecurrenceSuccessorTaskId,
+			outstanding[t.Id], t.RecurrencePredecessorTaskId is { } previous && outstanding.GetValueOrDefault(previous)));
+	}
+
 }

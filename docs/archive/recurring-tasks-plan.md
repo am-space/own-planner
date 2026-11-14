@@ -1,6 +1,12 @@
+> **Archived — implemented.** This is the original implementation plan, kept for historical
+> context. The shipped design and rationale are recorded in
+> [ADR-0043: Recurring series presentation and integration readiness](../adr/0043-recurring-series-planner-readiness.md)
+> and its linked ADR-0036–0042 decisions.
+> Details below may not reflect later refinements made during review.
+
 # Calendar-based recurring tasks implementation plan
 
-**Status:** Active — stages 1–6 (#89–#94) merged; stage 7 (#95) implemented in this change; stage 8 remains unimplemented.\
+**Status:** Completed — stages 1–7 (#89–#95) merged; stage 8 (#96) implemented in this change.\
 **Contract:** [#84](https://github.com/am-space/own-planner/issues/84), including the November 12 decisions.\
 **Outcome:** Represent each recurring series with one task, compute its calendar occurrences, and
 preserve occurrence facts and predecessor history across schedule changes.
@@ -585,3 +591,80 @@ value, not another user approval. Creation/configuration remain non-idempotent a
   the implementation. Existing metadata memory use, creation eligibility read/insert and delegated
   check-before-forward boundaries are documented; no new guarantee of a frozen delegation snapshot.
   Overall plan stays active through #96. No issue/project edits, release or deployment.
+
+
+## Stage 8 reviewed implementation plan (#96)
+
+Outcome: finish one-row-per-series Planner presentation and recovery verification, and close the
+implementation documentation lifecycle without changing recurrence or ordinary-task contracts.
+
+| Acceptance | Change and evidence |
+| --- | --- |
+| One row, understandable rule/bounds/policy and links | Add optional recurrence metadata to Planner summary/detail, preserve SQL source paging; desktop/mobile browser assertions and store tests |
+| Previous-series obligations remain visible | Add read-only outstanding-work flags for shortened, still-open predecessors using the shared calculator/calendar and recorded terminal facts; direct predecessor navigation independent of filters; retention/expiry/closed/Trash tests |
+| Review units and actions remain explicit | Label stored task/series pages separately from exact occurrence/work totals, preserve chat drill-down; browser regression and existing guarded review tests |
+| Completion/reopen/recovery audit | Inspect Application, MCP, chat/delegation, review, HTTP and browser paths; show series-end/resume guidance and restore semantics; real browser recovery and ordinary compatibility tests |
+| Migration, export, account deletion and two-user isolation | Extend existing real SQLite/browser export and account scenarios with recurrence/facts/links; reuse migration/lifecycle and cross-tenant transport coverage from earlier stages |
+| Complete lifecycle and transport orchestration | Map every parent acceptance item to named arithmetic/lifecycle/successor/projection/report/review/transport/scripted/browser suites; add an integrated restart/recovery scenario for remaining gaps |
+| Shipped documentation | Update schema/calendar/Planner/review/MCP references, accepted ADR-0043, archive this plan with corrected links and an evidence map; do not close parent #84 automatically |
+| Verification | Run scripts/setup.sh then focused checks and scripts/verify.sh --all; distinguish scripted checks from opt-in live-model evaluation |
+
+Impact: Application (additive Planner DTO and pure predecessor-work projection), Infrastructure
+(tenant-bound Planner read enrichment in the same read transaction), frontend (Planner details,
+series navigation, review count labels, Trash guidance), matching Infrastructure/Web/E2E tests and
+documentation. Domain rules/schema/migrations, shared MCP schemas/registrations, Console/stdio,
+chat permissions and authentication changes are not expected. Audit discoveries may require a
+small shared-service fix, with the plan revised before implementation.
+
+Order: additive metadata/projection and page-bounded store enrichment; frontend/details/navigation
+and review labels; recovery/export/isolation integration; references/evidence/ADR; setup and full
+verification; completed diff review; archive plan and open PR closing only #96.
+
+Distinct plan review completed before code: every stage acceptance maps above. Planner SQL still
+counts/pages persisted tasks before enrichment, never computed occurrences. Only selected series
+and their immediate predecessors need schedule/fact metadata; no descriptions are loaded for
+related sources. Related Trash/missing/archived sources must not leak details or claim actionable
+work. An outstanding flag describes unresolved generation-bounded work on an open shortened series,
+with effective skip-period expiry from the shared current calendar; closed predecessors are history,
+not pending obligations. Navigation can follow each link independently of current list filters.
+Reads never reconcile or persist facts. Existing auth-bound factory selection is unchanged, dates
+remain DateOnly and ordinary fields/routes remain compatible. No release, deployment, calendar UI,
+occurrence-expanded list, rule editor or live-model claim is authorized or needed.
+
+
+### Stage 8 implementation and review evidence
+
+- Implemented from merged stage-7 master `f50d709` on `feature/recurrence-series-ui`; PR #104 verified
+  merged and #95 closed. #96 and parent #84 acceptance reviewed before the plan and distinct review.
+- Additive Planner metadata preserves one SQL-paged source row, existing totals, ordinary fields and
+  routes. Summary/detail enrichment shares the read transaction and loads only selected series,
+  immediate predecessors and candidate terminal dates. Application reuses calculator/calendar for
+  outstanding existence checks; skip policy seeks to the current full period rather than scanning
+  expired history. Closed/Trash/archived sources contribute no actionable work. No read writes facts.
+- Inspector displays summary/bounds/policy, ended status, original-date and deadline/focus guidance,
+  filter-independent linked navigation and immediate-predecessor unfinished-work indicators.
+  Weekly Review labels source units separately from exact occurrence totals. Trash and shared tool
+  descriptions explain that restoration preserves history and closure, requiring successor Resume.
+- Nine new SQLite Planner cases plus the existing seven pass. They cover retained/current/expired
+  periods, completed/cancelled/skipped facts, closed/Trash/archive exclusions, one-row paging and
+  read-only fact counts. Combined Planner/successor focused run: 47 cases pass.
+- Added monthly integration: early January completions, February clamping, downtime catch-up and
+  automatic closure, late skipped correction with stable actual instant, retry-safe April successor,
+  and no fabricated March break facts across new database contexts. Parent closure remains no work.
+- Three new browser cases pass: desktop/mobile series navigation and restore, and real two-user
+  cookie-authenticated export/deletion. Export snapshots independently reopen with rule/link/fact
+  dates, preserved out-of-bounds completion and successor retry ledger; no foreign rows. Deleting A
+  removes only A's auth/planner data while B remains accessible. Existing review browser assertions
+  now verify explicit source/occurrence count units.
+- `scripts/setup.sh` passes with 0 build warnings/errors; frontend lint/build passes (existing large
+  bundle warning). No dependency or schema change. Deterministic browser/chat and real transport
+  checks are separate from real-model evaluation; no opt-in live-model checks were run.
+- Completed lifecycle-entry audit and full parent acceptance-to-test map in
+  `recurring-tasks-verification.md`; accepted ADR-0043 and schema/calendar/Planner/review/MCP references
+  describe shipped semantics. The overall plan is archived in this implementation PR. Parent #84
+  stays open pending stage merge/overall acceptance; no project/issue edits, release or deployment.
+- Final `./scripts/verify.sh --all` after setup passes frontend lint/build, all **1,323 backend tests**
+  (Domain 65, Application 484, Infrastructure 503, MCP 121, Web 150) and all **38 E2E tests**.
+  Only existing frontend bundle-size and ASPDEPR004/008 test-host warnings remain. No live-model
+  evaluation was run. Final scope/diff, relative documentation links (17 documents) and staged
+  whitespace checks pass; no generated files, dependencies, migrations or unrelated changes.

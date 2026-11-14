@@ -9,7 +9,7 @@
 [#94](https://github.com/am-space/own-planner/issues/94) integrates the shared recurrence projection
 and actual completion evidence into goal-first Weekly Review. Task-only focus/completion queries
 cannot represent several occurrences of one series, and ordinary review completion would end the
-parent. The [overall recurrence plan](../recurring-tasks-plan.md) remains active through #96.
+parent. The [overall recurrence plan](../archive/recurring-tasks-plan.md) remains active through #96.
 This extends [ADR-0026](0026-goal-focused-weekly-review.md) and reuses
 [ADR-0039](0039-unified-recurrence-reads.md) and [ADR-0040](0040-occurrence-aware-reports.md).
 

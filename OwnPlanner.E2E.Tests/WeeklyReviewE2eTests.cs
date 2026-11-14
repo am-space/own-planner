@@ -97,6 +97,8 @@ public sealed class WeeklyReviewE2eTests(E2eWebApplicationFactory application) :
 		await Expect(Page.Locator("main ul li")).ToHaveCountAsync(1);
 		await Expect(Page.Locator("main ul li")).ToContainTextAsync("Daily practice series");
 		await Expect(Page.Locator("main ul li")).ToContainTextAsync("pending occurrences");
+		await Expect(Page.GetByText("pending occurrences across 1 series", new() { Exact = false })).ToBeVisibleAsync();
+		await Expect(Page.GetByText("1–1 of 1 tasks/series", new() { Exact = true })).ToBeVisibleAsync();
 		await Expect(Page.GetByText("No plan for this week:", new() { Exact = false })).ToHaveCountAsync(0);
 		await Expect(Page.GetByText("Completed sources: Daily practice series", new() { Exact = true })).ToBeVisibleAsync();
 		await Page.ReloadAsync(); await Expect(Page.Locator("main ul li")).ToHaveCountAsync(1);
@@ -121,23 +123,23 @@ public sealed class WeeklyReviewE2eTests(E2eWebApplicationFactory application) :
 		await Expect(Page.GetByText("Review tasks prepared", new() { Exact = true })).ToBeVisibleAsync();
 		var originalTasks = await ReadTasksAsync();
 		await Page.GotoAsync("/planner/review");
-		await Expect(Page.GetByText("1–20 of 21 tasks", new() { Exact = true })).ToBeVisibleAsync();
+		await Expect(Page.GetByText("1–20 of 21 tasks/series", new() { Exact = true })).ToBeVisibleAsync();
 		var firstPage = await Page.Locator("main ul li").AllTextContentsAsync();
 		firstPage.Should().HaveCount(20);
 		await Page.GetByRole(AriaRole.Button, new() { Name = "Next", Exact = true }).ClickAsync();
-		await Expect(Page.GetByText("21–21 of 21 tasks", new() { Exact = true })).ToBeVisibleAsync();
+		await Expect(Page.GetByText("21–21 of 21 tasks/series", new() { Exact = true })).ToBeVisibleAsync();
 		await Expect(Page.GetByRole(AriaRole.Button, new() { Name = "Next", Exact = true })).ToBeDisabledAsync();
 		var lastPage = await Page.Locator("main ul li").AllTextContentsAsync();
 		lastPage.Should().ContainSingle();
 		firstPage.Should().NotContain(lastPage.Single());
 		await Page.GetByRole(AriaRole.Button, new() { Name = "Previous", Exact = true }).ClickAsync();
-		await Expect(Page.GetByText("1–20 of 21 tasks", new() { Exact = true })).ToBeVisibleAsync();
+		await Expect(Page.GetByText("1–20 of 21 tasks/series", new() { Exact = true })).ToBeVisibleAsync();
 		(await Page.Locator("main ul li").AllTextContentsAsync()).Should().Equal(firstPage);
 
 		await Page.GetByLabel("Remind me later (UTC)", new() { Exact = true }).FillAsync("2000-01-01T12:00");
 		await Page.GetByRole(AriaRole.Button, new() { Name = "Defer review", Exact = true }).ClickAsync();
 		await Expect(Page.GetByRole(AriaRole.Alert)).ToContainTextAsync("future time");
-		await Expect(Page.GetByText("1–20 of 21 tasks", new() { Exact = true })).ToBeVisibleAsync();
+		await Expect(Page.GetByText("1–20 of 21 tasks/series", new() { Exact = true })).ToBeVisibleAsync();
 		var futureTime = DateTime.UtcNow.AddMinutes(5).ToString("yyyy-MM-dd'T'HH:mm", System.Globalization.CultureInfo.InvariantCulture);
 		await Page.GetByLabel("Remind me later (UTC)", new() { Exact = true }).FillAsync(futureTime);
 		await Page.GetByRole(AriaRole.Button, new() { Name = "Defer review", Exact = true }).ClickAsync();

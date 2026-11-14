@@ -68,7 +68,11 @@ public sealed record PlannerTaskSummaryDto(
 	Guid? ContextId,
 	string? ContextName,
 	Guid? GoalId,
-	string? GoalName);
+	string? GoalName)
+{
+	/// <summary>Optional series metadata; ordinary task rows retain their existing meaning.</summary>
+	public PlannerRecurrenceDto? Recurrence { get; init; }
+}
 
 public sealed record PlannerTaskDetailDto(
 	Guid Id,
@@ -86,7 +90,11 @@ public sealed record PlannerTaskDetailDto(
 	Guid? ContextId,
 	string? ContextName,
 	Guid? GoalId,
-	string? GoalName);
+	string? GoalName)
+{
+	/// <summary>Optional series metadata; ordinary task rows retain their existing meaning.</summary>
+	public PlannerRecurrenceDto? Recurrence { get; init; }
+}
 
 public sealed record PlannerGoalSummaryDto(
 	Guid Id,
@@ -162,3 +170,11 @@ public sealed record PlannerFilterOptionsDto(
 	IReadOnlyList<PlannerListOptionDto> NoteLists,
 	IReadOnlyList<PlannerContextOptionDto> Contexts,
 	IReadOnlyList<PlannerGoalOptionDto> Goals);
+
+
+/// <summary>One persisted series, never an expanded occurrence list. Outstanding flags concern
+/// open shortened series only; recorded facts and effective expiry decide whether work remains.
+/// Links identify original series in this tenant and do not transfer work or completion.</summary>
+public sealed record PlannerRecurrenceDto(string Summary, DateOnly StartDate, DateOnly? EndDate,
+	string MissedPolicy, Guid? PredecessorTaskId, Guid? SuccessorTaskId,
+	bool HasOutstandingWork, bool PreviousSeriesHasOutstandingWork);

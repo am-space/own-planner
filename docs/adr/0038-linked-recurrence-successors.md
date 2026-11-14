@@ -11,7 +11,7 @@
 without rewriting completed work or discarding old obligations. Stages 1–2 supplied immutable
 calendar rules and tenant-bound lifecycle transactions ([ADR-0036](0036-recurrence-calendar-foundations.md),
 [ADR-0037](0037-recurrence-persistence-lifecycle.md)). The overall
-[implementation plan](../recurring-tasks-plan.md) remains active through stage 8.
+[implementation plan](../archive/recurring-tasks-plan.md) remains active through stage 8.
 
 ## Decision
 

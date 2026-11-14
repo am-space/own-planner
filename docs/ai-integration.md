@@ -608,3 +608,12 @@ and resolved actual-time offset; it distinguishes period expiry, actual completi
 closure. One occurrence must never use parent completion. Replacement/resumption uses preview/apply,
 explicit conflict decisions and retry IDs. Fresh targeted reads follow mutations. Scripted provider,
 real HTTP/stdio and direct adapter tests cover these contracts; real-model evaluation is separate.
+
+
+Planner's series inspector and Trash now explain these shared lifecycle semantics directly. A
+recurring parent displays `Series ended`, and linked navigation/outstanding-work flags never imply
+that completing successor work clears predecessor obligations. Weekly Review labels its one-row
+source page separately from exact occurrence totals. Browser chat scenarios, scripted provider
+routing and real direct/HTTP/stdio transport tests are identified separately in the
+[recurring-task acceptance map](recurring-tasks-verification.md); they make no live-model quality
+claim. No new MCP argument/result shape or chat permission is introduced by the final UI stage.
