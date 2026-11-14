@@ -1,4 +1,7 @@
 using FluentAssertions;
+using NSubstitute;
+using OwnPlanner.Application.Calendar;
+using OwnPlanner.Application.Tasks.Recurrence;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using OwnPlanner.Application.Planner;
@@ -11,7 +14,7 @@ using OwnPlanner.Infrastructure.Planner;
 
 namespace OwnPlanner.Infrastructure.Tests.Planner;
 
-public class PlannerReadStoreTests
+public partial class PlannerReadStoreTests
 {
 	[Fact]
 	public async Task QueryTasksAsync_AppliesFiltersPagingAndBoundedProjection()
@@ -37,7 +40,7 @@ public class PlannerReadStoreTests
 		db.AddRange(first, second, completed, unrelated);
 		await db.SaveChangesAsync(ct);
 
-		var store = new PlannerReadStore(new TestPlannerDbContextFactory(connection));
+		var store = new PlannerReadStore(new TestPlannerDbContextFactory(connection), Substitute.For<IPlanningCalendar>(), new RecurrenceCalculator());
 		var result = await store.QueryTasksAsync(
 			new PlannerTaskQuery(
 				Search: "LAUNCH",
@@ -81,7 +84,7 @@ public class PlannerReadStoreTests
 		db.AddRange(quarterly, achieved);
 		await db.SaveChangesAsync(ct);
 
-		var store = new PlannerReadStore(new TestPlannerDbContextFactory(connection));
+		var store = new PlannerReadStore(new TestPlannerDbContextFactory(connection), Substitute.For<IPlanningCalendar>(), new RecurrenceCalculator());
 		var result = await store.QueryGoalsAsync(
 			new PlannerGoalQuery(
 				Search: "launch",
@@ -105,7 +108,7 @@ public class PlannerReadStoreTests
 		var paused = new Goal("Paused", GoalHorizon.Yearly); paused.SetStatus(GoalStatus.Paused);
 		db.AddRange(paused, new Goal("Active", GoalHorizon.Yearly));
 		await db.SaveChangesAsync(ct);
-		var store = new PlannerReadStore(new TestPlannerDbContextFactory(connection));
+		var store = new PlannerReadStore(new TestPlannerDbContextFactory(connection), Substitute.For<IPlanningCalendar>(), new RecurrenceCalculator());
 		(await store.QueryGoalsAsync(new PlannerGoalQuery(Status: PlannerGoalStatus.Paused), ct)).Items
 			.Should().ContainSingle(g => g.Id == paused.Id && g.Status == GoalStatus.Paused);
 	}
@@ -123,7 +126,7 @@ public class PlannerReadStoreTests
 		task.Trash();
 		db.Add(task);
 		await db.SaveChangesAsync(ct);
-		var store = new PlannerReadStore(new TestPlannerDbContextFactory(connection));
+		var store = new PlannerReadStore(new TestPlannerDbContextFactory(connection), Substitute.For<IPlanningCalendar>(), new RecurrenceCalculator());
 
 		var page = await store.QueryTasksAsync(new PlannerTaskQuery(Status: PlannerTaskStatus.All), ct);
 
@@ -151,7 +154,7 @@ public class PlannerReadStoreTests
 		db.AddRange(pinned, unpinned);
 		await db.SaveChangesAsync(ct);
 
-		var store = new PlannerReadStore(new TestPlannerDbContextFactory(connection));
+		var store = new PlannerReadStore(new TestPlannerDbContextFactory(connection), Substitute.For<IPlanningCalendar>(), new RecurrenceCalculator());
 		var result = await store.QueryNotesAsync(
 			new PlannerNoteQuery(
 				Search: "ARCHITECTURE",
@@ -174,7 +177,7 @@ public class PlannerReadStoreTests
 		using var db = CreateDb(out var connection);
 		await using var _ = connection;
 		var ct = TestContext.Current.CancellationToken;
-		var store = new PlannerReadStore(new TestPlannerDbContextFactory(connection));
+		var store = new PlannerReadStore(new TestPlannerDbContextFactory(connection), Substitute.For<IPlanningCalendar>(), new RecurrenceCalculator());
 
 		(await store.GetTaskAsync(Guid.NewGuid(), ct)).Should().BeNull();
 		(await store.GetGoalAsync(Guid.NewGuid(), ct)).Should().BeNull();
@@ -198,7 +201,7 @@ public class PlannerReadStoreTests
 		db.AddRange(taskList, noteList, planningContext, goal);
 		await db.SaveChangesAsync(ct);
 
-		var store = new PlannerReadStore(new TestPlannerDbContextFactory(connection));
+		var store = new PlannerReadStore(new TestPlannerDbContextFactory(connection), Substitute.For<IPlanningCalendar>(), new RecurrenceCalculator());
 		var result = await store.GetFilterOptionsAsync(ct);
 
 		result.TaskLists.Should().ContainSingle(option => option.Id == taskList.Id && option.IsArchived);

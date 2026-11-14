@@ -11,7 +11,7 @@
 Review (ADR-0040/0041). Calendar, lifecycle, successors and history already exist. Public operations
 must not turn one occurrence completion into series termination, invent completion times, transfer
 completed work to successor schedules, or widen tenant/delegated scope. The overall
-[implementation plan](../recurring-tasks-plan.md) stays active until stage 8.
+[implementation plan](../archive/recurring-tasks-plan.md) stays active until stage 8.
 
 ## Decision
 

@@ -22,7 +22,8 @@ describe.
 | [`day-work.md`](day-work.md) | Daily execution, deadlines, overdue warnings and bounded drill-down |
 | [`general-attention.md`](general-attention.md) | Today-first General attention, exact counts and section drill-down |
 | [`user-calendar.md`](user-calendar.md) | Shared local dates, named periods, UTC fallback and compatible report options |
-| [`recurring-tasks.md`](recurring-tasks.md) | Recurrence engine, lifecycle, successors, occurrence-aware reports/review and shared MCP/chat operations |
+| [`recurring-tasks.md`](recurring-tasks.md) | Recurrence engine, lifecycle, successors, reports/review, MCP/chat and one-row series presentation |
+| [`recurring-tasks-verification.md`](recurring-tasks-verification.md) | Parent acceptance evidence, lifecycle-entry audit and deterministic/live-model distinction |
 | [`weekly-review.md`](weekly-review.md) | Goal-focused local-calendar reviews, reminders, settings and delivery policy |
 | [`chat-presentation.md`](chat-presentation.md) | Scoped Markdown and responsive chat styles |
 
@@ -30,8 +31,7 @@ describe.
 
 Active implementation plans live directly in `docs/` as `*-plan.md`:
 
-- [`recurring-tasks-plan.md`](recurring-tasks-plan.md) — staged #84 recurrence implementation;
-  stages 1–7 foundations/persistence/lifecycle/successors/unified reads/reports/review/MCP-chat, with final series UI still to follow.
+No active implementation plans are currently listed.
 
 Potential work without an implementation commitment lives in `backlog/`:
 
@@ -104,11 +104,14 @@ ADRs describe decisions as actually shipped. Start new records from [`adr/templa
 - [`ADR-0041`](adr/0041-occurrence-aware-weekly-review.md) — frozen occurrence-aware review, mixed evidence and atomic guarded actions
 - [`ADR-0042`](adr/0042-shared-recurrence-mcp-chat.md) — shared recurrence operations, stable MCP contracts and scoped chat safety
 
+- [`ADR-0043`](adr/0043-recurring-series-planner-readiness.md) — series Planner details, outstanding predecessor work and final integration evidence
+
 ## Historical plans
 
 Archived plans preserve the original intent but may differ from the final implementation. For
 implemented plans, prefer the linked ADR when determining current behavior.
 
+- [`archive/recurring-tasks-plan.md`](archive/recurring-tasks-plan.md) — eight-stage recurring-task implementation; see ADR-0036–0043 and the acceptance evidence map
 - [`archive/strategic-evidence-plan.md`](archive/strategic-evidence-plan.md)
 - [`archive/weekly-workload-guidance-plan.md`](archive/weekly-workload-guidance-plan.md)
 - [`archive/weekly-review-page-plan.md`](archive/weekly-review-page-plan.md)

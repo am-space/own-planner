@@ -8,7 +8,7 @@
 
 [#89](https://github.com/am-space/own-planner/issues/89), stage 1 of
 [#84](https://github.com/am-space/own-planner/issues/84), needs deterministic recurrence foundations
-before persistence and public creation. The [overall plan](../recurring-tasks-plan.md) remains active
+before persistence and public creation. The [overall plan](../archive/recurring-tasks-plan.md) remains active
 because stages 2–8 are not shipped. [ADR-0029](0029-shared-user-calendar.md) already defines local
 calendar preferences, disclosed UTC fallback, half-open periods and DST boundary handling.
 

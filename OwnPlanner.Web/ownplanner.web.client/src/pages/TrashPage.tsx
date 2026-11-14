@@ -88,7 +88,7 @@ export default function TrashPage() {
       <Stack spacing={2}>
         <Box>
           <Typography variant="h4">Trash</Typography>
-          <Typography color="text.secondary">Restore tasks or permanently delete them.</Typography>
+          <Typography color="text.secondary">Restore tasks or permanently delete them. Restoring a recurring series preserves its history and keeps it ended; resume it in chat with a chosen start date.</Typography>
         </Box>
         {error && <Alert severity="error">{error}</Alert>}
         {loading ? (

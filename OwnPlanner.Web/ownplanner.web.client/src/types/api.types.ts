@@ -174,10 +174,22 @@ export interface PlannerNoteQuery {
   limit?: number;
 }
 
+export interface PlannerRecurrence {
+  summary: string;
+  startDate: string;
+  endDate: string | null;
+  missedPolicy: 'SkipExpiredPeriods' | 'RetainEachObligation';
+  predecessorTaskId: string | null;
+  successorTaskId: string | null;
+  hasOutstandingWork: boolean;
+  previousSeriesHasOutstandingWork: boolean;
+}
+
 export interface PlannerTaskSummary {
   id: string;
   title: string;
   descriptionPreview: string | null;
+  recurrence?: PlannerRecurrence | null;
   isCompleted: boolean;
   isImportant: boolean;
   dueAt: string | null;
@@ -302,6 +314,7 @@ export interface WeeklyReviewView {
   pausedGoalsMention: string | null;
   activeGoalWarning: string | null;
   report: {
+    occurrences?: { totalCount: number; seriesCount: number; carryoverCount: number; plannedCount: number } | null;
     carryoverCount: number;
     overdueCount: number;
     dueInTargetWeekCount: number;

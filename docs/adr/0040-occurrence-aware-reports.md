@@ -13,7 +13,7 @@ mode preloads to represent computed recurring work. Existing report counters and
 address stored tasks. Reusing a task ID for several occurrences would lose identity, and treating
 series closure as completion would invent activity. Stage 4's [ADR-0039](0039-unified-recurrence-reads.md)
 already supplies shared projection and independent fact reads. The overall
-[implementation plan](../recurring-tasks-plan.md) remains active through stage 8.
+[implementation plan](../archive/recurring-tasks-plan.md) remains active through stage 8.
 
 ## Decision
 

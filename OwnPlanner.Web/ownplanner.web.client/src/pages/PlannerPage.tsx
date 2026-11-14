@@ -37,6 +37,7 @@ import type {
   PlannerGoalSummary,
   PlannerNoteDetail,
   PlannerNoteSummary,
+  PlannerRecurrence,
   PlannerTaskDetail,
   PlannerTaskStatus,
   PlannerTaskSummary,
@@ -204,11 +205,14 @@ function TaskBrowser({
         <>
           <ListItemText
             primary={<Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>{item.title}{item.isImportant && <StarIcon color="warning" fontSize="small" />}</Box>}
-            secondary={joinMetadata(item.contextName, item.taskListName)}
+            secondary={joinMetadata(item.contextName, item.taskListName, item.recurrence?.summary)}
             slotProps={{ secondary: { noWrap: true } }}
           />
-          <Stack direction="row" spacing={0.75} sx={{ ml: 2, alignItems: 'center' }}>
-            {item.isCompleted && <Chip size="small" label="Completed" color="success" />}
+          <Stack direction="row" spacing={0.75} sx={{ ml: 2, alignItems: 'center', flexWrap: 'wrap', gap: 0.75 }}>
+            {item.recurrence && <Chip size="small" label="Recurring series" />}
+            {item.recurrence?.hasOutstandingWork && <Chip size="small" label="Unfinished earlier series" color="warning" />}
+            {item.recurrence?.previousSeriesHasOutstandingWork && <Chip size="small" label="Previous series has unfinished work" color="warning" />}
+            {item.isCompleted && <Chip size="small" label={item.recurrence ? 'Series ended' : 'Completed'} color="success" />}
           </Stack>
         </>
       )}
@@ -218,7 +222,8 @@ function TaskBrowser({
       detail={detail && (
         <DetailStack>
           <DetailText label="Description" value={detail.description} multiline />
-          <DetailText label="Status" value={detail.isCompleted ? 'Completed' : 'Open'} />
+          <DetailText label="Status" value={detail.recurrence ? (detail.isCompleted ? 'Series ended' : 'Active series') : (detail.isCompleted ? 'Completed' : 'Open')} />
+          {detail.recurrence && <RecurrenceDetails recurrence={detail.recurrence} onSelect={id => updateParams({ selected: id }, false)} />}
           <DetailText label="Important" value={detail.isImportant ? 'Yes' : 'No'} />
           <DetailText label="Task list" value={detail.taskListName} />
           <DetailText label="Context" value={detail.contextName} />
@@ -231,6 +236,21 @@ function TaskBrowser({
       )}
     />
   );
+}
+
+function RecurrenceDetails({ recurrence, onSelect }: { recurrence: PlannerRecurrence; onSelect: (id: string) => void }) {
+  return <Stack spacing={1}>
+    <DetailText label="Recurrence" value={recurrence.summary} />
+    <DetailText label="Series starts" value={recurrence.startDate} />
+    <DetailText label="Series ends (inclusive)" value={recurrence.endDate ?? 'No end date'} />
+    <DetailText label="Missed periods" value={recurrence.missedPolicy === 'RetainEachObligation' ? 'Retain each obligation' : 'Skip expired periods'} />
+    {recurrence.hasOutstandingWork && <Alert severity="warning">This earlier series still has unfinished occurrences. Its successor does not replace them.</Alert>}
+    {recurrence.previousSeriesHasOutstandingWork && <Alert severity="warning">The previous series still has unfinished occurrences. Continue in chat to inspect them.</Alert>}
+    {recurrence.predecessorTaskId && <Button onClick={() => onSelect(recurrence.predecessorTaskId!)}>View previous series</Button>}
+    {recurrence.successorTaskId && <Button onClick={() => onSelect(recurrence.successorTaskId!)}>View successor series</Button>}
+    <Typography variant="body2" color="text.secondary">In chat, identify the scheduled date to complete or cancel one occurrence. Ending the series stops it without completing occurrences. Resume an ended series with a chosen start date to create a linked successor.</Typography>
+    <Typography variant="body2" color="text.secondary">Focus dates and deadlines belong to the series; they do not reschedule occurrences. Skipped means the period elapsed without a completion record.</Typography>
+  </Stack>;
 }
 
 function GoalBrowser() {

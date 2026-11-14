@@ -14,7 +14,7 @@ using OwnPlanner.Infrastructure.WeeklyReviews;
 
 namespace OwnPlanner.Infrastructure.Tests.Tasks;
 
-public sealed class RecurringTaskSuccessorTests : IAsyncLifetime
+public sealed partial class RecurringTaskSuccessorTests : IAsyncLifetime
 {
 	private readonly string _directory = Path.Combine(Path.GetTempPath(), $"ownplanner-successor-{Guid.NewGuid():N}");
 	private readonly Clock _clock = new(new(2026, 11, 15, 18, 0, 0, DateTimeKind.Utc));

@@ -266,3 +266,11 @@ corrected even on a closed predecessor. Duplicate stale attempts never move its 
 Ordinary review actions reject recurring parents; focus never reschedules an occurrence. Series
 termination/replacement remains a separate workflow, and review guards never approve successor
 conflict choices. No browser task editing or occurrence-expanded list is added.
+
+
+The browser source page labels pagination as `tasks/series`, keeps one row per series, and separately
+shows the exact pending occurrence total, distinct series count, earlier scheduled dates and target
+week occurrence count from `Report.Occurrences`. These totals cover the complete backend selection,
+not just visible samples. Earlier scheduled dates are not automatically overdue deadlines. Ask in
+chat for paged occurrence dates/history or an explicitly guarded occurrence action; finishing the
+review only transitions review state. See [final acceptance evidence](recurring-tasks-verification.md).

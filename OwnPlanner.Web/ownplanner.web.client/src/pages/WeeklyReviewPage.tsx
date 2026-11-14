@@ -83,15 +83,16 @@ export default function WeeklyReviewPage() {
             </Box>)}
             <Typography>Goal work: {completedGoal} of {completedGoal + completedOther} work items completed in the last 7 days; {plannedGoal} of {plannedGoal + plannedOther} planned for this week.</Typography>
             {review.report.goals.unplannedGoalIds.length > 0 && <Typography color="warning.main">No plan for this week: {review.report.goals.items.filter(goal => review.report.goals.unplannedGoalIds.includes(goal.id)).map(goal => goal.title).join(', ')}.</Typography>}
-            <Typography variant="h6">Remaining tasks</Typography>
-            <Typography>{review.report.carryoverCount} carryover · {review.report.overdueCount} overdue deadlines · {review.report.dueInTargetWeekCount} due in target week</Typography>
-            <Typography color="text.secondary">Continue in chat: “Open my weekly review.” Receiving or opening a review never changes tasks.</Typography>
+            <Typography variant="h6">Remaining tasks and series</Typography>
+            <Typography>{review.report.carryoverCount} carryover tasks/series · {review.report.overdueCount} overdue deadlines · {review.report.dueInTargetWeekCount} due in target week</Typography>
+            {review.report.occurrences && <Typography>{review.report.occurrences.totalCount} pending occurrences across {review.report.occurrences.seriesCount} series · {review.report.occurrences.carryoverCount} earlier scheduled dates · {review.report.occurrences.plannedCount} scheduled in target week</Typography>}
+            <Typography color="text.secondary">Continue in chat: “Open my weekly review.” Ask for occurrence dates or history in chat. Each series has one row here; pending occurrence counts describe separate work items. Receiving or opening a review never changes tasks.</Typography>
             {review.report.totalCount === 0 ? <Typography>No tasks need review.</Typography> : <Box component="ul" sx={{ pl: 3 }}>
               {review.report.tasks.map(task => <li key={task.id}>{task.title} — {[task.isRecurring && `${task.pendingOccurrenceCount ?? 0} pending occurrences`, task.carryover && 'carryover', task.overdue && 'overdue deadline', task.dueInTargetWeek && 'due in target week'].filter(Boolean).join(', ')}</li>)}
             </Box>}
             <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
               <Typography variant="body2" color="text.secondary">
-                {review.report.totalCount === 0 ? '0 tasks' : `${review.report.offset + 1}–${Math.min(review.report.offset + review.report.tasks.length, review.report.totalCount)} of ${review.report.totalCount} tasks`}
+                {review.report.totalCount === 0 ? '0 tasks/series' : `${review.report.offset + 1}–${Math.min(review.report.offset + review.report.tasks.length, review.report.totalCount)} of ${review.report.totalCount} tasks/series`}
               </Typography>
               <Button disabled={busy || review.report.offset === 0} onClick={() => void run(async () => setReview(await apiService.openWeeklyReview(review.review.id, Math.max(0, review.report.offset - review.report.limit))))}>Previous</Button>
               <Button disabled={busy || review.report.offset + review.report.limit >= review.report.totalCount} onClick={() => void run(async () => setReview(await apiService.openWeeklyReview(review.review.id, review.report.offset + review.report.limit)))}>Next</Button>

@@ -1,17 +1,19 @@
 # Recurring tasks and shared MCP operations
 
-Stages 1–7 ([#89](https://github.com/am-space/own-planner/issues/89),
+Stages 1–8 ([#89](https://github.com/am-space/own-planner/issues/89),
 [#90](https://github.com/am-space/own-planner/issues/90),
 [#91](https://github.com/am-space/own-planner/issues/91),
 [#92](https://github.com/am-space/own-planner/issues/92),
 [#93](https://github.com/am-space/own-planner/issues/93),
 [#94](https://github.com/am-space/own-planner/issues/94),
-[#95](https://github.com/am-space/own-planner/issues/95)) provide recurrence types, a
+[#95](https://github.com/am-space/own-planner/issues/95),
+[#96](https://github.com/am-space/own-planner/issues/96)) provide recurrence types, a
 deterministic calendar engine, per-user persistence, lifecycle reconciliation and linked successor
 commands, unified planning reads, fact history, occurrence-aware reports and Weekly Review, and shared
-public MCP operations with chat safety policies. The [active implementation plan](recurring-tasks-plan.md)
-tracks all eight stages of [#84](https://github.com/am-space/own-planner/issues/84).
-Final series UI and cross-layer readiness remain stage 8.
+public MCP operations with chat safety policies, and one-row-per-series Planner presentation.
+The [archived implementation plan](archive/recurring-tasks-plan.md) preserves the eight-stage work
+for [#84](https://github.com/am-space/own-planner/issues/84); the
+[acceptance evidence map](recurring-tasks-verification.md) identifies verification for each requirement.
 
 ## Implemented types and calculation
 
@@ -220,7 +222,7 @@ existing unarchived list, using the same tenant-bound factory as lifecycle actio
 Replacement itself neither administratively closes nor reopens the old parent. Existing periodic
 reconciliation applies that parent's own shortened bounds and full original periods; unresolved
 retained work keeps it open. A completed predecessor remains closed through resumption, so no
-break-period obligations or skips are generated. Stage 7 exposes this behavior through shared successor preview/apply tools; final series UI remains stage 8.
+break-period obligations or skips are generated. Shared successor preview/apply tools expose this behavior; Planner details show linked series.
 
 ## Implemented planning and history reads
 
@@ -295,7 +297,7 @@ current source metadata and selected persisted facts in memory; only generated w
 
 Shared MCP creation/actions and occurrence drill-down are enabled in stage 7 after occurrence-aware
 reports and Weekly Review. Existing `taskitem_list_*` and browser shapes retain their stored-task
-meaning. Final series UI remains #96; the overall #84 plan stays active until that stage finishes.
+meaning. Planner presentation is described below; the overall implementation plan is archived with stage 8.
 Parent closure adds no work, and occurrence counts never imply effort or available capacity.
 
 ## Occurrence-aware reports (stage 5)
@@ -468,3 +470,34 @@ pointing to explicit successor-based Resume. Parent focus edits never move an oc
 is shared by every mode and the delegated agent; reports remain dated snapshots and chat refreshes
 targeted projection/history or relevant reports after actions. Scripted provider tests verify routing,
 permissions and freshness; they are not a live-model evaluation. See [ADR-0042](adr/0042-shared-recurrence-mcp-chat.md).
+
+
+## Series presentation and recovery (stage 8)
+
+Planner Tasks stays one row per persisted task/series. Additive `recurrence` metadata on HTTP
+summary/detail responses contains `summary`, `startDate`, nullable inclusive `endDate`, named
+`missedPolicy`, soft `predecessorTaskId`/`successorTaskId`, `hasOutstandingWork` and
+`previousSeriesHasOutstandingWork`. Ordinary rows have null recurrence metadata. Dates remain
+YYYY-MM-DD strings and are displayed directly without browser timezone conversion.
+
+The inspector shows rule interval/day selections, captured weekly alignment, bounds and missed
+policy. Linked buttons open the previous/successor series independently of current list filters.
+The outstanding indicator checks the full shortened interval of an open predecessor, respects all
+terminal facts and effective full-period expiry, and excludes unavailable/closed sources. It is an
+existence flag rather than an occurrence count. A successor's flag concerns its immediate previous
+series; follow that series' links to inspect earlier ancestors. Missing/permanently deleted links
+use existing not-found behavior. Reads share the Planner source snapshot and never reconcile.
+
+Series ending is labelled separately from performed work. Complete/cancel one scheduled occurrence
+in chat with its original date; ending a series records no extra performed work. Focus/deadline
+metadata does not reschedule occurrences. Restoring a trashed series preserves history/links and
+keeps it ended. Resume uses a chosen-start linked successor; recovery never fabricates work in the
+inactive break. Permanent deletion removes only that series' facts/request ledger references,
+without deleting other linked series.
+
+Weekly Review shows exact pending occurrence totals separately from tasks/series source-page
+counts; one row per series includes its pending occurrence count. Chat provides independent paged
+occurrence/history drill-down. Actual completion activity and scheduled outcomes retain separate
+selection bases. See [Planner workspace](planner-workspace.md), [review](weekly-review.md),
+[ADR-0043](adr/0043-recurring-series-planner-readiness.md) and the
+[verification evidence](recurring-tasks-verification.md).

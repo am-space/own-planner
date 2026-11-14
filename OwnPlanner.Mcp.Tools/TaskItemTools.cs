@@ -135,7 +135,7 @@ public class TaskItemTools
 		}
 	}
 
-	[McpServerTool(Name = "taskitem_delete"), Description("Move an active task to Trash by id. This is recoverable and does not permanently delete task data.")]
+	[McpServerTool(Name = "taskitem_delete"), Description("Move an active task to Trash by id. This is recoverable and does not permanently delete task data. A recurring series ends and preserves its occurrence history.")]
 	public async Task<object> DeleteTask(Guid id, CancellationToken cancellationToken = default)
 	{
 		try
@@ -163,7 +163,7 @@ public class TaskItemTools
 		};
 	}
 
-	[McpServerTool(Name = "taskitem_restore"), Description("Restore a task from Trash to its original task list. Fails safely if that list no longer exists.")]
+	[McpServerTool(Name = "taskitem_restore"), Description("Restore a task from Trash to its original task list. Fails safely if that list no longer exists. A recurring series remains ended with history intact; resume through a successor with an explicit start date.")]
 	public async Task<object> RestoreTask(Guid id, CancellationToken cancellationToken = default)
 	{
 		try

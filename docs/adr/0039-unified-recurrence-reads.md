@@ -12,7 +12,7 @@ Weekly Review and public tool integration. [ADR-0036](0036-recurrence-calendar-f
 [ADR-0037](0037-recurrence-persistence-lifecycle.md) and
 [ADR-0038](0038-linked-recurrence-successors.md) establish calendar generation, read-only boundaries,
 terminal facts and preservation of predecessor history. These decisions remain in effect.
-The [overall plan](../recurring-tasks-plan.md) remains active through stage 8.
+The [overall plan](../archive/recurring-tasks-plan.md) remains active through stage 8.
 
 ## Decision
 
