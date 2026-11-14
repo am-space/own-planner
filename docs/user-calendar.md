@@ -24,9 +24,9 @@ week. Weekly review's rule of targeting next week on the final day applies only 
 An ordinary report does not reuse its target or frozen boundaries. "After today" excludes today;
 chat must distinguish this from a remainder including today and clarify ambiguous requested ranges.
 
-The internal [recurrence foundations](recurring-tasks.md) reuse these preferences and boundary
+The [recurrence engine and shared MCP tools](recurring-tasks.md) reuse these preferences and boundary
 helpers for current-plus-next weeks/months and occurrence expiry. They do not add a public
-calendar period name or enable recurring-task creation. Weekly rule alignment is captured when
+calendar period name. Weekly rule alignment is captured when
 configured; current preferences determine reporting periods and expiry of unresolved occurrences.
 
 Focus dates retain their stored calendar-date meaning: a UTC-labelled `FocusAt` of Monday stays
@@ -85,3 +85,10 @@ General's `thisWeek` calendar summary also includes a deduplicated `attention` o
 `general_attention_get` reads provide today-first sections, reason annotations and bounded section
 pages. See [General attention](general-attention.md) for exact counts, overlap and drill-down rules.
 See [ADR-0029](adr/0029-shared-user-calendar.md) and [weekly review](weekly-review.md).
+
+
+Planner series start/end and occurrence dates display as returned calendar strings, without
+browser timezone conversion. Outstanding predecessor-work indicators use the shared current local
+period, not the browser/server date. Weekly Review source pages remain one row per series and
+label their independent occurrence totals explicitly. The completed implementation's
+[acceptance evidence](recurring-tasks-verification.md) includes date, DST and recovery regressions.

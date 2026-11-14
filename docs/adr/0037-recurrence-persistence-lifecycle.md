@@ -10,7 +10,7 @@
 [#84](https://github.com/am-space/own-planner/issues/84), needs persisted series and occurrence
 facts without enabling public creation before reports/review are ready. It builds on
 [ADR-0036](0036-recurrence-calendar-foundations.md). The overall
-[implementation plan](../recurring-tasks-plan.md) stays active through stage 8.
+[implementation plan](../archive/recurring-tasks-plan.md) stays active through stage 8.
 
 ## Decision
 

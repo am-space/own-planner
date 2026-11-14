@@ -19,8 +19,8 @@ The protected React routes share one `PlannerShell`:
 
 The navigation collapse control sits in the navigation header: the expanded panel shows a collapse
 chevron beside the product name, while the icon rail shows a centered expand chevron. Task and note
-rows use `Context · List` as consistent secondary metadata and reserve right-side adornments for
-state. Goal rows use `Horizon · Target` because goals have no context or list relationship.
+rows use `Context · List` as consistent secondary metadata; recurring task rows also include their
+rule summary. Right-side adornments show state. Goal rows use `Horizon · Target` because goals have no context or list relationship.
 
 `ChatPage` remains mounted while protected routes change. Its visible messages, draft, planning mode,
 quota, context, loading, and error state therefore survive navigation during the current browser
@@ -96,3 +96,28 @@ identity from the client.
 - Web Server tests cover controller mapping, initialization order, and not-found behavior.
 - Playwright E2E tests cover desktop and mobile layouts, chat preservation, deep links, paging,
   details, authentication, malformed input, and two-user isolation across every read surface.
+
+
+## Recurring series
+
+Task summary/detail responses add optional `recurrence` metadata, null for ordinary tasks:
+`summary`, `startDate`, nullable inclusive `endDate`, named `missedPolicy`, nullable
+`predecessorTaskId`/`successorTaskId`, `hasOutstandingWork` and
+`previousSeriesHasOutstandingWork`. Collection totals/paging remain stored-task units; a series is
+never expanded into occurrence rows. Archived-list browsing retains its existing behavior, but
+archived/trashed/closed sources contribute no actionable outstanding work.
+
+The read-only inspector displays rule, calendar bounds and missed policy, distinguishes `Series
+ended` from completed ordinary work, and explains occurrence completion versus ending/resuming.
+Calendar dates display exactly as returned, without converting them to instants. Previous/successor
+buttons retain filters and offset while changing URL `selected`; a linked item need not match the
+current collection filters. Unavailable links use the existing detail error. The predecessor
+indicator concerns the immediate predecessor's complete shortened generation bounds and all
+terminal facts, with effective skip-period expiry. Follow links for older ancestors. It does not
+estimate workload or imply that successor work satisfies old obligations.
+
+Infrastructure enriches only the selected series and their immediate predecessors in the same
+read transaction as SQL source filtering/count/paging. No related descriptions are loaded. The
+Application projection uses the shared calculator/calendar; reads do not reconcile or write facts.
+See [recurring-task reference](recurring-tasks.md) and
+[ADR-0043](adr/0043-recurring-series-planner-readiness.md).

@@ -92,3 +92,22 @@ grace period. Resuming clears `PausedAt` without changing task links.
 when no warning was needed).
 All claims are per-user and serialized in the existing SQLite transaction. Existing statuses and
 planning data are preserved. Central auth is unchanged; exports retain these planner fields.
+
+
+## Recurrence portability and final integration
+
+Planner recurrence summaries, bounds and predecessor outstanding-work flags are read projections;
+they add no persisted columns or pending occurrence rows. Final presentation stage 8 adds no
+migration. Existing databases upgrade through `AddRecurringTaskLifecycle` and
+`AddRecurringSuccessors` during normal per-user initialization. Migration regressions preserve
+ordinary task fields and existing recurrence/fact data.
+
+Account exports remain tenant-bound `VACUUM INTO` snapshots. The exported SQLite database includes
+recurrence JSON, original fact dates/actual timestamps, soft series links, reconciliation metadata
+and successor retry ledger, including preserved facts outside shortened generation bounds. It
+excludes the central authentication database. Exports can be opened independently; OwnPlanner has
+no new browser import/recovery flow. Account deletion removes the authenticated user's database
+and sidecars through the existing factory; it does not touch another user's series or history.
+Trash restoration is separate: it keeps a recurring series ended and preserves facts/links.
+See [acceptance evidence](recurring-tasks-verification.md) for real export/deletion, migration and
+recovery tests and [ADR-0043](adr/0043-recurring-series-planner-readiness.md) for presentation decisions.
