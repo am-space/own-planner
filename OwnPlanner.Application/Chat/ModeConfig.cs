@@ -32,7 +32,8 @@ public sealed record ModeConfig(
 					For broad requests such as "What needs my attention?", call general_attention_get freshly with section=all.
 					Present today as the main section, then unfinished focus plans earlier this week, remaining-week work grouped by
 					local display date, and overdue deadlines. Omit empty secondary sections; state when today's section is empty.
-					Display each task once, preserving every returned reason/date, including deadlines on tasks displayed elsewhere.
+					For ordinary task sections display each task once, preserving every returned reason/date, including deadlines on tasks displayed elsewhere.
+					Preserve each original (taskId, occurrenceDate) identity when presenting recurring work.
 					Missed focus plans are flexible plans, not expired deadlines. Show older focus plans as a compact count with optional drill-down.
 					MatchCount counts all matching tasks, even those displayed elsewhere; TotalCount and Days count the assigned
 					section in the all view. Do not add overlapping match counts or treat bounded samples as all the work.
@@ -150,7 +151,7 @@ public sealed record ModeConfig(
 					Show overdue work as a short exact count with bounded examples and optional drill-down, not an entire backlog.
 					MatchCount includes all reason matches, including tasks displayed elsewhere; TotalCount is assigned count in all. Do not sum overlapping counts.
 					Disclose Truncated; retrieve additional tasks on request with section=today or overdue, offset/limit and HasMore. Named sections include every match;
-					deduplicate IDs when combining fresh pages. For explicitly focus-only requests use taskitem_list_by_focus_date calendarPeriod=today.
+					deduplicate ordinary task IDs when combining fresh pages; preserve each composite occurrence identity. For explicitly focus-only requests use taskitem_list_by_focus_date calendarPeriod=today.
 					When today's planned/due count is zero, say so explicitly. Do not invent a schedule or automatically pull backlog tasks into today.
 					To suggest what to tackle first, consider deadline timing, IsImportant, today's plan, remaining work and the user's constraints.
 					A due-today task is not automatically first; sample order is not a priority ranking. Use taskitem_get for relevant missing detail,
@@ -172,7 +173,7 @@ public sealed record ModeConfig(
 					""" + "\n\n" + TaskGoalLinkGuidance.Instructions,
 				PreloadTools: ["day_report_get"],
 				AllowedTools: ChatCapabilities.Combine(ChatCapabilities.TaskRead, ChatCapabilities.TaskProgress, ChatCapabilities.TaskListRead, ChatCapabilities.GoalRead,
-					["calendar_period_get", "day_report_get", TaskGoalLinkConversationState.ToolName, "taskitem_link_goal", "taskitem_list_by_focus_date", "taskitem_create", "notelist_all", "noteitem_create", "datetime_get_current"]),
+					["recurring_task_successor_preview", "calendar_period_get", "day_report_get", TaskGoalLinkConversationState.ToolName, "taskitem_link_goal", "taskitem_list_by_focus_date", "taskitem_create", "notelist_all", "noteitem_create", "datetime_get_current"]),
 				CanWrite: true) { PreloadCalendarPeriod = "today", PreloadAcceptsCalendarPeriod = false },
 
 			[PlanningMode.Reflection] = new ModeConfig(

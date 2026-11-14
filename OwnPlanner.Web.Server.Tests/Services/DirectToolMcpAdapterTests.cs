@@ -549,6 +549,14 @@ public sealed partial class DirectToolMcpAdapterTests : IDisposable
 		services.AddScoped<IGoalService, GoalService>();
 		services.AddScoped<ITaskListService, TaskListService>();
 		services.AddScoped<ITaskItemService, TaskItemService>();
+		services.AddScoped<OwnPlanner.Application.Tasks.Recurrence.IRecurringTaskStore, OwnPlanner.Infrastructure.Tasks.RecurringTaskStore>();
+		services.AddScoped<OwnPlanner.Application.Tasks.Recurrence.IRecurrenceCalculator, OwnPlanner.Application.Tasks.Recurrence.RecurrenceCalculator>();
+		services.AddScoped<OwnPlanner.Application.Tasks.Recurrence.IRecurringTaskSuccessors, OwnPlanner.Application.Tasks.Recurrence.RecurringTaskSuccessors>();
+		services.AddScoped<OwnPlanner.Application.Tasks.Recurrence.IRecurringTaskManagement, OwnPlanner.Application.Tasks.Recurrence.RecurringTaskManagement>();
+		services.AddScoped<OwnPlanner.Application.Tasks.Recurrence.IRecurringTaskLifecycle, OwnPlanner.Application.Tasks.Recurrence.RecurringTaskLifecycle>();
+		services.AddScoped<OwnPlanner.Application.Tasks.Recurrence.IPlanningWorkStore, OwnPlanner.Infrastructure.Tasks.PlanningWorkStore>();
+		services.AddScoped<OwnPlanner.Application.Tasks.Recurrence.IPlanningWorkReader, OwnPlanner.Application.Tasks.Recurrence.PlanningWorkReader>();
+		services.AddScoped<OwnPlanner.Application.Tasks.Recurrence.ITaskOccurrenceHistory, OwnPlanner.Application.Tasks.Recurrence.TaskOccurrenceHistory>();
 		services.AddScoped<ITaskGoalLinkService, TaskGoalLinkService>();
 		services.AddSingleton(new TenantTestDirectory(_tempDirectory));
 		configure?.Invoke(services);

@@ -44,7 +44,7 @@ public class TaskItemTools
 		}
 	}
 
-	[McpServerTool(Name = "taskitem_get", Idempotent = true, ReadOnly = true), Description("Get a task by id.")]
+	[McpServerTool(Name = "taskitem_get", Idempotent = true, ReadOnly = true), Description("Get a task by id. IsRecurring identifies a stored series; recurring_task_get returns its schedule.")]
 	public async Task<object> GetTask(Guid id)
 	{
 		var dto = await _service.GetAsync(id);
@@ -107,7 +107,7 @@ public class TaskItemTools
 		}
 	}
 
-	[McpServerTool(Name = "taskitem_complete"), Description("Complete a task by id.")]
+	[McpServerTool(Name = "taskitem_complete"), Description("Complete an ordinary task by id. For recurring parents this ENDS THE WHOLE SERIES, never one occurrence; use task_occurrence_complete with taskId and occurrenceDate for performed work.")]
 	public async Task<object> CompleteTask(Guid id, CancellationToken cancellationToken = default)
 	{
 		try
@@ -121,7 +121,7 @@ public class TaskItemTools
 		}
 	}
 
-	[McpServerTool(Name = "taskitem_reopen"), Description("Reopen a completed task by id.")]
+	[McpServerTool(Name = "taskitem_reopen"), Description("Reopen a completed ordinary task by id. Recurring parents cannot be reopened: use recurring_task_successor_preview/apply kind Resume with an explicit start date.")]
 	public async Task<object> ReopenTask(Guid id)
 	{
 		try
@@ -129,7 +129,7 @@ public class TaskItemTools
 			await _service.ReopenAsync(id);
 			return new { success = true, id };
 		}
-		catch (KeyNotFoundException ex)
+		catch (Exception ex) when (ex is KeyNotFoundException or InvalidOperationException)
 		{
 			return new { error = ex.Message };
 		}
@@ -219,7 +219,7 @@ public class TaskItemTools
 		};
 	}
 
-	[McpServerTool(Name = "taskitem_set_focus_date"), Description("Set or clear the focus date (My Day / planned work date) for a task. Use this for weekly planning to decide when to work on a task. This is separate from dueAt, which is for real deadlines. Provide id and focusDate. If focusDate is empty, clears the focus date.")]
+	[McpServerTool(Name = "taskitem_set_focus_date"), Description("Set or clear the focus date (My Day / planned work date) for a task. Use this for ordinary weekly planning to decide when to work on a task. For series this only edits parent focus metadata; it cannot move or reschedule an occurrence. This is separate from dueAt, which is for real deadlines. Provide id and focusDate. If focusDate is empty, clears the focus date.")]
 	public async Task<object> SetTaskFocusDate(Guid id, string? focusDate = null)
 	{
 		if (string.IsNullOrWhiteSpace(focusDate))

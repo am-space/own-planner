@@ -259,7 +259,7 @@ public sealed class PlanningService : IPlanningService
 
 	private static string BuildSystemPrompt(ModeConfig config, string context)
 	{
-		var prompt = config.PreloadCalendarPeriod is null ? config.SystemPrompt : $"{config.SystemPrompt}\n\n{CalendarGuidance.Instructions}";
+		var prompt = config.PreloadCalendarPeriod is null ? $"{config.SystemPrompt}\n\n{RecurrenceGuidance.Instructions}" : $"{config.SystemPrompt}\n\n{CalendarGuidance.Instructions}";
 		prompt += $"\n\n{OwnPlanner.Application.Reporting.ReportWorkGuidance.Instructions}";
 		if (string.IsNullOrEmpty(context))
 			return prompt;

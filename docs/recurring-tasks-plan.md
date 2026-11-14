@@ -1,6 +1,6 @@
 # Calendar-based recurring tasks implementation plan
 
-**Status:** Active — stages 1–5 (#89–#93) merged; stage 6 (#94) implemented in this change; stages 7–8 remain unimplemented.\
+**Status:** Active — stages 1–6 (#89–#94) merged; stage 7 (#95) implemented in this change; stage 8 remains unimplemented.\
 **Contract:** [#84](https://github.com/am-space/own-planner/issues/84), including the November 12 decisions.\
 **Outcome:** Represent each recurring series with one task, compute its calendar occurrences, and
 preserve occurrence facts and predecessor history across schedule changes.
@@ -502,3 +502,86 @@ optional. This follows #84's existing completion-time contract without inventing
   all 1,263 backend tests (Domain 65, Application 459, Infrastructure 485, MCP 105, Web 149).
   The four focused completion-time cases passed independently. Only existing frontend bundle-size
   and ASPDEPR004/008 test-host warnings remain; no new warnings or verification limitations.
+
+## Stage 7 reviewed implementation plan (#95)
+
+Outcome: enable shared recurrence operations and safe chat planning after stages 1–6, keeping
+ordinary task tools compatible and every occurrence identified by its original composite identity.
+
+| Acceptance | Implementation and evidence |
+| --- | --- |
+| Create/configure, inspect two periods, act, replace, end/resume | Shared Application management facade plus thin MCP handlers over existing reader/history/lifecycle/successors; real HTTP/stdio/direct flow tests |
+| Stable schemas/date semantics | Additive named tools, required explicit missed policy, strict YYYY-MM-DD and offset-bearing instants; schema/parser and wire tests |
+| Idempotent completion/correction | Reuse lifecycle without parent completion; actual historical timestamp and repeated-completion assertions |
+| Explicit conflict decisions | Separate preview/apply with identical inputs, token and request key, existing atomic revalidation; stale/invalid choice and preserved fact tests |
+| Tenant/delegation boundaries | Existing authenticated tenant resolution; explicit scope cases for every added tool, filtered mixed reads and targeted history; two-user tests and proposal denial of all writes |
+| Permissions, routing, freshness | Read capabilities in report modes; recurrence writes only task-management/Week/Day as appropriate; Reflection remains capture-only; scripted tool routing/fresh reports, real-model evaluation reported separately |
+
+Impact: Application (management input validation and chat policies), Infrastructure (delegated agent
+instructions only if needed), MCP, web/direct and HTTP registrations, stdio DI/exposure, corresponding
+Application/MCP/Web/E2E tests and docs/ADR. Console uses the shared stdio tools and Application chat
+policy, so no separate persistence wiring. Domain/schema/migrations/dependencies/frontend are unchanged.
+
+Order: management facade using existing repositories and atomic recurring store; thin tool contracts;
+registrations; capability and delegated scope enforcement; focused tests; references and ADR-0042;
+`./scripts/verify.sh --all`; completed diff review and PR closing only #95. Overall #84 plan remains
+active until stage 8 (#96). No UI expansion, notification, release, deployment or issue edits.
+
+Distinct plan review completed before implementation: every acceptance item maps above. Creation is
+one configured TaskItem insert; configuring an existing active ordinary parent occurs inside the
+recurring store write transaction. Missing policy must fail before any write and prompts ask the user.
+Weekly alignment comes from shared calendar settings, never host/browser guesses. Schedule changes
+use successors, never configure-overwrite. Explicit instants require offsets, remain separate from
+scheduled dates and use lifecycle future validation. New delegated reads require forced list/context
+filters or a verified task; targeted actions verify source membership. Proposal mode grants only
+read tools, including preview, and no mutations. Recurrence progress is permitted in Day Work;
+creation/configuration/successor edits belong to task management/Week Planning and authorized delegated
+execution. Reflection and System Analysis gain reads only. Shared guidance names refreshed range
+reads after writes and disallows parent completion for an individual occurrence. No material product
+ambiguity or compatibility break requires approval.
+
+
+Stage-7 contract review refinement before verification: normalize only the new tools' results with
+SDK serialization and generate their direct schemas through the SDK too. Real transport tests caught
+string-enum versus numeric-enum output and nullable-array schema differences. Existing tool schemas
+remain untouched. A changed Weekly successor rule requires explicit calendar weekStart so preference
+edits cannot change its preview/apply fingerprint or successful retry. This is a supplied calendar
+value, not another user approval. Creation/configuration remain non-idempotent after uncertain results.
+
+### Stage 7 implementation and review evidence
+
+- Implemented on `feature/recurrence-mcp-chat` from merged stage-6 master `7d83ade`; verified PR #103
+  merged and #94 closed.
+- Added shared Application management plus eleven thin MCP tools over the existing projection,
+  history, lifecycle and successor services. New parents insert once with explicit policy; existing
+  ordinary configuration uses the tenant write transaction. No schema/dependency/frontend changes.
+- Direct, bearer HTTP and stdio register identical handlers; Console uses shared stdio delivery.
+  Normalize new results with the SDK serializer and reuse SDK argument schemas on the direct path.
+  Existing task/report shapes remain unchanged. Calendar dates and actual UTC instants stay separate.
+- Explicit preview/apply preserves all facts, requires user conflict decisions and rejects stale
+  snapshots. Weekly replacement alignment is explicit and stable across preference changes/retries.
+  Occurrence completion/cancellation never terminates a parent; explicit ending/resumption remains
+  separate and skipped corrections preserve closed-series identity and first completion timestamp.
+- Mode capabilities and delegated scope checks include new operations without granting Reflection
+  recurrence writes or delegated proposals mutation access. Shared mode/delegated guidance clarifies
+  policy, identity, actual time, period expiry, conflict decisions and targeted refreshes. Final prompt
+  review distinguishes ordinary ID deduplication and uncertain creation/configuration retries.
+- Added 52 tests: 25 Application, 8 Infrastructure/scripted conversations, 16 MCP, 1 Web and 2 real
+  transport E2E scenarios. HTTP/direct schemas and fact payloads agree; stdio persists facts through
+  restart; both transports deny every new tool's cross-user read/action. Flows cover two-period
+  paging, completion retries, cancellation, both successor conflict choices, stale choices, end/resume
+  and preserved history. Direct configuration checks future timestamp rejection without writes and
+  historical skipped correction on a closed parent. Delegated list/context escapes and proposal versus
+  execution are verified. Scripted checks are not a live-model evaluation; none was run.
+- Focused policy (47), management (9), MCP (16), scripted orchestration (102 before the final two
+  delegated cases) and real transport (2) checks passed. Transport checks first exposed enum/null schema
+  differences; fixes retain old tool contracts.
+- `./scripts/verify.sh --all` passed frontend lint/build, 1,311 backend tests and all 35 E2E tests.
+  After final prompt review and two extra delegated cases, `./scripts/verify.sh --backend` passed all
+  1,313 cases: Domain 65, Application 484, Infrastructure 493, MCP 121, Web 150. Existing bundle-size
+  and ASPDEPR004/008 test-host warnings only; documentation links and whitespace checks pass.
+- Completed diff review: Application business boundaries, tenant isolation, unchanged legacy schemas,
+  bounded query payloads and explicit count/time bases retained. ADR-0042 and living references match
+  the implementation. Existing metadata memory use, creation eligibility read/insert and delegated
+  check-before-forward boundaries are documented; no new guarantee of a frozen delegation snapshot.
+  Overall plan stays active through #96. No issue/project edits, release or deployment.

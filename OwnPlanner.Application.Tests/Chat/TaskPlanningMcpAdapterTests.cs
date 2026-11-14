@@ -4,7 +4,7 @@ using OwnPlanner.Application.Chat;
 
 namespace OwnPlanner.Application.Tests.Chat;
 
-public class TaskPlanningMcpAdapterTests
+public partial class TaskPlanningMcpAdapterTests
 {
 	[Fact]
 	public async Task Proposal_DeniesEveryWriteAndOtherAgentsEvenWhenInnerAdapterOffersThem()

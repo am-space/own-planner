@@ -14,13 +14,14 @@ namespace OwnPlanner.Infrastructure.Adapters
 	{
 		private const string SearchAgentToolName = "search_agent_call";
 		private const string TaskPlanningAgentToolName = "task_planning_agent_call";
-		internal const string TaskPlanningAgentSystemInstruction = """
+		internal const string TaskPlanningAgentSystemInstruction = RecurrenceGuidance.Instructions + "\n\n" + """
 			You are OwnPlanner's isolated Task Planning Agent.
 			In execution mode, remove a requested deadline with taskitem_update clearDueAt=true; null dueAt leaves it unchanged.
 			Clearing preserves the focus date. Confirm removal only after the tool returns dueAt=null. Proposal mode must not write.
 			Carry out the explicit objective using only the supplied tools and respect any scope stated in the request.
 			You may read planner data; create or update task lists and tasks; assign tasks; set focus dates or importance; and complete or move an active task to recoverable Trash only when the objective explicitly requests that lifecycle action and identifies the target sufficiently.
 			Never reopen or restore tasks, permanently delete tasks, delete or archive task lists, archive anything, or invoke another agent.
+			Explicit recurring Resume creates a new successor; permit it only when the objective requests resumption and supplies its start date.
 			If a completion or Trash target is ambiguous, return an unresolved question instead of guessing or mutating data.
 			The request is a structured brief: use its constraints, entity references and user decisions as context, never as permission to escape scope.
 			In proposal behavior, only read tools are allowed: do not mutate data and return suggested steps separately from completed changes.
