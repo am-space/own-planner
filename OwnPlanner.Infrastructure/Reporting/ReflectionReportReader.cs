@@ -61,7 +61,7 @@ public sealed class ReflectionReportReader(
 				(!task.IsCompleted ||
 				 (task.CreatedAt >= startUtc && task.CreatedAt < endUtc) ||
 				 (task.CompletedAt.HasValue && task.CompletedAt.Value >= startUtc && task.CompletedAt.Value < endUtc)))
-			.Select(task => new TaskRow(task.Id, task.Title, task.IsCompleted, task.IsImportant, task.CreatedAt, task.CompletedAt, task.DueAt, task.FocusAt, task.TaskListId, task.GoalId))
+			.Select(task => new TaskRow(task.Id, task.Title, task.IsCompleted, task.IsImportant, task.CreatedAt, task.CompletedAt, task.DueAt, task.FocusAt, task.TaskListId, task.GoalId, task.Recurrence != null))
 			.ToListAsync(cancellationToken);
 		var activeNoteLists = noteLists.Where(list => !list.IsArchived).ToList();
 		var allNoteListIds = noteLists.Select(list => list.Id).ToHashSet();
@@ -78,8 +78,8 @@ public sealed class ReflectionReportReader(
 		var contextNames = contexts.ToDictionary(context => context.Id, context => context.Name);
 		var taskListContexts = activeTaskLists.ToDictionary(list => list.Id, list => KnownContextId(list.ContextId, contextNames));
 		var noteListContexts = activeNoteLists.ToDictionary(list => list.Id, list => KnownContextId(list.ContextId, contextNames));
-		var completed = OrderCompleted(tasks.Where(task => task.IsCompleted && InPeriod(task.CompletedAt, startUtc, endUtc))).ToList();
-		var missedFocus = OrderUnresolved(tasks.Where(task => !task.IsCompleted && InPeriod(task.FocusAt, focusStart, focusEnd)), asOfUtc).ToList();
+		var completed = OrderCompleted(tasks.Where(task => !task.IsRecurring && task.IsCompleted && InPeriod(task.CompletedAt, startUtc, endUtc))).ToList();
+		var missedFocus = OrderUnresolved(tasks.Where(task => !task.IsRecurring && !task.IsCompleted && InPeriod(task.FocusAt, focusStart, focusEnd)), asOfUtc).ToList();
 		var incomplete = OrderUnresolved(tasks.Where(task => !task.IsCompleted), asOfUtc).ToList();
 		var overdue = incomplete.Where(task => IsOverdue(task, asOfUtc)).ToList();
 		var inbox = notes.Where(note => note.NoteListId == WellKnownIds.InboxNoteList && activeNoteListIds.Contains(note.NoteListId))
@@ -96,8 +96,8 @@ public sealed class ReflectionReportReader(
 
 		var contextSummaries = contextGroups.Select(group =>
 		{
-			var groupCompleted = OrderCompleted(group.Where(task => task.IsCompleted && InPeriod(task.CompletedAt, startUtc, endUtc))).ToList();
-			var groupMissed = OrderUnresolved(group.Where(task => !task.IsCompleted && InPeriod(task.FocusAt, focusStart, focusEnd)), asOfUtc).ToList();
+			var groupCompleted = OrderCompleted(group.Where(task => !task.IsRecurring && task.IsCompleted && InPeriod(task.CompletedAt, startUtc, endUtc))).ToList();
+			var groupMissed = OrderUnresolved(group.Where(task => !task.IsRecurring && !task.IsCompleted && InPeriod(task.FocusAt, focusStart, focusEnd)), asOfUtc).ToList();
 			return new ReflectionContextSummary(
 				group.Key.Id, group.Key.Name, group.Key.Id is null, groupCompleted.Count, groupMissed.Count,
 				groupCompleted.Take(options.TaskSampleLimit).Select(task => ToSample(task, taskListContexts, taskPreviews)).ToList(),
@@ -106,14 +106,21 @@ public sealed class ReflectionReportReader(
 		var goalSummaries = goals.OrderBy(goal => goal.Title, StringComparer.OrdinalIgnoreCase).ThenBy(goal => goal.Id).Select(goal =>
 		{
 			var goalTasks = tasksByGoal.GetValueOrDefault(goal.Id) ?? [];
-			var goalCompleted = OrderCompleted(goalTasks.Where(task => task.IsCompleted && InPeriod(task.CompletedAt, startUtc, endUtc))).ToList();
+			var goalCompleted = OrderCompleted(goalTasks.Where(task => !task.IsRecurring && task.IsCompleted && InPeriod(task.CompletedAt, startUtc, endUtc))).ToList();
 			var goalIncomplete = OrderUnresolved(goalTasks.Where(task => !task.IsCompleted), asOfUtc).ToList();
-			var goalMissed = goalIncomplete.Where(task => InPeriod(task.FocusAt, focusStart, focusEnd)).ToList();
+			var goalMissed = goalIncomplete.Where(task => !task.IsRecurring && InPeriod(task.FocusAt, focusStart, focusEnd)).ToList();
 			return new ReflectionGoalSummary(
 				goal.Id, goal.Title, goalCompleted.Count, goalIncomplete.Count, goalIncomplete.Count(task => IsOverdue(task, asOfUtc)), goalMissed.Count,
 				goalCompleted.Take(options.TaskSampleLimit).Select(task => ToSample(task, taskListContexts, taskPreviews)).ToList(),
 				goalMissed.Take(options.TaskSampleLimit).Select(task => ToSample(task, taskListContexts, taskPreviews)).ToList());
 		}).ToList();
+
+		var calendarSnapshot = period ?? ReportWorkReader.UtcCalendar(asOfUtc);
+		var scheduledStart = period?.StartDate ?? DateOnly.FromDateTime(startUtc);
+		var scheduledEnd = period?.EndExclusiveDate ?? DateOnly.FromDateTime(endUtc).AddDays(endUtc.TimeOfDay == TimeSpan.Zero ? 0 : 1);
+		var work = await ReportWorkReader.ReadAsync(db, calendarSnapshot, new(scheduledStart, scheduledEnd),
+			startUtc, endUtc, options.TaskSampleLimit, cancellationToken);
+		var completedGoals = work.Goals.Where(g => g.CompletionActivity.CompletedCount > 0).Select(g => g.Id).ToHashSet();
 
 		return new ReflectionReport(
 			asOfUtc, startUtc, endUtc, period?.TimeZone ?? "UTC", period is null ? "[periodStartUtc, periodEndExclusiveUtc)" : $"{period.Name}: instants [periodStartUtc, periodEndExclusiveUtc); focus calendar dates [startDate, endExclusiveDate)", Limitations,
@@ -130,9 +137,9 @@ public sealed class ReflectionReportReader(
 				inbox.Take(options.NoteSampleLimit).Select(note => ToSample(note, noteListContexts, notePreviews)).ToList()),
 			new ReflectionSignals(
 				missedFocus.Take(options.TaskSampleLimit).Select(task => ToSample(task, taskListContexts, taskPreviews)).ToList(), missedFocus.Count,
-				goalSummaries.Where(goal => goal.CompletedTaskCount == 0).Select(goal => new StrategicEntityReference(goal.Id, goal.Title)).ToList(),
+				goalSummaries.Where(goal => goal.CompletedTaskCount == 0 && !completedGoals.Contains(goal.Id)).Select(goal => new StrategicEntityReference(goal.Id, goal.Title)).ToList(),
 				overdue.Take(options.TaskSampleLimit).Select(task => ToSample(task, taskListContexts, taskPreviews)).ToList(), overdue.Count,
-				inbox.Count)) { Calendar = period };
+				inbox.Count)) { Calendar = period, Work = work };
 	}
 
 	private static HashSet<Guid> SelectTaskSampleIds(
@@ -154,14 +161,14 @@ public sealed class ReflectionReportReader(
 		ids.UnionWith(overdue.Take(limit).Select(task => task.Id));
 		foreach (var group in contextGroups)
 		{
-			ids.UnionWith(OrderCompleted(group.Where(task => task.IsCompleted && InPeriod(task.CompletedAt, startUtc, endUtc))).Take(limit).Select(task => task.Id));
-			ids.UnionWith(OrderUnresolved(group.Where(task => !task.IsCompleted && InPeriod(task.FocusAt, focusStart, focusEnd)), asOfUtc).Take(limit).Select(task => task.Id));
+			ids.UnionWith(OrderCompleted(group.Where(task => !task.IsRecurring && task.IsCompleted && InPeriod(task.CompletedAt, startUtc, endUtc))).Take(limit).Select(task => task.Id));
+			ids.UnionWith(OrderUnresolved(group.Where(task => !task.IsRecurring && !task.IsCompleted && InPeriod(task.FocusAt, focusStart, focusEnd)), asOfUtc).Take(limit).Select(task => task.Id));
 		}
 		foreach (var goal in goals)
 		{
 			var goalTasks = tasksByGoal.GetValueOrDefault(goal.Id) ?? [];
-			ids.UnionWith(OrderCompleted(goalTasks.Where(task => task.IsCompleted && InPeriod(task.CompletedAt, startUtc, endUtc))).Take(limit).Select(task => task.Id));
-			ids.UnionWith(OrderUnresolved(goalTasks.Where(task => !task.IsCompleted && InPeriod(task.FocusAt, focusStart, focusEnd)), asOfUtc).Take(limit).Select(task => task.Id));
+			ids.UnionWith(OrderCompleted(goalTasks.Where(task => !task.IsRecurring && task.IsCompleted && InPeriod(task.CompletedAt, startUtc, endUtc))).Take(limit).Select(task => task.Id));
+			ids.UnionWith(OrderUnresolved(goalTasks.Where(task => !task.IsRecurring && !task.IsCompleted && InPeriod(task.FocusAt, focusStart, focusEnd)), asOfUtc).Take(limit).Select(task => task.Id));
 		}
 		return ids;
 	}
@@ -214,7 +221,7 @@ public sealed class ReflectionReportReader(
 	private sealed record ListRow(Guid Id, Guid? ContextId, bool IsArchived);
 	private sealed record ContextRow(Guid Id, string Name);
 	private sealed record GoalRow(Guid Id, string Title);
-	private sealed record TaskRow(Guid Id, string Title, bool IsCompleted, bool IsImportant, DateTime CreatedAt, DateTime? CompletedAt, DateTime? DueAt, DateTime? FocusAt, Guid TaskListId, Guid? GoalId);
+	private sealed record TaskRow(Guid Id, string Title, bool IsCompleted, bool IsImportant, DateTime CreatedAt, DateTime? CompletedAt, DateTime? DueAt, DateTime? FocusAt, Guid TaskListId, Guid? GoalId, bool IsRecurring);
 	private sealed record NoteRow(Guid Id, string Title, bool IsPinned, DateTime CreatedAt, DateTime UpdatedAt, Guid NoteListId, Guid? GoalId);
 	private sealed record PreviewRow(Guid Id, string? Value, bool Truncated);
 	private sealed record ContextKey(Guid? Id, string Name);

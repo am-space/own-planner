@@ -1,3 +1,5 @@
+using OwnPlanner.Application.Calendar;
+using OwnPlanner.Infrastructure.WeeklyReviews;
 using FluentAssertions;
 using System.Data.Common;
 using Microsoft.Data.Sqlite;
@@ -261,7 +263,7 @@ public class StrategicReportReaderTests
 			new NoteItem("Large note", noteList.Id, new string('n', 100_000)));
 		await db.SaveChangesAsync(ct);
 		var interceptor = new CommandCaptureInterceptor();
-		var reader = new StrategicReportReader(new CapturingDbContextFactory(connection, interceptor), new FixedTimeProvider(AsOfUtc));
+		var reader = new StrategicReportReader(new CapturingDbContextFactory(connection, interceptor), new PlanningCalendar(new WeeklyReviewStore(new TestPlannerDbContextFactory(connection)), new FixedTimeProvider(AsOfUtc)));
 
 		var report = await reader.GetAsync(new StrategicReportOptions(0, 0), ct);
 
@@ -287,7 +289,7 @@ public class StrategicReportReaderTests
 			new NoteItem("Large note", noteList.Id, new string('n', 100_000)));
 		await db.SaveChangesAsync(ct);
 		var interceptor = new CommandCaptureInterceptor();
-		var reader = new StrategicReportReader(new CapturingDbContextFactory(connection, interceptor), new FixedTimeProvider(AsOfUtc));
+		var reader = new StrategicReportReader(new CapturingDbContextFactory(connection, interceptor), new PlanningCalendar(new WeeklyReviewStore(new TestPlannerDbContextFactory(connection)), new FixedTimeProvider(AsOfUtc)));
 
 		var report = await reader.GetAsync(new StrategicReportOptions(1, 1), ct);
 
@@ -313,7 +315,7 @@ public class StrategicReportReaderTests
 	}
 
 	private static StrategicReportReader CreateReader(SqliteConnection connection) =>
-		new(new TestPlannerDbContextFactory(connection), new FixedTimeProvider(AsOfUtc));
+		new(new TestPlannerDbContextFactory(connection), new PlanningCalendar(new WeeklyReviewStore(new TestPlannerDbContextFactory(connection)), new FixedTimeProvider(AsOfUtc)));
 
 	private static AppDbContext CreateDb(out SqliteConnection connection)
 	{

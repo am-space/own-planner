@@ -18,7 +18,7 @@ public sealed class PlanningWorkStore(IPlannerDbContextFactory factory) : IPlann
 		return result;
 	}
 
-	private sealed class Snapshot(AppDbContext db) : IPlanningWorkSnapshot
+	internal sealed class Snapshot(AppDbContext db, bool readDescriptions = true) : IPlanningWorkSnapshot
 	{
 		private IQueryable<TaskItem> AvailableTasks => db.TaskItems.AsNoTracking().Where(t => t.TrashedAt == null
 			&& db.TaskLists.Any(l => l.Id == t.TaskListId && !l.IsArchived));
@@ -27,9 +27,12 @@ public sealed class PlanningWorkStore(IPlannerDbContextFactory factory) : IPlann
 
 		public async Task<IReadOnlyList<PlanningWorkSource>> GetSourcesAsync(bool includeCompleted, CancellationToken ct)
 		{
-			var tasks = await AvailableTasks.Where(t => includeCompleted || !t.IsCompleted).ToListAsync(ct);
-			var contexts = await db.TaskLists.AsNoTracking().ToDictionaryAsync(l => l.Id, l => l.ContextId, ct);
-			return tasks.Select(t => new PlanningWorkSource(t.Id, t.Title, t.Description, t.TaskListId, contexts[t.TaskListId],
+			var tasks = await AvailableTasks.Where(t => includeCompleted || !t.IsCompleted)
+				.Select(t => new { t.Id, t.Title, PreviewText = readDescriptions ? t.Description : null, t.TaskListId,
+					t.GoalId, t.IsImportant, t.IsCompleted, t.FocusAt, t.DueAt, t.Recurrence, t.RecurrencePredecessorTaskId, t.RecurrenceSuccessorTaskId })
+				.ToListAsync(ct);
+			var contexts = await db.TaskLists.AsNoTracking().Select(l => new { l.Id, l.ContextId }).ToDictionaryAsync(l => l.Id, l => l.ContextId, ct);
+			return tasks.Select(t => new PlanningWorkSource(t.Id, t.Title, t.PreviewText, t.TaskListId, contexts[t.TaskListId],
 				t.GoalId, t.IsImportant, t.IsCompleted, t.FocusAt,
 				// SQLite stores this legacy instant without DateTime.Kind; keep the new read contract UTC.
 				t.DueAt.HasValue ? DateTime.SpecifyKind(t.DueAt.Value, DateTimeKind.Utc) : null, t.Recurrence,

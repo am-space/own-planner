@@ -1,12 +1,13 @@
 # Recurring-task foundations and staged contracts
 
-Stages 1–4 ([#89](https://github.com/am-space/own-planner/issues/89),
+Stages 1–5 ([#89](https://github.com/am-space/own-planner/issues/89),
 [#90](https://github.com/am-space/own-planner/issues/90),
 [#91](https://github.com/am-space/own-planner/issues/91),
-[#92](https://github.com/am-space/own-planner/issues/92)) provide internal recurrence types, a
+[#92](https://github.com/am-space/own-planner/issues/92),
+[#93](https://github.com/am-space/own-planner/issues/93)) provide internal recurrence types, a
 deterministic calendar engine, per-user persistence, lifecycle reconciliation and linked successor
-commands, unified planning reads and fact history. Public recurring-task creation, MCP operations, report integration
-and browser features remain unavailable. The [active implementation plan](recurring-tasks-plan.md)
+commands, unified planning reads, fact history and occurrence-aware reports. Public recurring-task
+creation, occurrence MCP operations and browser features remain unavailable. The [active implementation plan](recurring-tasks-plan.md)
 tracks all eight stages of [#84](https://github.com/am-space/own-planner/issues/84).
 The later-stage sections below describe required future behavior.
 
@@ -288,10 +289,68 @@ snapshot and can reflect concurrent writes; this is deterministic paging per cal
 multi-request export. Missing timezone uses the disclosed shared UTC fallback. Infrastructure loads
 current source metadata and selected persisted facts in memory; only generated work streams are lazy.
 
-## Integration remaining in stages 5–8
+## Integration remaining in stages 6–8
 
 The readers are registered in web and stdio but have no public route/tool. Existing task-list queries,
-`taskitem_list_*`, report presentation and browser shapes retain their stored-task meaning. Reports,
-preloads and Weekly Review must consume the shared projection/history inputs before public series
-creation is enabled. No stage may count parent closure as extra work or infer duration/capacity
+`taskitem_list_*` and browser shapes retain their stored-task meaning. Reports and preloads include
+additive mixed-work evidence. Weekly Review must consume the shared projection/history inputs before
+public series creation is enabled. No stage may count parent closure as extra work or infer duration/capacity
 from repeated occurrence counts. The overall #84 plan stays active through #96.
+
+## Occurrence-aware reports (stage 5)
+
+General, local General calendar/attention, Day Work, Week Planning, Reflection and strategic reports
+include an additive `Work` block. Existing fields and GUID samples retain stored-task semantics;
+use `Work` for mixed actionable work. General's original UTC block covers today through today+8
+calendar dates and today's completion activity. `Calendar.Work` uses the requested local period.
+Day/attention/weekly/reflection work uses the report's resolved window; strategic work covers the
+next seven local calendar dates including today. Explicit legacy weekly/reflection overrides keep
+UTC behavior. Rolling reflection's date selection includes touched dates while its activity keeps
+the exact instant boundaries shown in the report.
+
+| Section | Selection and units |
+| --- | --- |
+| `Pending` | Open ordinary work selected by focus or local deadline date; computed pending occurrences in the window, earlier unresolved occurrences in overlapping current periods, and the complete retained prefix |
+| `Scheduled` | Original occurrence dates inside `ScheduledRange`, plus ordinary focus/deadline selection; calculated effective outcomes union independent recorded facts, with each fact taking precedence once |
+| `CompletionActivity` | Ordinary completions plus occurrence facts whose actual `CompletedAt` lies in `[ActivityStartUtc, ActivityEndExclusiveUtc)` |
+
+Ordinary selection and its representative date always use the original report range: an in-range
+focus date takes precedence, otherwise an in-range local deadline date selects the task. Expanding
+the occurrence window must not allow an older focus date to hide a deadline inside the report.
+
+Sections overlap and must not be summed. `Counts` distinguishes ordinary tasks, distinct series,
+occurrences, stored sources (`TaskCount`) and work items (`WorkItemCount`). Status counters describe
+work items, including explicit `PendingOccurrenceCount`; `BeforeWindowCount` discloses backlog.
+Each section and in-window day has exact totals and independent bounded samples. Weekly,
+reflection and strategic reports also include goal/context groups; compact General, attention and
+Day views omit these groups so workspace size cannot expand their payloads.
+Daily summaries cover only dates inside the requested range, so decades of retained obligations
+cannot expand the daily payload. Zero samples still return exact evidence and `Truncated=true`
+when work was omitted. Samples do not establish effort, overload or execution priority.
+
+A sample identifies an ordinary task by `TaskId` and an occurrence by `(TaskId, OccurrenceDate)`.
+It carries the full occurrence period, effective status and actual completion timestamp. Titles
+are clipped at 80 UTF-16 characters without splitting a surrogate pair; descriptions are absent.
+Samples sort by selection date, task ID and original occurrence date. Source metadata is emitted
+once per distinct sampled task in `Sources`; its real deadline is never copied into occurrence
+rows or counted as a new commitment per occurrence.
+
+A Friday occurrence completed Monday appears once in Friday's scheduled results and once in
+Monday's completion activity. Early completions and preserved successor facts outside shortened
+bounds follow the same rule, including after parent closure. A skipped-to-completed correction
+replaces its current status in fresh metrics. Parent closure contributes no completed work,
+including a parent with a manual focus date. Reflection's legacy completed/missed-focus counts
+refer to ordinary tasks; creation/remaining-task counts still describe stored records.
+
+Weekly no-focused-work signals take pending scheduled occurrences as concrete planning evidence.
+Reflection no-completed-work signals include actual occurrence activity. Neither signal depends
+on sampled rows. Strategic legacy structural observations continue counting each linked series
+once; `Work` provides its separate occurrence evidence without changing #79's historical limits.
+
+The shared report aggregator visits the stage-4 projection under the reader's existing tenant
+transaction and resolved calendar. It does not reconcile or save. Current metadata/preferences are
+not reconstructed historical assignments. Existing report tools and all six mode preloads return
+the same additive block through in-process/HTTP/stdio serialization, with shared interpretation
+guidance. No tool arguments or recurrence mutation permissions were added. Existing section/offset
+paging still applies to the original stored-task sections; `Work` is a separate bounded overview,
+with its own dates, sample limit and truncation. Public occurrence drill-down is stage 7.

@@ -81,6 +81,10 @@ public sealed class WeeklyReportReader(
 				due.Take(options.TaskSampleLimit).Select(task => ToSample(task, listContexts, previews)).ToList());
 		}).ToList();
 
+		var work = await ReportWorkReader.ReadAsync(db, period ?? ReportWorkReader.UtcCalendar(asOfUtc),
+			new(startDate, endDate), windowStartUtc, windowEndUtc, options.TaskSampleLimit, cancellationToken);
+		var recurringPlannedGoals = work.Goals.Where(g => g.Scheduled.PendingOccurrenceCount > 0).Select(g => g.Id).ToHashSet();
+
 		var contextGroups = orderedTasks.GroupBy(task => ResolveContext(task, listContexts, contextNames))
 			.OrderBy(group => group.Key.Name, StringComparer.OrdinalIgnoreCase)
 			.ThenBy(group => group.Key.Id)
@@ -104,9 +108,9 @@ public sealed class WeeklyReportReader(
 			days, contextGroups, goalSummaries,
 			new WeeklyPlanningSignals(
 				days.Where(day => day.IsOverloaded).Select(day => new WeeklyOverloadedDay(day.Date, day.DistinctTaskCount)).ToList(),
-				goalSummaries.Where(goal => goal.FocusedInsideWindowCount == 0).Select(goal => new StrategicEntityReference(goal.Id, goal.Title)).ToList(),
+				goalSummaries.Where(goal => goal.FocusedInsideWindowCount == 0 && !recurringPlannedGoals.Contains(goal.Id)).Select(goal => new StrategicEntityReference(goal.Id, goal.Title)).ToList(),
 				overdueNotFocused.Take(options.TaskSampleLimit).Select(task => ToSample(task, listContexts, previews)).ToList(), overdueNotFocused.Count,
-				importantWithoutFocus.Take(options.TaskSampleLimit).Select(task => ToSample(task, listContexts, previews)).ToList(), importantWithoutFocus.Count)) { Calendar = period };
+				importantWithoutFocus.Take(options.TaskSampleLimit).Select(task => ToSample(task, listContexts, previews)).ToList(), importantWithoutFocus.Count)) { Calendar = period, Work = work };
 	}
 
 	private static WeeklyContextSummary BuildContextSummary(ContextKey key, IReadOnlyList<TaskRow> tasks, DateTime start, DateTime end, DateTime focusStart, DateTime focusEnd, DateTime asOfUtc, IReadOnlyDictionary<Guid, Guid?> contexts, IReadOnlyDictionary<Guid, PreviewRow> previews, int limit)

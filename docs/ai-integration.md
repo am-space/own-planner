@@ -565,3 +565,15 @@ bounded overdue warnings. Daily attention/priority requests and completion follo
 reads by instruction; named today/overdue pages provide more matches. Only the daily read is added
 to Day Work permissions; existing execution tools remain unchanged. See [Day Work](day-work.md)
 for bounds, prioritization constraints, tenant binding and compatibility.
+
+## Recurring work in report context
+
+The existing General, Day Work, attention, weekly, reflection and strategic tools return additive
+`Work` evidence from the shared Application projection. All six mode preloads include these same
+report results. Use original `(TaskId, OccurrenceDate)` identities, separate scheduled-date outcomes
+from actual completion activity, and keep stored-task/series counters distinct from occurrence
+counts. Bounded samples never determine exact counts or goal diagnoses. General's local evidence
+is `Calendar.Work`; its root `Work` retains the UTC selection. See
+[recurring-task report contracts](recurring-tasks.md#occurrence-aware-reports-stage-5) and
+[ADR-0040](adr/0040-occurrence-aware-reports.md). No recurrence action tools or permissions are
+introduced in this stage.

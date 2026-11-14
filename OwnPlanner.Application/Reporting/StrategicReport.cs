@@ -26,7 +26,11 @@ public sealed record StrategicReport(
 	StrategicOverallTotals Totals,
 	IReadOnlyList<StrategicContextSummary> Contexts,
 	IReadOnlyList<StrategicGoalSummary> Goals,
-	StrategicStructuralSignals Signals);
+	StrategicStructuralSignals Signals)
+{
+	/// <summary>Mixed ordinary/occurrence evidence; legacy fields retain stored-task units.</summary>
+	public ReportWork? Work { get; init; }
+}
 
 public sealed record StrategicOverallTotals(
 	int ContextCount,
