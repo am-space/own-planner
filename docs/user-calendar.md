@@ -37,6 +37,19 @@ A DST week can contain 167 or 169 hours. `lastSevenDays` deliberately remains 16
 so its partial first/last local dates can differ from a seven-date calendar window. An exact midnight
 exclusive end excludes the newly starting date from focus membership.
 
+The shared task tools parse `dueAt` values with `Z` or a numeric offset as instants and normalize
+them to UTC. Legacy date-only and offset-free deadline inputs retain their clock fields as UTC
+(a date-only value means midnight UTC). Focus setters and explicit focus-date queries instead keep
+the supplied calendar fields, including any legacy time component, and label them UTC without
+applying the supplied offset. For example, `2026-08-19T00:30:00+02:00` is a deadline at
+`2026-08-18T22:30:00Z`, but a focus value on August 19 at 00:30. Date-only focus input remains
+supported. Existing culture-sensitive date formats remain accepted.
+
+Previously, task tools used default `DateTime.TryParse`, which converted offset-bearing inputs to
+server-local time before domain setters labelled those fields UTC. This could shift persisted
+deadlines and focus dates on non-UTC servers. The parsing fix prevents new shifts; existing stored
+values are unchanged because the original input and server timezone cannot be recovered reliably.
+
 ## Mode behavior and freshness
 
 | Mode | Explicit preload |

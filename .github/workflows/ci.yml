@@ -87,6 +87,13 @@ jobs:
           APP_FILE_VERSION: ${{ steps.version.outputs.app_file_version }}
         run: ./scripts/verify.sh --backend
 
+      - name: Verify task dates outside UTC
+        env:
+          TZ: Europe/Warsaw
+        run: |
+          dotnet test --project OwnPlanner.Mcp.Tools.Tests/OwnPlanner.Mcp.Tools.Tests.csproj --no-build --no-restore -c Release
+          dotnet test --project OwnPlanner.Web.Server.Tests/OwnPlanner.Web.Server.Tests.csproj --no-build --no-restore -c Release
+
       - name: Verify E2E
         run: ./scripts/verify.sh --e2e
 
