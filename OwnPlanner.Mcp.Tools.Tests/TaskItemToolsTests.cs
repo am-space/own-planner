@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using FluentAssertions;
 using NSubstitute;
@@ -37,6 +38,111 @@ public class TaskItemToolsTests
 	// so we assert the actual on-the-wire shape.
 	private static JsonElement AsJson(object result) =>
 		JsonSerializer.SerializeToElement(result, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+
+	[Theory]
+	[InlineData("2026-08-19T12:00:00Z", "2026-08-19T12:00:00Z")]
+	[InlineData("2026-08-19T00:30:00+02:00", "2026-08-18T22:30:00Z")]
+	[InlineData("2026-08-19T23:30:00-07:00", "2026-08-20T06:30:00Z")]
+	[InlineData("2026-08-19", "2026-08-19T00:00:00Z")]
+	[InlineData("2026-08-19T12:00:00", "2026-08-19T12:00:00Z")]
+	public async Task TaskDeadlines_CreateAndUpdate_PreserveUtcInstant(string input, string expectedUtc)
+	{
+		var id = Guid.NewGuid();
+		var listId = Guid.NewGuid();
+		var expected = DateTime.Parse(expectedUtc, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
+
+		await _tools.CreateTask("Deadline", listId, dueAt: input);
+		await _tools.UpdateTask(id, dueAt: input);
+
+		await _service.Received(1).CreateAsync("Deadline", listId,
+			dueAt: Arg.Is<DateTime?>(value => value == expected && value.Value.Kind == DateTimeKind.Utc), ct: Arg.Any<CancellationToken>());
+		await _service.Received(1).UpdateAsync(id,
+			dueAt: Arg.Is<DateTime?>(value => value == expected && value.Value.Kind == DateTimeKind.Utc), ct: Arg.Any<CancellationToken>());
+	}
+
+	[Theory]
+	[InlineData("2026-08-19", "2026-08-19T00:00:00Z")]
+	[InlineData("2026-08-19T12:00:00", "2026-08-19T12:00:00Z")]
+	[InlineData("2026-08-19T23:30:00Z", "2026-08-19T23:30:00Z")]
+	[InlineData("2026-08-19T00:30:00+02:00", "2026-08-19T00:30:00Z")]
+	[InlineData("2026-08-19T23:30:00-07:00", "2026-08-19T23:30:00Z")]
+	public async Task FocusDates_SetAndList_PreserveSelectedCalendarFields(string input, string expectedUtc)
+	{
+		var ct = TestContext.Current.CancellationToken;
+		var id = Guid.NewGuid();
+		var expected = DateTime.Parse(expectedUtc, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
+		_service.ListByFocusDatePagedAsync(Arg.Any<DateTime>(), false, 0, 25, ct)
+			.Returns(new PagedResult<TaskItemDto>([], 0, 0, 25));
+
+		var result = AsJson(await _tools.SetTaskFocusDate(id, input));
+		await _tools.ListTasksByFocusDate(input, cancellationToken: ct);
+
+		result.GetProperty("focusDate").GetDateTime().Should().Be(expected);
+		result.GetProperty("focusDate").GetDateTime().Kind.Should().Be(DateTimeKind.Utc);
+		await _service.Received(1).SetFocusDateAsync(id,
+			Arg.Is<DateTime?>(value => value == expected && value.Value.Kind == DateTimeKind.Utc), Arg.Any<CancellationToken>());
+		await _service.Received(1).ListByFocusDatePagedAsync(
+			Arg.Is<DateTime>(value => value == expected && value.Kind == DateTimeKind.Utc), false, 0, 25, ct);
+	}
+
+	[Theory]
+	[InlineData(null)]
+	[InlineData("")]
+	[InlineData(" ")]
+	public async Task FocusDates_EmptyInput_ClearsFocus(string? input)
+	{
+		var id = Guid.NewGuid();
+
+		var result = AsJson(await _tools.SetTaskFocusDate(id, input));
+
+		result.GetProperty("focusDate").ValueKind.Should().Be(JsonValueKind.Null);
+		await _service.Received(1).ClearFocusDateAsync(id, Arg.Any<CancellationToken>());
+	}
+
+	[Fact]
+	public async Task FocusDates_InvalidInput_ReturnsErrorsWithoutServiceCalls()
+	{
+		var set = AsJson(await _tools.SetTaskFocusDate(Guid.NewGuid(), "invalid"));
+		var list = AsJson(await _tools.ListTasksByFocusDate("invalid", cancellationToken: TestContext.Current.CancellationToken));
+
+		set.GetProperty("error").GetString().Should().Be("Invalid date format for focusDate");
+		list.GetProperty("error").GetString().Should().Be("Invalid date format for focusDate");
+		_service.ReceivedCalls().Should().BeEmpty();
+	}
+
+	[Fact]
+	public async Task CreateTask_InvalidDeadline_PreservesLegacyCreationWithoutDeadline()
+	{
+		var listId = Guid.NewGuid();
+
+		await _tools.CreateTask("Legacy", listId, dueAt: "invalid");
+
+		await _service.Received(1).CreateAsync("Legacy", listId, dueAt: null, ct: Arg.Any<CancellationToken>());
+	}
+
+	[Theory]
+	[InlineData("en-US", "8/19/2026")]
+	[InlineData("pl-PL", "19.08.2026")]
+	public async Task TaskDates_KeepLegacyCultureSpecificDateInputs(string culture, string input)
+	{
+		var previousCulture = CultureInfo.CurrentCulture;
+		try
+		{
+			CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo(culture);
+			var id = Guid.NewGuid();
+			var expected = new DateTime(2026, 8, 19, 0, 0, 0, DateTimeKind.Utc);
+
+			await _tools.UpdateTask(id, dueAt: input);
+			await _tools.SetTaskFocusDate(id, input);
+
+			await _service.Received(1).UpdateAsync(id, dueAt: expected, ct: Arg.Any<CancellationToken>());
+			await _service.Received(1).SetFocusDateAsync(id, expected, Arg.Any<CancellationToken>());
+		}
+		finally
+		{
+			CultureInfo.CurrentCulture = previousCulture;
+		}
+	}
 
 	[Fact]
 	public void UpdateTask_McpSdkSchema_ExposesOptionalClearDueAt()

@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Globalization;
 using ModelContextProtocol.Server;
 using OwnPlanner.Application.Common;
 using OwnPlanner.Application.Calendar;
@@ -32,7 +33,7 @@ public class TaskItemTools
 		try
 		{
 			DateTime? dueDate = null;
-			if (!string.IsNullOrEmpty(dueAt) && DateTime.TryParse(dueAt, out var parsed))
+			if (!string.IsNullOrEmpty(dueAt) && TryParseDeadline(dueAt, out var parsed))
 				dueDate = parsed;
 
 			var dto = await _service.CreateAsync(title, taskListId, description, dueDate, goalId: goalId);
@@ -71,7 +72,7 @@ public class TaskItemTools
 			DateTime? dueDate = null;
 			if (!clearDueAt && !string.IsNullOrEmpty(dueAt))
 			{
-				if (DateTime.TryParse(dueAt, out var parsed))
+				if (TryParseDeadline(dueAt, out var parsed))
 					dueDate = parsed;
 				else
 					return new { error = "Invalid date format for dueAt" };
@@ -207,7 +208,7 @@ public class TaskItemTools
 		{
 			date = DateTime.UtcNow.Date;
 		}
-		else if (!DateTime.TryParse(focusDate, out date))
+		else if (!TryParseFocusDate(focusDate, out date))
 		{
 			return new { error = "Invalid date format for focusDate" };
 		}
@@ -234,7 +235,7 @@ public class TaskItemTools
 				return new { error = ex.Message };
 			}
 		}
-		if (!DateTime.TryParse(focusDate, out var date))
+		if (!TryParseFocusDate(focusDate, out var date))
 			return new { error = "Invalid date format for focusDate" };
 		try
 		{
@@ -245,6 +246,23 @@ public class TaskItemTools
 		{
 			return new { error = ex.Message };
 		}
+	}
+
+	private static bool TryParseDeadline(string value, out DateTime date) =>
+		// Preserve explicit instants; legacy date-only/offset-free values already represent UTC fields.
+		DateTime.TryParse(value, CultureInfo.CurrentCulture,
+			DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out date);
+
+	private static bool TryParseFocusDate(string value, out DateTime date)
+	{
+		date = default;
+		if (!DateTimeOffset.TryParse(value, CultureInfo.CurrentCulture, DateTimeStyles.AssumeUniversal, out var parsed))
+			return false;
+
+		// Focus is a selected calendar date, not an instant. Retain legacy time fields too,
+		// without converting either an explicit offset or an offset-free value to server-local time.
+		date = DateTime.SpecifyKind(parsed.DateTime, DateTimeKind.Utc);
+		return true;
 	}
 
 	/// <summary>

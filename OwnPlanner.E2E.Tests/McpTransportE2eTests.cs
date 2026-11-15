@@ -165,8 +165,27 @@ public sealed partial class McpTransportE2eTests(E2eWebApplicationFactory applic
 		var created = await CallAsync(client, "taskitem_create", new() { ["title"] = title, ["taskListId"] = WellKnownIds.InboxTaskList, ["dueAt"] = "2026-10-01" }, ct);
 		var id = created.GetProperty("id").GetGuid();
 		created.GetProperty("title").GetString().Should().Be(title);
+		created.GetProperty("dueAt").GetDateTime().Should().Be(new DateTime(2026, 10, 1));
+		var deadline = await CallAsync(client, "taskitem_update", new()
+		{
+			["id"] = id, ["dueAt"] = "2026-10-01T00:30:00+02:00"
+		}, ct);
+		deadline.GetProperty("dueAt").GetDateTime().Should().Be(new DateTime(2026, 9, 30, 22, 30, 0, DateTimeKind.Utc));
+		var focus = await CallAsync(client, "taskitem_set_focus_date", new()
+		{
+			["id"] = id, ["focusDate"] = "2026-10-01T23:30:00-07:00"
+		}, ct);
+		var selectedFocus = new DateTime(2026, 10, 1, 23, 30, 0, DateTimeKind.Utc);
+		focus.GetProperty("focusDate").GetDateTime().Should().Be(selectedFocus);
+		foreach (var query in new[] { "2026-10-01", "2026-10-01T23:30:00-07:00" })
+		{
+			var focused = await CallAsync(client, "taskitem_list_by_focus_date", new() { ["focusDate"] = query }, ct);
+			focused.GetProperty("items").EnumerateArray().Should().ContainSingle()
+				.Which.GetProperty("id").GetGuid().Should().Be(id);
+		}
 		var updated = await CallAsync(client, "taskitem_update", new() { ["id"] = id, ["clearDueAt"] = true }, ct);
 		updated.GetProperty("dueAt").ValueKind.Should().Be(JsonValueKind.Null);
+		updated.GetProperty("focusAt").GetDateTime().Should().Be(selectedFocus);
 		var persisted = await CallAsync(client, "taskitem_get", new() { ["id"] = id }, ct);
 		AssertTaskContent(updated, persisted);
 		// SQLite round-trips DateTime ticks but does not preserve DateTime.Kind.

@@ -50,6 +50,22 @@ The backend phase builds the solution, then runs each root `OwnPlanner.*.Tests` 
 failure for unexpectedly empty test discovery without treating intentionally excluded suites as
 errors. New backend projects matching that convention are picked up automatically.
 
+CI also runs the complete MCP tool and Web suites with `TZ=Europe/Warsaw` after backend verification.
+This catches server-local timestamp parsing that UTC-only runs conceal. To reproduce locally after
+building, run the same test assemblies in both zones:
+
+```sh
+TZ=UTC dotnet test --project OwnPlanner.Web.Server.Tests --no-build --no-restore -c Release
+TZ=Europe/Warsaw dotnet test --project OwnPlanner.Web.Server.Tests --no-build --no-restore -c Release
+TZ=Europe/Warsaw dotnet test --project OwnPlanner.Mcp.Tools.Tests --no-build --no-restore -c Release
+```
+
+`TaskDateParsingIntegrationTests` covers persisted UTC/offset deadline instants, calendar-boundary
+crossings, date-only/offset-free compatibility, selected focus fields and queries, and deadline
+clearing without changing focus. Its pre-fix Warsaw run failed four of six cases, including a
+`12:00Z` deadline returned as `14:00Z`. `TaskItemToolsTests` also checks parsed values and UTC kinds
+at the service boundary; the shared HTTP/stdio transport tests cover the same date distinction.
+
 The E2E phase selects only `Category=E2E`. TRX reports use xUnit's built-in
 `--report-xunit-trx --report-xunit-trx-filename e2e.trx` with an explicit results directory;
 CI's artifact path remains `TestResults/E2E`. Deployment wrappers use the same report options
